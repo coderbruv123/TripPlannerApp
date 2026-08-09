@@ -10,7 +10,6 @@ A travel planning app built with **React + TypeScript** and **ASP.NET Core**.
 * Bus route estimation
 * Interactive MapLibre map
 * Route visualization
-* Basic travel options and budget breakdown
 
 ## Tech Stack
 
