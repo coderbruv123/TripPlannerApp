@@ -1,6 +1,6 @@
 # TripPlannerApp 🚗✈️
 
-A travel planning app built with **React + TypeScript** and **ASP.NET Core**.
+A travel planning app built with **React + TypeScript** and **ASP.NET Core** .
 
 ## Current Features
 
@@ -11,7 +11,7 @@ A travel planning app built with **React + TypeScript** and **ASP.NET Core**.
 * Interactive MapLibre map
 * Route visualization
 
-## Tech Stack
+## Tech Stackhttps://github.com/coderbruv123/TripPlannerApp/blob/main/README.md
 
 * React + TypeScript
 * Tailwind CSS
@@ -20,3 +20,5 @@ A travel planning app built with **React + TypeScript** and **ASP.NET Core**.
 * OpenRouteService
 
 > 🚧 **Work in progress**
+Mobile
+A mobile version of the app also exists and is currently in development, but is behind the web version in terms of features and progress.
