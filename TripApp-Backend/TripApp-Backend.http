@@ -1,0 +1,6 @@
+@TripApp_Backend_HostAddress = http://localhost:5176
+
+GET {{TripApp_Backend_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
