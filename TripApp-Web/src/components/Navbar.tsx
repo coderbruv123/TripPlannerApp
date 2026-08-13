@@ -1,46 +1,125 @@
-import { ChevronDown, Bell, Globe } from "lucide-react";
- 
+import { Bell, Compass, Search, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+
+const avatarUrl =
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
+
 export default function Navbar() {
+  const [showSearch, setShowSearch] = useState(false);
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(
+    localStorage.getItem("isLoggedIn") === "true"
+  );
+  const userName = localStorage.getItem("userName") || "User";
+
   return (
-    <header className="w-full border-b border-slate-100 bg-white">
-      <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4 lg:px-10">
+    <>
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#E9E9EC] bg-white px-5 shadow-[0_2px_12px_rgba(15,31,61,0.05)] sm:px-8">
         {/* Logo */}
-        <div className="flex items-center gap-8">
-          <a href="#" className="flex items-center gap-1.5">
-            <span className="h-6 w-6 rounded-full bg-gradient-to-br from-indigo-600 to-violet-500" />
-            <span className="text-lg font-semibold tracking-tight text-slate-900">
-              .fis
-            </span>
-          </a>
- 
-          <button className="hidden items-center gap-1 text-sm text-slate-600 hover:text-slate-900 sm:flex">
-            Travelers
-            <ChevronDown className="h-4 w-4" />
-          </button>
-        </div>
- 
+        <Link
+          to="/"
+          className="flex items-center gap-2.5"
+          aria-label="TripPlanner home"
+        >
+          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E8F8F6] text-[#00BFA5]">
+            <Compass size={21} strokeWidth={2.3} />
+          </span>
+
+          <span className="text-[17px] font-bold tracking-[-0.4px] text-[#0F1F3D]">
+            TripPlanner
+          </span>
+        </Link>
+
         {/* Right side */}
-        <nav className="flex items-center gap-5">
-        
- 
-          <button className="hidden text-slate-500 hover:text-slate-900 md:block">
-            <Globe className="h-4 w-4" />
+        <nav
+          className="relative flex items-center gap-1.5"
+          aria-label="Account actions"
+        >
+          {/* Search */}
+          <button
+            type="button"
+            onClick={() =>
+              setShowSearch((current) => !current)
+            }
+            aria-label="Search"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+          >
+            {showSearch ? (
+              <X size={18} strokeWidth={1.8} />
+            ) : (
+              <Search size={18} strokeWidth={1.8} />
+            )}
           </button>
 
- 
-          <button className="relative text-slate-500 hover:text-slate-900">
-            <Bell className="h-5 w-5" />
-            <span className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-indigo-600" />
+          {/* Notifications */}
+          <button
+            type="button"
+            onClick={() =>
+              setShowNotifications((current) => !current)
+            }
+            aria-label="Notifications"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+          >
+            <Bell size={18} strokeWidth={1.8} />
+
+            <span className="absolute right-[7px] top-[6px] h-1.5 w-1.5 rounded-full bg-[#FF4444]" />
           </button>
- 
-          <img
-            src="https://i.pravatar.cc/64?img=12"
-            alt="Profile"
-            className="h-8 w-8 rounded-full object-cover"
-          />
+
+          {/* Divider */}
+          <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
+
+          {/* Profile */}
+          <Link
+            to="/profile"
+            className="ml-1 flex items-center gap-2"
+          >
+            <img
+              src={avatarUrl}
+              alt="Portrait of Alex Johnson"
+              className="h-9 w-9 rounded-full border-2 border-[#00BFA5] object-cover"
+            />
+
+            <span className="hidden pl-1 text-[13px] font-semibold text-[#0F1F3D] sm:block">
+              {userName}
+            </span>
+          </Link>
+
+          {/* Notifications popup */}
+          {showNotifications && (
+            <div
+              role="status"
+              className="absolute right-0 top-[50px] w-64 rounded-xl border border-[#E5E5E5] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(15,31,61,0.12)]"
+            >
+              <strong className="block text-[#0F1F3D]">
+                Notifications
+              </strong>
+
+              <span className="mt-1 block text-[#667085]">
+                Your Yosemite trip is ready to review.
+              </span>
+            </div>
+          )}
         </nav>
-      </div>
-    </header>
+      </header>
+
+      {/* Search bar */}
+      {showSearch && (
+        <div className="border-b border-[#E5E5E5] bg-white px-5 py-3 sm:px-8">
+          <label className="mx-auto flex max-w-xl items-center gap-2 rounded-lg border border-[#DCDDE2] px-3 py-2 text-sm text-[#888] shadow-sm">
+            <Search size={16} />
+
+            <input
+              autoFocus
+              type="search"
+              placeholder="Search your trips and places"
+              className="w-full bg-transparent outline-none placeholder:text-[#A0A3AA]"
+              aria-label="Search your trips and places"
+            />
+          </label>
+        </div>
+      )}
+    </>
   );
 }
- 

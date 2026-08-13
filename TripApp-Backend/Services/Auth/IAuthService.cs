@@ -2,6 +2,6 @@ using TripApp_Backend.Dtos;
 
 public interface IAuthService
 {
-    Task<AuthResponseDto?> SignupAsync(SignupDto request);
-    Task<AuthResponseDto?> LoginAsync(LoginDto request);
+    Task<SignupResultDto> SignupAsync(SignupDto request);
+    Task<LoginResultDto?> LoginAsync(LoginDto request);
 }

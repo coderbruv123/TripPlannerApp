@@ -10,4 +10,22 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
+
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.Property(x => x.Role)
+                .HasConversion<int>()
+                .HasDefaultValue(UserRole.User);
+
+            entity.HasIndex(x => x.Email)
+                .IsUnique();
+
+            entity.HasIndex(x => x.Username)
+                .IsUnique();
+        });
+    }
 }

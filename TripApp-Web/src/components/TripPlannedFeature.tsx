@@ -5,6 +5,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 
+
 export default function TripPlannerFeature() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-20 lg:px-10">

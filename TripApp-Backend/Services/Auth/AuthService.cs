@@ -20,47 +20,87 @@ public class AuthService : IAuthService
         _jwtService = jwtService;
     }
 
-    public async Task<AuthResponseDto?> SignupAsync(SignupDto request)
+public async Task<SignupResultDto> SignupAsync(SignupDto request)
+{
+    var email = request.Email.Trim().ToLowerInvariant();
+    var username = request.Username.Trim();
+
+    // Check email
+    var emailExists = await _context.Users
+        .AnyAsync(x => x.Email == email);
+
+    // Check username
+    var usernameExists = await _context.Users
+        .AnyAsync(x => x.Username == username);
+
+    // Both exist
+    if (emailExists && usernameExists)
     {
-        var email = request.Email.Trim().ToLowerInvariant();
-
-        // Check existing email
-        var existingUser = await _context.Users
-            .FirstOrDefaultAsync(x => x.Email == email);
-
-        if (existingUser != null)
-            return null;
-
-        var user = new User
+        return new SignupResultDto
         {
-            Id = Guid.NewGuid(),
-            Username = request.Username.Trim(),
-            Email = email,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = DateTime.UtcNow
+            Success = false,
+            ErrorCode = "EMAIL_AND_USERNAME_EXISTS",
+            Message = "The email and username are already in use."
         };
+    }
 
-        // Hash password
-        user.PasswordHash = _passwordHasher.HashPassword(
-            user,
-            request.Password
-        );
+    // Email exists
+    if (emailExists)
+    {
+        return new SignupResultDto
+        {
+            Success = false,
+            ErrorCode = "EMAIL_EXISTS",
+            Message = "An account with this email already exists."
+        };
+    }
 
-        await _context.Users.AddAsync(user);
-        await _context.SaveChangesAsync();
+    // Username exists
+    if (usernameExists)
+    {
+        return new SignupResultDto
+        {
+            Success = false,
+            ErrorCode = "USERNAME_EXISTS",
+            Message = "This username is already taken."
+        };
+    }
 
-        var token = _jwtService.GenerateToken(user);
+    var user = new User
+    {
+        Id = Guid.NewGuid(),
+        Username = username,
+        Email = email,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
 
-        return new AuthResponseDto
+    user.PasswordHash = _passwordHasher.HashPassword(
+        user,
+        request.Password
+    );
+
+    await _context.Users.AddAsync(user);
+    await _context.SaveChangesAsync();
+
+    var token = _jwtService.GenerateToken(user);
+
+    return new SignupResultDto
+    {
+        Success = true,
+        Message = "Registration successful.",
+        Data = new AuthResponseDto
         {
             Token = token,
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email
-        };
+        }
+    };
+
     }
 
-    public async Task<AuthResponseDto?> LoginAsync(LoginDto request)
+    public async Task<LoginResultDto?> LoginAsync(LoginDto request)
     {
         var email = request.Email.Trim().ToLowerInvariant();
 
@@ -81,12 +121,18 @@ public class AuthService : IAuthService
 
         var token = _jwtService.GenerateToken(user);
 
-        return new AuthResponseDto
+
+         return new LoginResultDto
+    {
+        Success = true,
+        Message = "Login successful.",
+        Data = new AuthResponseDto
         {
             Token = token,
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email
-        };
+        }
+    };
     }
 }
