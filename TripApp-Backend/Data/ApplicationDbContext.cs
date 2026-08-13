@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TripApp_Backend.Models;
 
 namespace TripApp_Backend.Data;
 
@@ -10,6 +11,8 @@ public class ApplicationDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+
+    public DbSet<SavedJourney> SavedJourneys => Set<SavedJourney>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -26,6 +29,25 @@ public class ApplicationDbContext : DbContext
 
             entity.HasIndex(x => x.Username)
                 .IsUnique();
+        });
+
+        modelBuilder.Entity<SavedJourney>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+
+            entity.Property(x => x.JourneyJson)
+                .IsRequired();
+
+            entity.Property(x => x.EstimatedPrice)
+                .HasPrecision(18, 2);
+
+            entity.Property(x => x.SavedAt)
+                .HasDefaultValueSql("SYSUTCDATETIME()");
+
+            entity.HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

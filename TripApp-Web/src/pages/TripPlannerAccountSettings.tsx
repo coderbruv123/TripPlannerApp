@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   BriefcaseBusiness,
@@ -7,14 +7,14 @@ import {
   Headphones,
   Heart,
   LogOut,
-  MapPin,
   Search,
   Settings,
   UserRound,
   Plus,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
+import api from "../api/axiosInstance";
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
 
@@ -39,6 +39,22 @@ const defaultProfile: Profile = {
 };
 
 type ProfileKey = keyof Profile;
+
+type SavedJourney = {
+  id: string;
+  mode: string;
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice: number | null;
+  savedAt: string;
+  journey: {
+    mode: string;
+    legs: { mode: string }[];
+    totalDistanceKm: number;
+    totalDurationMinutes: number;
+    estimatedPrice: number | null;
+  };
+};
 
 const sidebarItems = [
   {
@@ -69,12 +85,9 @@ const sidebarItems = [
 
 export const TripPlannerAccountSettings = () => {
   /*
-   * Theme state
-   *
-   * This is intentionally NOT being used to change the UI yet.
-   * You can connect this state to your Settings page later.
+   * Theme state removed for now: connect this state to your
+   * Settings page later if a theme toggle is needed.
    */
-  const [darkMode, setDarkMode] = useState(false);
 const logout = () => {
   localStorage.removeItem("token");
   window.location.reload();
@@ -90,6 +103,43 @@ const logout = () => {
   const [showSearch, setShowSearch] = useState(false);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const navigate = useNavigate();
+
+  const [savedJourneys, setSavedJourneys] = useState<
+    SavedJourney[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get("/journeys/saved")
+      .then((response) => {
+        if (!cancelled) {
+          setSavedJourneys(response.data || []);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load saved journeys", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const removeSavedJourney = async (id: string) => {
+    try {
+      await api.delete(`/journeys/saved/${id}`);
+      setSavedJourneys((current) =>
+        current.filter((journey) => journey.id !== id)
+      );
+    } catch (error) {
+      console.error("Failed to delete saved journey", error);
+      alert("Failed to delete journey.");
+    }
+  };
 
   const updateProfile = (
     field: ProfileKey,
@@ -345,7 +395,100 @@ const logout = () => {
 
             <div className="border-t border-[#E1E1E4]" />
 
+            {/* ================= MY TRIPS (SAVED JOURNEYS) ================= */}
+
+            {activeItem === "My Trips" && (
+              <section
+                className="py-8"
+                aria-labelledby="my-trips-heading"
+              >
+                <h2
+                  id="my-trips-heading"
+                  className="text-[21px] font-bold tracking-[-0.4px]"
+                >
+                  My Trips
+                </h2>
+
+                <p className="mt-1.5 text-[14px] text-[#888]">
+                  Journeys you saved from your searches
+                </p>
+
+                {savedJourneys.length === 0 ? (
+                  <div className="mt-6 rounded-xl border border-dashed border-[#D6D8DE] bg-white p-8 text-center">
+                    <p className="text-[14px] text-[#888]">
+                      No saved journeys yet. Search for a trip
+                      and press "Save" to keep it here.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="mt-6 space-y-3">
+                    {savedJourneys.map((journey) => (
+                      <li
+                        key={journey.id}
+                        className="flex items-center justify-between gap-4 rounded-xl border border-[#E5E5E5] bg-white p-4 shadow-sm"
+                      >
+                        <button
+                          type="button"
+                          onClick={() =>
+                            navigate("/trip", {
+                              state: {
+                                journeys: journey.journey
+                                  ? [journey.journey]
+                                  : [],
+                              },
+                            })
+                          }
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E8F8F6] text-[#008F7C]">
+                            <BriefcaseBusiness
+                              size={18}
+                              strokeWidth={1.8}
+                            />
+                          </span>
+                          <span className="min-w-0">
+                            <strong className="block truncate text-[14px] text-[#0F1F3D]">
+                              {journey.journey
+                                ? journey.journey.mode
+                                : journey.mode}{" "}
+                              trip
+                            </strong>
+                            <span className="block text-[13px] text-[#888]">
+                              {journey.journey
+                                ? journey.journey.legs
+                                    .map((leg) => leg.mode)
+                                    .join(" + ")
+                                : journey.mode}
+                              {journey.estimatedPrice != null &&
+                                ` • $${journey.estimatedPrice.toFixed(0)}`}{" "}
+                              • Saved on{" "}
+                              {new Date(
+                                journey.savedAt
+                              ).toLocaleDateString()}
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeSavedJourney(journey.id)
+                          }
+                          aria-label="Delete saved journey"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#A0A3AA] transition hover:bg-[#FFF2F2] hover:text-[#FF4444]"
+                        >
+                          <X size={17} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             {/* ================= PROFILE ================= */}
+
+            {activeItem === "Profile" && (
 
             <section
               className="py-8"
@@ -567,9 +710,12 @@ const logout = () => {
 
               </div>
             </section>
+            )}
 
             {/* ================= SECURITY ================= */}
 
+            {activeItem === "Profile" && (
+            <>
             <div className="border-t border-[#E1E1E4]" />
 
             <section
@@ -637,6 +783,8 @@ const logout = () => {
                 </button>
               </div>
             </section>
+            </>
+            )}
 
           </div>
         </main>

@@ -9,35 +9,21 @@ namespace TripApp_Backend.Controllers;
 public class TripsController : ControllerBase
 {
     private readonly ITripPlannerService _planner;
-    private readonly IFlightService _flightService;
 
-    public TripsController(
-        ITripPlannerService planner,
-        IFlightService flightService)
+    public TripsController(ITripPlannerService planner)
     {
         _planner = planner;
-        _flightService = flightService;
     }
 
     [HttpPost("search")]
     public async Task<IActionResult> Search(
         TripRequest request)
     {
-        var routes = await _planner.SearchAsync(request);
-
-        var flight = await _flightService.SearchFlightAsync(
-            new FlightSearchRequest
-            {
-                OriginLat = request.OriginLat,
-                OriginLng = request.OriginLng,
-                DestinationLat = request.DestinationLat,
-                DestinationLng = request.DestinationLng
-            });
+        var journeys = await _planner.SearchAsync(request);
 
         return Ok(new
         {
-            Routes = routes,
-            Flight = flight
+            Journeys = journeys
         });
     }
 }

@@ -487,6 +487,7 @@ import Map, {
 
 import { useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
+import api from "../api/axiosInstance";
 
 import {
   ArrowRight,
@@ -528,23 +529,32 @@ type Destination = {
   longitude: number;
 };
 
-type RouteOption = {
-  type: string;
+type JourneyPoint = {
   name: string;
-  available: boolean;
-  distanceKm?: number;
-  durationMinutes?: number;
-  estimatedPrice?: number;
-  provider?: string;
-  geometry?: string;
-  message?: string;
+  latitude: number;
+  longitude: number;
 };
 
-type FlightOption = {
-  available: boolean;
-  airline?: string;
-  duration?: number;
+type JourneyLeg = {
+  mode: string;
+  name: string;
+  origin: JourneyPoint;
+  destination: JourneyPoint;
+  distanceKm: number;
+  durationMinutes: number;
+  geometry?: string;
+  carrier?: string;
   estimatedPrice?: number;
+};
+
+type Journey = {
+  id: string;
+  mode: string;
+  legs: JourneyLeg[];
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice?: number;
+  available: boolean;
   message?: string;
 };
 
@@ -563,9 +573,7 @@ type TripState = {
 
   selectedDates?: SelectedDateRange;
 
-  routes?: RouteOption[];
-
-  flight?: FlightOption;
+  journeys?: Journey[];
 };
 
 type Stop = {
@@ -611,6 +619,27 @@ function formatDuration(minutes?: number) {
   return `${hours}h ${mins}min`;
 }
 
+function formatJourneyMode(mode: string) {
+  const labels: Record<string, string> = {
+    combined: "Combined",
+    drive: "Drive",
+    bus: "Bus",
+    walk: "Walking",
+    cycle: "Cycling",
+    train: "Train",
+  };
+
+  return labels[mode] ?? mode;
+}
+
+function formatPrice(price?: number) {
+  if (price === undefined || price === null) {
+    return "Price unavailable";
+  }
+
+  return `From $${price.toFixed(2)}`;
+}
+
 /* =========================================================
    COMPONENT
 ========================================================= */
@@ -633,6 +662,24 @@ export default function TripPlannerMap() {
   ======================================================= */
 
   const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    if (!selectedJourney) return;
+
+    if (!localStorage.getItem("token")) {
+      alert("Please sign in to save a journey.");
+      return;
+    }
+
+    try {
+      await api.post("/journeys/saved", selectedJourney);
+      setSaved(true);
+      alert("Journey saved to your profile.");
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save journey.");
+    }
+  }
 
   /* =======================================================
      NAV
@@ -682,31 +729,20 @@ export default function TripPlannerMap() {
       ? parsedBudget
       : 1800;
 
-  const stayCost = Math.round(estimatedBudget * 0.4);
-  const flightCost = Math.round(estimatedBudget * 0.25);
-  const activityCost = Math.round(estimatedBudget * 0.2);
-  const foodCost = Math.round(estimatedBudget * 0.15);
-
   /* =======================================================
-     ROUTES
+     JOURNEYS
   ======================================================= */
 
-  const routes = tripState.routes ?? [];
+  const journeys = tripState.journeys ?? [];
 
-  const availableRoutes = routes.filter(
-    (route) => route.available
+  const availableJourneys = journeys.filter(
+    (journey) => journey.available
   );
 
-  const [selectedRoute, setSelectedRoute] =
-    useState<RouteOption | null>(
-      availableRoutes[0] ?? null
+  const [selectedJourney, setSelectedJourney] =
+    useState<Journey | null>(
+      availableJourneys[0] ?? null
     );
-
-  /* =======================================================
-     FLIGHT
-  ======================================================= */
-
-  const flight = tripState.flight;
 
   /* =======================================================
      ADD DESTINATION
@@ -717,25 +753,43 @@ export default function TripPlannerMap() {
   const [searched, setSearched] = useState(false);
 
   /* =======================================================
-     MAP ROUTE GEOMETRY
+     ROUTE GEOMETRY
   ======================================================= */
 
   const routeGeometry = useMemo(() => {
-    if (!selectedRoute?.geometry) {
+
+    if (!selectedJourney) {
       return null;
     }
 
-    try {
-      return JSON.parse(selectedRoute.geometry);
-    } catch (error) {
-      console.error(
-        "Failed to parse route geometry:",
-        error
-      );
+    const geometries: unknown[] = [];
 
+    for (const leg of selectedJourney.legs) {
+      if (!leg.geometry) continue;
+
+      try {
+        geometries.push(JSON.parse(leg.geometry));
+      } catch (error) {
+        console.error(
+          "Failed to parse leg geometry:",
+          error
+        );
+      }
+    }
+
+    if (geometries.length === 0) {
       return null;
     }
-  }, [selectedRoute]);
+
+    if (geometries.length === 1) {
+      return geometries[0];
+    }
+
+    return {
+      type: "GeometryCollection",
+      geometries,
+    };
+  }, [selectedJourney]);
 
   /* =======================================================
      STOPS
@@ -747,13 +801,13 @@ export default function TripPlannerMap() {
       number: "1",
       name: destination.name,
       country: destination.country,
-      transport: selectedRoute?.name,
-      detail: selectedRoute
+      transport: selectedJourney?.mode,
+      detail: selectedJourney
         ? `${formatDuration(
-            selectedRoute.durationMinutes
+            selectedJourney.totalDurationMinutes
           )} · ${
-            selectedRoute.estimatedPrice
-              ? `from $${selectedRoute.estimatedPrice}`
+            selectedJourney.estimatedPrice
+              ? `from $${selectedJourney.estimatedPrice}`
               : "price unavailable"
           }`
         : "Select a transport option",
@@ -1146,9 +1200,8 @@ export default function TripPlannerMap() {
             </div>
 
             <button
-              onClick={() =>
-                setSaved(!saved)
-              }
+              onClick={handleSave}
+              disabled={!selectedJourney}
               className="flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-bold transition"
               style={{
                 backgroundColor: saved
@@ -1673,7 +1726,7 @@ export default function TripPlannerMap() {
                 </p>
               </div>
 
-              {selectedRoute && (
+              {selectedJourney && (
                 <span
                   className="rounded-full px-3 py-1 text-xs font-semibold"
                   style={{
@@ -1685,32 +1738,34 @@ export default function TripPlannerMap() {
                       theme.primary,
                   }}
                 >
-                  {selectedRoute.type}
+                  {formatJourneyMode(
+                    selectedJourney.mode
+                  )}
                 </span>
               )}
             </div>
 
             <div className="flex gap-3 overflow-x-auto pb-1">
-              {routes.map((route) => {
+              {journeys.map((journey) => {
                 const isSelected =
-                  selectedRoute?.type ===
-                  route.type;
+                  selectedJourney?.id ===
+                  journey.id;
 
                 return (
                   <button
-                    key={route.type}
-                    disabled={!route.available}
+                    key={journey.id}
+                    disabled={!journey.available}
                     onClick={() => {
-                      if (route.available) {
-                        setSelectedRoute(
-                          route
+                      if (journey.available) {
+                        setSelectedJourney(
+                          journey
                         );
                       }
                     }}
                     className="min-w-[180px] rounded-xl border p-3 text-left transition"
                     style={{
                       backgroundColor:
-                        !route.available
+                        !journey.available
                           ? darkMode
                             ? "#151C25"
                             : "#F5F5F7"
@@ -1726,14 +1781,16 @@ export default function TripPlannerMap() {
                           : theme.border,
 
                       opacity:
-                        !route.available
+                        !journey.available
                           ? 0.5
                           : 1,
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">
-                        {route.type}
+                        {formatJourneyMode(
+                          journey.mode
+                        )}
                       </span>
 
                       {isSelected && (
@@ -1749,7 +1806,7 @@ export default function TripPlannerMap() {
                       )}
                     </div>
 
-                    {route.available ? (
+                    {journey.available ? (
                       <>
                         <p
                           className="mt-2 text-xs"
@@ -1759,7 +1816,7 @@ export default function TripPlannerMap() {
                           }}
                         >
                           {formatDuration(
-                            route.durationMinutes
+                            journey.totalDurationMinutes
                           )}
                         </p>
 
@@ -1770,25 +1827,40 @@ export default function TripPlannerMap() {
                               theme.muted,
                           }}
                         >
-                          {route.distanceKm?.toFixed(
+                          {journey.totalDistanceKm.toFixed(
                             1
                           )}{" "}
                           km
                         </p>
 
-                        {route.estimatedPrice !==
-                          undefined && (
+                        <p
+                          className="mt-1 text-sm font-semibold"
+                          style={{
+                            color:
+                              theme.primary,
+                          }}
+                        >
+                          {formatPrice(
+                            journey.estimatedPrice
+                          )}
+                        </p>
+
+                        {journey.legs.length >
+                          1 && (
                           <p
-                            className="mt-1 text-sm font-semibold"
+                            className="mt-1 text-[11px]"
                             style={{
                               color:
-                                theme.primary,
+                                theme.muted,
                             }}
                           >
-                            From $
-                            {
-                              route.estimatedPrice
-                            }
+                            {journey.legs
+                              .map((leg) =>
+                                formatJourneyMode(
+                                  leg.mode
+                                )
+                              )
+                              .join(" → ")}
                           </p>
                         )}
                       </>
@@ -1806,68 +1878,6 @@ export default function TripPlannerMap() {
                   </button>
                 );
               })}
-
-              {/* FLIGHT */}
-
-              {flight && (
-                <button
-                  disabled={!flight.available}
-                  className="min-w-[180px] rounded-xl border p-3 text-left"
-                  style={{
-                    backgroundColor:
-                      flight.available
-                        ? theme.card
-                        : darkMode
-                        ? "#151C25"
-                        : "#F5F5F7",
-
-                    borderColor:
-                      theme.border,
-
-                    opacity:
-                      flight.available
-                        ? 1
-                        : 0.5,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">
-                      Flight
-                    </span>
-
-                    <Plane size={18} />
-                  </div>
-
-                  <p
-                    className="mt-2 text-xs"
-                    style={{
-                      color: theme.muted,
-                    }}
-                  >
-                    {flight.available
-                      ? flight.airline ??
-                        "Available"
-                      : "Not available"}
-                  </p>
-
-                  {flight.available &&
-                    flight.estimatedPrice !==
-                      undefined && (
-                      <p
-                        className="mt-1 text-sm font-semibold"
-                        style={{
-                          color:
-                            theme.primary,
-                        }}
-                      >
-                        From $
-                        {
-                          flight.estimatedPrice
-                        }
-                      </p>
-                    )}
-                </button>
-              )}
             </div>
           </div>
 

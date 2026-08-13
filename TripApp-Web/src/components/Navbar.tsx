@@ -9,9 +9,6 @@ export default function Navbar() {
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] =
     useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem("isLoggedIn") === "true"
-  );
   const userName = localStorage.getItem("userName") || "User";
 
   return (

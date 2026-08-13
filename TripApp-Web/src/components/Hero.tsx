@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import DatePicker from "./DatePicker";
+import api from "../api/axiosInstance";
 
 const API_URL = "http://localhost:5176/api/Destinations";
 
@@ -394,28 +395,18 @@ onClick={async () => {
     navigator.geolocation.getCurrentPosition(
       async (position) => {
         try {
-          const response = await fetch(
-            "http://localhost:5176/api/trips/search",
+          const result = await api.post(
+            "/trips/search",
             {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                originLat: position.coords.latitude,
-                originLng: position.coords.longitude,
+              originLat: position.coords.latitude,
+              originLng: position.coords.longitude,
 
-                destinationLat: selectedDestination.latitude,
-                destinationLng: selectedDestination.longitude,
-              }),
+              destinationLat: selectedDestination.latitude,
+              destinationLng: selectedDestination.longitude,
             }
           );
 
-          if (!response.ok) {
-            throw new Error("Trip planning failed");
-          }
-
-          const result = await response.json();
+          const data = result.data;
 
           navigate("/trip", {
             state: {
@@ -426,8 +417,7 @@ onClick={async () => {
                 longitude: position.coords.longitude,
               },
 
-              routes: result.routes,
-              flight: result.flight,
+              journeys: data.journeys,
 
               budget,
               adults,

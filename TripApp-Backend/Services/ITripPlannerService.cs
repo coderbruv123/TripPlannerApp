@@ -4,5 +4,5 @@ namespace TripApp_Backend.Services;
 
 public interface ITripPlannerService
 {
-    Task<List<TravelOption>> SearchAsync(TripRequest request);
+    Task<List<Journey>> SearchAsync(TripRequest request);
 }

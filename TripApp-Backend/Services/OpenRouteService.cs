@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Configuration;
 using TripApp_Backend.Models;
 
@@ -10,12 +11,22 @@ public class OpenRouteService
     private readonly HttpClient _client;
     private readonly IConfiguration _configuration;
 
+    private readonly ConcurrentDictionary<string, (string Body, DateTime ExpiresUtc)> _cache =
+        new(StringComparer.OrdinalIgnoreCase);
+
+    private readonly TimeSpan _cacheTtl;
+
     public OpenRouteService(
         HttpClient client,
         IConfiguration configuration)
     {
         _client = client;
         _configuration = configuration;
+
+        var ttlMinutes = configuration["OpenRouteService:CacheTtlMinutes"]?.Trim();
+        _cacheTtl = int.TryParse(ttlMinutes, out var minutes) && minutes > 0
+            ? TimeSpan.FromMinutes(minutes)
+            : TimeSpan.FromMinutes(60);
     }
 
     public async Task<string> GetRouteAsync(
@@ -27,6 +38,16 @@ public class OpenRouteService
         if (string.IsNullOrWhiteSpace(apiKey))
         {
             throw new Exception("OpenRouteService API Key is missing.");
+        }
+
+        var cacheKey = $"{profile}|{request.OriginLat}|{request.OriginLng}|{request.DestinationLat}|{request.DestinationLng}";
+
+        if (_cache.TryGetValue(cacheKey, out var cached))
+        {
+            if (cached.ExpiresUtc > DateTime.UtcNow)
+                return cached.Body;
+
+            _cache.TryRemove(cacheKey, out _);
         }
 
         var body = new
@@ -67,6 +88,8 @@ public class OpenRouteService
                 $"OpenRouteService returned {(int)response.StatusCode} " +
                 $"({response.StatusCode}): {responseBody}");
         }
+
+        _cache[cacheKey] = (responseBody, DateTime.UtcNow.Add(_cacheTtl));
 
         return responseBody;
     }

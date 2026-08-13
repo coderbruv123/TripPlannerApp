@@ -11,7 +11,6 @@ import {
   Settings,
   Moon,
   LogOut,
-  Menu,
 } from "lucide-react";
 
 const navigation = [
