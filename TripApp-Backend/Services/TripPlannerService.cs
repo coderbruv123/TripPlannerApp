@@ -77,10 +77,22 @@ public class TripPlannerService : ITripPlannerService
         };
     }
 
+    private const double MinFlightDistanceKm = 350;
+
     private async Task<Journey?> TryGetCombinedJourneyAsync(TripRequest request)
     {
         try
         {
+            var tripDistanceKm = HaversineKm(
+                request.OriginLat, request.OriginLng,
+                request.DestinationLat, request.DestinationLng);
+
+            // Only fly when the trip is far enough that origin and destination
+            // airport candidate sets cannot overlap (each uses a ~150 km hub
+            // radius). For short hops this avoided bogus routes like JKR -> KTM.
+            if (tripDistanceKm < MinFlightDistanceKm)
+                return null;
+
             var path = _flightService.SearchFlightPathAsync(
                 request.OriginLat, request.OriginLng,
                 request.DestinationLat, request.DestinationLng);
