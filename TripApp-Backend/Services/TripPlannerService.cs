@@ -81,54 +81,94 @@ public class TripPlannerService : ITripPlannerService
     {
         try
         {
-            var flight = _flightService.SearchFlightAsync(
+            var path = _flightService.SearchFlightPathAsync(
                 request.OriginLat, request.OriginLng,
                 request.DestinationLat, request.DestinationLng);
 
-            if (!flight.Available ||
-                flight.OriginAirport == null ||
-                flight.DestinationAirport == null)
+            if (!path.Available ||
+                path.Segments.Count == 0)
                 return null;
 
-            var originHub = flight.OriginAirport;
-            var destinationHub = flight.DestinationAirport;
+            var firstAirport = path.Segments[0].OriginAirport;
+            var lastAirport = path.Segments[path.Segments.Count - 1].DestinationAirport;
 
             var leg1 = await TryGetRouteLegAsync(
                 request.OriginLat, request.OriginLng,
-                originHub.Latitude, originHub.Longitude,
+                firstAirport.Latitude, firstAirport.Longitude,
                 "Drive",
                 "driving-car");
 
+            var flightLegs = new List<JourneyLeg>();
+
+            for (var i = 0; i < path.Segments.Count; i++)
+            {
+                var segment = path.Segments[i];
+
+                flightLegs.Add(new JourneyLeg
+                {
+                    Mode = "flight",
+                    Name = "Flight",
+                    Origin = new JourneyPoint
+                    {
+                        Name = $"{segment.OriginAirport.Name} ({segment.OriginAirport.Iata})",
+                        Latitude = segment.OriginAirport.Latitude,
+                        Longitude = segment.OriginAirport.Longitude
+                    },
+                    Destination = new JourneyPoint
+                    {
+                        Name = $"{segment.DestinationAirport.Name} ({segment.DestinationAirport.Iata})",
+                        Latitude = segment.DestinationAirport.Latitude,
+                        Longitude = segment.DestinationAirport.Longitude
+                    },
+                    Carrier = segment.Airline,
+                    EstimatedPrice = null,
+                    DistanceKm = Math.Round(HaversineKm(
+                        segment.OriginAirport.Latitude, segment.OriginAirport.Longitude,
+                        segment.DestinationAirport.Latitude, segment.DestinationAirport.Longitude), 2),
+                    DurationMinutes = Math.Round(
+                        HaversineKm(
+                            segment.OriginAirport.Latitude, segment.OriginAirport.Longitude,
+                            segment.DestinationAirport.Latitude, segment.DestinationAirport.Longitude) / 800.0 * 60.0,
+                        1),
+                    Geometry = BuildFlightLineString(
+                        segment.OriginAirport.Longitude, segment.OriginAirport.Latitude,
+                        segment.DestinationAirport.Longitude, segment.DestinationAirport.Latitude)
+                });
+
+                if (i < path.Segments.Count - 1)
+                {
+                    flightLegs.Add(new JourneyLeg
+                    {
+                        Mode = "layover",
+                        Name = "Layover",
+                        Origin = new JourneyPoint
+                        {
+                            Name = $"{segment.DestinationAirport.City} ({segment.DestinationAirport.Iata})",
+                            Latitude = segment.DestinationAirport.Latitude,
+                            Longitude = segment.DestinationAirport.Longitude
+                        },
+                        Destination = new JourneyPoint
+                        {
+                            Name = $"{segment.DestinationAirport.City} ({segment.DestinationAirport.Iata})",
+                            Latitude = segment.DestinationAirport.Latitude,
+                            Longitude = segment.DestinationAirport.Longitude
+                        },
+                        DurationMinutes = 90,
+                        DistanceKm = 0
+                    });
+                }
+            }
+
             var leg3 = await TryGetRouteLegAsync(
-                destinationHub.Latitude, destinationHub.Longitude,
+                lastAirport.Latitude, lastAirport.Longitude,
                 request.DestinationLat, request.DestinationLng,
                 "Drive",
                 "driving-car");
 
-            var leg2 = new JourneyLeg
-            {
-                Mode = "flight",
-                Name = "Flight",
-                Origin = new JourneyPoint
-                {
-                    Name = $"{originHub.Name} ({originHub.Iata})",
-                    Latitude = originHub.Latitude,
-                    Longitude = originHub.Longitude
-                },
-                Destination = new JourneyPoint
-                {
-                    Name = $"{destinationHub.Name} ({destinationHub.Iata})",
-                    Latitude = destinationHub.Latitude,
-                    Longitude = destinationHub.Longitude
-                },
-                Carrier = flight.Airline,
-                EstimatedPrice = null
-            };
-
             var legs = new List<JourneyLeg>();
 
             if (leg1 != null) legs.Add(leg1);
-            legs.Add(leg2);
+            legs.AddRange(flightLegs);
             if (leg3 != null) legs.Add(leg3);
 
             var totalDistance = legs.Sum(l => l.DistanceKm);
@@ -136,7 +176,7 @@ public class TripPlannerService : ITripPlannerService
 
             return new Journey
             {
-                Mode = "combined",
+                Mode = "flight",
                 Legs = legs,
                 TotalDistanceKm = totalDistance,
                 TotalDurationMinutes = totalDuration,
@@ -161,6 +201,41 @@ public class TripPlannerService : ITripPlannerService
             name,
             profile);
     }
+
+    private static string BuildFlightLineString(
+        double fromLng, double fromLat,
+        double toLng, double toLat)
+    {
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "LineString",
+            coordinates = new double[][]
+            {
+                new[] { fromLng, fromLat },
+                new[] { toLng, toLat }
+            }
+        });
+    }
+
+    private static double HaversineKm(
+        double lat1, double lng1,
+        double lat2, double lng2)
+    {
+        const double earthRadiusKm = 6371;
+
+        var dLat = ToRadians(lat2 - lat1);
+        var dLng = ToRadians(lng2 - lng1);
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return earthRadiusKm * c;
+    }
+
+    private static double ToRadians(double degrees) => degrees * Math.PI / 180;
 
     private async Task<JourneyLeg?> TryGetRouteLegAsync(
         double originLat, double originLng,

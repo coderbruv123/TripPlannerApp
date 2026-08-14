@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plane } from "lucide-react";
 import api from "./../api/axiosInstance";
+import { persistAuth } from "../api/authUtils";
 
 interface LoginResponse {
   errorCode?: string;
@@ -11,7 +12,8 @@ interface LoginResponse {
   data: {
   token: string;
   email?: string;
-  username?: string;}
+  username?: string;
+  role?: string;}
 }
 
 export default function Login() {
@@ -35,15 +37,20 @@ export default function Login() {
         password,
       });
       console.log("Login successful:", response.data);
-      // Store JWT token
-      localStorage.setItem("token", response.data.data.token);
-             localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", response.data.data.email || ""); // Store user email if available
-      localStorage.setItem("userName",response.data.data.username || "");
- // Store user name if available
+      persistAuth({
+        token: response.data.data.token,
+        role: response.data.data.role,
+        email: response.data.data.email,
+        username: response.data.data.username,
+      });
 
-      // Redirect to protected Home page
-      navigate("/", { replace: true });
+      // Redirect admins to the admin dashboard, everyone else home
+      navigate(
+        response.data.data.role === "Admin"
+          ? "/admin/dashboard"
+          : "/",
+        { replace: true }
+      );
     } catch (error: any) {
       console.error("Login failed:", error);
 

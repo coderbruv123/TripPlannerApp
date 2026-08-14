@@ -1,34 +1,47 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using TripApp_Backend.Services;
 using TripApp_Backend.Dtos;
-using TripApp_Backend.Services.Auth;
 using TripApp_Backend.Services.Admin;
+
 namespace TripApp_Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "Admin")]
 public class AdminController : ControllerBase
 {
-     private readonly AdminService _adminService;
-     public AdminController(
-        AdminService adminService
-     )
+    private readonly IAdminService _adminService;
+
+    public AdminController(IAdminService adminService)
     {
-      _adminService=  adminService ;
+        _adminService = adminService;
     }
 
-   [HttpGet("GetUsers")]
-   public async Task<IActionResult> GetUsers()
+    [HttpGet("GetUsers")]
+    public async Task<IActionResult> GetUsers()
     {
-        var result = _adminService.AllUsersAsnc();
-        return Ok( result);
+        var users = await _adminService.AllUsersAsync();
+        return Ok(users);
     }
 
     [HttpGet("GetUser")]
-    public async Task<IActionResult>GetUser([FromBody]string name)
+    public async Task<IActionResult> GetUser([FromQuery] string name)
     {
-        var result = _adminService.SearchUser(name);
-        return Ok(result);
+        if (string.IsNullOrWhiteSpace(name))
+            return BadRequest("Name is required.");
+
+        var user = await _adminService.SearchUser(name);
+
+        if (user == null)
+            return NotFound();
+
+        return Ok(user);
     }
 
+    [HttpGet("stats")]
+    public async Task<IActionResult> GetStats()
+    {
+        var stats = await _adminService.GetStatsAsync();
+        return Ok(stats);
+    }
 }

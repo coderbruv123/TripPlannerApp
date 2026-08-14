@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Users,
   UserCheck,
@@ -10,60 +11,68 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
+import api from "../../api/axiosInstance";
 
-const stats = [
-  {
-    label: "Total Users",
-    value: "2,481",
-    change: "+12.4%",
-    icon: Users,
-  },
-  {
-    label: "Active Users",
-    value: "1,842",
-    icon: UserCheck,
-  },
-  {
-    label: "Destinations",
-    value: "1,204",
-    icon: MapPin,
-  },
-  {
-    label: "Recommendations",
-    value: "6,892",
-    icon: Sparkles,
-  },
-];
-
-const destinations = [
-  { name: "Tokyo", value: "1,240", width: "85%" },
-  { name: "Paris", value: "982", width: "70%" },
-  { name: "Kathmandu", value: "754", width: "55%" },
-  { name: "London", value: "612", width: "45%" },
-  { name: "Bali", value: "490", width: "30%" },
-];
-
-const activities = [
-  {
-    text: "Admin Sarah added a destination",
-    time: "10 minutes ago",
-  },
-  {
-    text: "System backup completed successfully",
-    time: "45 minutes ago",
-  },
-  {
-    text: "New user registered via Google Auth",
-    time: "2 hours ago",
-  },
-  {
-    text: "API rate limit warning triggered for weather service",
-    time: "3 hours ago",
-    warning: true,
-  },
-];
+type AdminStats = {
+  totalUsers: number;
+  adminUsers: number;
+  newUsersThisMonth: number;
+  totalSavedTrips: number;
+  totalNotifications: number;
+  destinations: number;
+  recommendations: number;
+};
 
 export default function AdminDashboardContent() {
+  const [stats, setStats] = useState<AdminStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let active = true;
+
+    api
+      .get<AdminStats>("/admin/stats")
+      .then((res) => {
+        if (active) setStats(res.data);
+      })
+      .catch((error) =>
+        console.error("Failed to load admin stats:", error)
+      )
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const statCards = [
+    {
+      label: "Total Users",
+      value: loading ? "…" : stats?.totalUsers ?? 0,
+      icon: Users,
+    },
+    {
+      label: "Admin Users",
+      value: loading ? "…" : stats?.adminUsers ?? 0,
+      icon: UserCheck,
+    },
+    {
+      label: "Destinations",
+      value: loading ? "…" : stats?.destinations ?? 0,
+      icon: MapPin,
+    },
+    {
+      label: "Recommendations",
+      value: loading ? "…" : stats?.recommendations ?? 0,
+      icon: Sparkles,
+    },
+  ];
+
+  const totalTrips = loading ? "…" : stats?.totalSavedTrips ?? 0;
+  const newUsers = loading ? "…" : stats?.newUsersThisMonth ?? 0;
+
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 p-4 md:p-8">
 
@@ -81,7 +90,7 @@ export default function AdminDashboardContent() {
       {/* Stats */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
 
           return (
@@ -95,12 +104,6 @@ export default function AdminDashboardContent() {
                   size={21}
                   className="text-[#7CD9A6]/70 transition-colors group-hover:text-[#7CD9A6]"
                 />
-
-                {stat.change && (
-                  <span className="rounded-full bg-[#7CD9A6]/10 px-2 py-1 text-[11px] font-medium text-[#7CD9A6]">
-                    {stat.change}
-                  </span>
-                )}
 
               </div>
 
@@ -126,33 +129,21 @@ export default function AdminDashboardContent() {
             <h3 className="text-base font-semibold text-[#D9E5DE]">
               Trip Activity
             </h3>
-
-            <button className="text-[#88948A] hover:text-[#7CD9A6]">
-              •••
-            </button>
           </div>
 
           <div className="text-3xl font-bold text-[#7CD9A6]">
-            18,432
+            {totalTrips}
           </div>
 
           <p className="mt-1 text-sm text-[#BEC9BF]">
-            Total Trips Created
+            Total Trips Created (saved)
           </p>
 
-          <div className="mt-6 flex h-40 items-end gap-2 rounded-lg border border-[#1B3428] bg-[#06100C] p-4">
-
-            {[35, 48, 42, 65, 55, 78, 63, 88, 72, 95].map(
-              (height, index) => (
-                <div
-                  key={index}
-                  className="flex-1 rounded-t bg-[#2F8F62]/70 transition hover:bg-[#48B77B]"
-                  style={{ height: `${height}%` }}
-                />
-              )
-            )}
-
-          </div>
+          <p className="mt-6 rounded-lg border border-[#1B3428] bg-[#06100C] p-4 text-sm text-[#9EADA5]">
+            {totalTrips === 0
+              ? "No trips have been saved yet. Time-series activity will appear here once trips are recorded."
+              : "Trip activity recorded."}
+          </p>
 
         </div>
 
@@ -165,36 +156,15 @@ export default function AdminDashboardContent() {
             </h3>
 
             <span className="rounded bg-[#2C3732] px-3 py-1 text-[11px] text-[#D9E5DE]">
-              This Week
+              In development
             </span>
           </div>
 
-          <div className="space-y-5">
+          <p className="rounded-lg border border-dashed border-[#1B3428] bg-[#06100C] p-6 text-center text-sm text-[#9EADA5]">
+            No destination analytics yet. Popular-destination ranking
+            will appear here once it is tracked.
+          </p>
 
-            {destinations.map((destination) => (
-              <div key={destination.name}>
-
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="text-[#D9E5DE]">
-                    {destination.name}
-                  </span>
-
-                  <span className="font-bold text-[#7CD9A6]">
-                    {destination.value}
-                  </span>
-                </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-[#06100C]">
-                  <div
-                    className="h-full rounded-full bg-[#7CD9A6]"
-                    style={{ width: destination.width }}
-                  />
-                </div>
-
-              </div>
-            ))}
-
-          </div>
         </div>
 
       </section>
@@ -233,7 +203,6 @@ export default function AdminDashboardContent() {
             <QuickAction
               icon={<MessageSquare size={18} />}
               label="View Reviews"
-              badge="12 Pending"
             />
 
           </div>
@@ -248,7 +217,7 @@ export default function AdminDashboardContent() {
 
           <div>
             <div className="text-2xl font-bold text-[#D9E5DE]">
-              327
+              {newUsers}
             </div>
 
             <div className="text-xs text-[#9EADA5]">
@@ -268,45 +237,17 @@ export default function AdminDashboardContent() {
             Recent System Activity
           </h3>
 
-          <a
-            href="/admin/activity"
-            className="text-xs font-medium text-[#7CD9A6] hover:underline"
-          >
-            View All Logs
-          </a>
+          <span className="rounded bg-[#2C3732] px-3 py-1 text-[11px] text-[#D9E5DE]">
+            In development
+          </span>
         </div>
 
-        <div className="space-y-6">
+        <div className="rounded-lg border border-dashed border-[#1B3428] bg-[#06100C] p-6">
 
-          {activities.map((activity, index) => (
-            <div
-              key={index}
-              className="relative flex gap-4"
-            >
-
-              <div
-                className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${
-                  activity.warning
-                    ? "border-[#FFB4AB]"
-                    : "border-[#7CD9A6]"
-                } bg-[#0B1511]`}
-              />
-
-              <div>
-
-                <div className="text-sm font-semibold text-[#D9E5DE]">
-                  {activity.text}
-                </div>
-
-                <div className="mt-1 flex items-center gap-2 text-xs text-[#88948A]">
-                  <Clock size={13} />
-                  {activity.time}
-                </div>
-
-              </div>
-
-            </div>
-          ))}
+          <p className="flex items-center gap-2 text-sm text-[#9EADA5]">
+            <Clock size={13} />
+            No activity has been recorded yet. System logs will appear here.
+          </p>
 
         </div>
 

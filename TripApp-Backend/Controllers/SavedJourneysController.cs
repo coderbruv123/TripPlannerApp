@@ -2,6 +2,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using TripApp_Backend.Dtos;
 using TripApp_Backend.Models;
 using TripApp_Backend.Services;
 
@@ -20,14 +21,21 @@ public class SavedJourneysController : ControllerBase
     }
 
     [HttpPost("saved")]
-    public async Task<IActionResult> Save([FromBody] Journey journey)
+    public async Task<IActionResult> Save([FromBody] SaveTripRequest request)
     {
         var userId = GetUserId();
 
         if (userId == null)
             return Unauthorized();
 
-        var saved = await _savedJourneyService.SaveAsync(userId.Value, journey);
+        if (request == null ||
+            ((request.Journeys == null || request.Journeys.Count == 0) &&
+             request.Selected == null))
+        {
+            return BadRequest("No journey to save.");
+        }
+
+        var saved = await _savedJourneyService.SaveAsync(userId.Value, request);
 
         return Ok(new
         {
@@ -37,7 +45,7 @@ public class SavedJourneysController : ControllerBase
             saved.TotalDurationMinutes,
             saved.EstimatedPrice,
             saved.SavedAt,
-            Journey = journey
+            Trip = DeserializeTrip(saved.JourneyJson)
         });
     }
 
@@ -59,7 +67,7 @@ public class SavedJourneysController : ControllerBase
             s.TotalDurationMinutes,
             s.EstimatedPrice,
             s.SavedAt,
-            Journey = Deserialize(s.JourneyJson)
+            Trip = DeserializeTrip(s.JourneyJson)
         });
 
         return Ok(items);
@@ -91,16 +99,33 @@ public class SavedJourneysController : ControllerBase
         return Guid.TryParse(sub, out var id) ? id : null;
     }
 
-    private static Journey? Deserialize(string json)
+    private static SavedTripPayload? DeserializeTrip(string json)
     {
         try
         {
-            return System.Text.Json.JsonSerializer.Deserialize<Journey>(
-                json,
-                new System.Text.Json.JsonSerializerOptions
+            var options = new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true
+            };
+
+            var payload = System.Text.Json.JsonSerializer
+                .Deserialize<SavedTripPayload>(json, options);
+
+            if (payload != null && payload.Journeys.Count > 0)
+                return payload;
+
+            var legacy = System.Text.Json.JsonSerializer
+                .Deserialize<Journey>(json, options);
+
+            if (legacy != null)
+            {
+                return new SavedTripPayload
                 {
-                    PropertyNameCaseInsensitive = true
-                });
+                    Journeys = new List<Journey> { legacy }
+                };
+            }
+
+            return payload;
         }
         catch
         {

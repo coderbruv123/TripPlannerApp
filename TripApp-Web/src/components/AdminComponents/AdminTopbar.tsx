@@ -1,84 +1,207 @@
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import {
-  Menu,
-  Search,
   Bell,
-  Settings,
-  Plus,
+  ExternalLink,
+  LogOut,
+  ShieldCheck,
 } from "lucide-react";
+import { useAuthState } from "../../hooks/useAuth";
+import { useNotifications } from "../../hooks/useNotifications";
+import { clearAuth } from "../../api/authUtils";
+
+const avatarUrl =
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
+
+const colors = {
+  bg: "#0B1511",
+  border: "#1B3428",
+  text: "#D9E5DE",
+  muted: "#9EADA5",
+  accent: "#7CD9A6",
+  hover: "#132019",
+};
 
 export default function AdminTopbar() {
+  const auth = useAuthState();
+  const navigate = useNavigate();
+  const { notifications, unread, markAllRead } =
+    useNotifications(auth.loggedIn);
+
+  const [showNotifications, setShowNotifications] =
+    useState(false);
+
+  useEffect(() => {
+    document.documentElement.style.colorScheme = "dark";
+    return () => {
+      document.documentElement.style.colorScheme = "";
+    };
+  }, []);
+
+  const handleLogout = () => {
+    clearAuth();
+    navigate("/login");
+  };
+
   return (
-    <header className="sticky top-0 z-40 flex h-20 w-full items-center justify-between border-b border-[#1B3428] bg-[#0B1511]/80 px-4 backdrop-blur-md md:px-6">
+    <>
+      <header
+        className="sticky top-0 z-30 flex h-16 items-center justify-between border-b px-5 sm:px-8"
+        style={{
+          backgroundColor: colors.bg,
+          borderColor: colors.border,
+        }}
+      >
+        {/* Brand / current page */}
+        <Link
+          to="/admin/dashboard"
+          className="flex items-center gap-2.5"
+          aria-label="Admin dashboard"
+        >
+          <span
+            className="flex h-8 w-8 items-center justify-center rounded-[10px]"
+            style={{
+              backgroundColor: "#132019",
+              color: colors.accent,
+            }}
+          >
+            <ShieldCheck size={20} strokeWidth={2.2} />
+          </span>
 
-      {/* Left */}
-      <div className="flex items-center gap-5">
+          <span
+            className="text-[17px] font-bold tracking-[-0.4px]"
+            style={{ color: colors.text }}
+          >
+            Admin Portal
+          </span>
+        </Link>
 
-        <button className="text-[#BEC9BF] transition-colors hover:text-[#7CD9A6] md:hidden">
-          <Menu size={22} />
-        </button>
+        {/* Right side */}
+        <nav
+          className="flex items-center gap-1.5"
+          aria-label="Admin actions"
+        >
+          {/* View site */}
+          <Link
+            to="/"
+            className="hidden items-center gap-1.5 rounded-full border px-3 py-1.5 text-[13px] font-semibold transition hover:bg-[#132019] sm:flex"
+            title="View public site"
+            style={{ color: colors.text, borderColor: colors.border }}
+          >
+            <ExternalLink size={14} />
+            View site
+          </Link>
 
-        <h2 className="hidden text-2xl font-bold text-[#7CD9A6] md:block">
-          Dashboard
-        </h2>
+          {/* Notifications */}
+          <button
+            type="button"
+            onClick={() => {
+              setShowNotifications((current) => !current);
+              if (!showNotifications) {
+                markAllRead();
+              }
+            }}
+            aria-label="Notifications"
+            className="relative flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-[#132019] focus:outline-none focus:ring-2 focus:ring-[#7CD9A6]/40"
+            style={{ color: colors.muted }}
+          >
+            <Bell size={18} strokeWidth={1.8} />
 
-        <div className="ml-4 hidden items-center gap-6 lg:flex">
-          <button className="border-b-2 border-[#7CD9A6] pb-1 text-sm text-[#7CD9A6]">
-            Overview
+            {unread > 0 && (
+              <span
+                className="absolute right-0 top-0 flex h-4 min-w-[16px] items-center justify-center rounded-full px-1 text-[10px] font-bold text-white"
+                style={{ backgroundColor: "#FF4444" }}
+              >
+                {unread > 9 ? "9+" : unread}
+              </span>
+            )}
           </button>
 
-          <button className="text-sm text-[#BEC9BF] transition-colors hover:text-[#7CD9A6]">
-            Logs
-          </button>
-
-          <button className="text-sm text-[#BEC9BF] transition-colors hover:text-[#7CD9A6]">
-            Activity
-          </button>
-        </div>
-      </div>
-
-      {/* Right */}
-      <div className="flex items-center gap-3">
-
-        {/* Search */}
-        <div className="relative hidden sm:block">
-          <Search
-            size={18}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-[#88948A]"
+          <div
+            className="mx-1 hidden h-8 w-px sm:block"
+            style={{ backgroundColor: colors.border }}
           />
 
-          <input
-            type="text"
-            placeholder="Search..."
-            className="w-64 rounded-lg border border-[#1B3428] bg-[#0B1511] py-2 pl-10 pr-4 text-sm text-[#D9E5DE] outline-none placeholder:text-[#88948A]/60 focus:border-[#48B77B] focus:ring-1 focus:ring-[#48B77B]/40"
-          />
-        </div>
+          {/* Admin profile */}
+          <div className="flex items-center gap-2">
+            <img
+              src={avatarUrl}
+              alt="Admin avatar"
+              className="h-9 w-9 rounded-full border-2 border-[#7CD9A6]/60 object-cover"
+            />
 
-        {/* Notifications */}
-        <button className="relative text-[#BEC9BF] transition-colors hover:text-[#7CD9A6]">
-          <Bell size={20} />
-
-          <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-[#48B77B]" />
-        </button>
-
-        {/* Settings */}
-        <button className="text-[#BEC9BF] transition-colors hover:text-[#7CD9A6]">
-          <Settings size={20} />
-        </button>
-
-        {/* Avatar */}
-        <button className="ml-1 h-9 w-9 overflow-hidden rounded-full border border-[#1B3428] bg-[#2C3732]">
-          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-[#7CD9A6]">
-            SA
+            <span
+              className="hidden pl-1 text-[13px] font-semibold sm:block"
+              style={{ color: colors.text }}
+            >
+              {auth.name}
+            </span>
           </div>
-        </button>
 
-        {/* Add Destination */}
-        <button className="ml-2 hidden items-center gap-2 rounded-[10px] bg-[#2F8F62] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#48B77B] sm:flex">
-          <Plus size={17} />
-          Add Destination
-        </button>
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={handleLogout}
+            aria-label="Log out"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-[#3A1717] hover:text-[#FFB4AB] focus:outline-none focus:ring-2 focus:ring-[#FFB4AB]/40"
+            style={{ color: colors.muted }}
+          >
+            <LogOut size={18} strokeWidth={1.8} />
+          </button>
+        </nav>
 
-      </div>
-    </header>
+        {/* Notifications popup */}
+        {showNotifications && (
+          <div
+            role="status"
+            className="absolute right-5 top-[58px] w-72 rounded-xl border p-4 text-sm shadow-[0_12px_30px_rgba(0,0,0,0.5)] sm:right-8"
+            style={{
+              backgroundColor: "#0D1712",
+              borderColor: colors.border,
+            }}
+          >
+            <strong
+              className="block"
+              style={{ color: colors.text }}
+            >
+              Notifications
+            </strong>
+
+            <div className="mt-3 max-h-64 space-y-2 overflow-y-auto">
+              {notifications.length === 0 ? (
+                <span className="block text-[13px]" style={{ color: colors.muted }}>
+                  No notifications yet.
+                </span>
+              ) : (
+                notifications.map((notification) => (
+                  <div
+                    key={notification.id}
+                    className="rounded-lg border p-2.5"
+                    style={{
+                      borderColor: colors.border,
+                      backgroundColor: "#0B1511",
+                    }}
+                  >
+                    <p
+                      className="text-[13px] font-semibold"
+                      style={{ color: colors.text }}
+                    >
+                      {notification.title}
+                    </p>
+
+                    <p
+                      className="mt-0.5 text-[12px] leading-snug"
+                      style={{ color: colors.muted }}
+                    >
+                      {notification.message}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        )}
+      </header>
+    </>
   );
 }

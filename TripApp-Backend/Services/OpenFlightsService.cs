@@ -30,12 +30,31 @@ public class FlightLegResult
     public string Message { get; set; } = "";
 }
 
+public class FlightSegment
+{
+    public AirportInfo OriginAirport { get; set; } = new();
+    public AirportInfo DestinationAirport { get; set; } = new();
+    public string Airline { get; set; } = "";
+}
+
+public class FlightPathResult
+{
+    public bool Available { get; set; }
+    public List<FlightSegment> Segments { get; set; } = new();
+    public string Message { get; set; } = "";
+}
+
 public class OpenFlightsService
 {
     private readonly List<AirportInfo> _airports = new();
     private readonly Dictionary<string, List<FlightRouteInfo>> _routes = new(StringComparer.OrdinalIgnoreCase);
     private readonly HashSet<string> _servicedAirports = new(StringComparer.OrdinalIgnoreCase);
     private readonly double _hubRadiusKm;
+
+    private readonly int _maxConnections;
+
+    private readonly Dictionary<string, AirportInfo> _airportByIata =
+        new(StringComparer.OrdinalIgnoreCase);
 
     public OpenFlightsService(IConfiguration configuration)
     {
@@ -64,6 +83,15 @@ public class OpenFlightsService
             out var parsed)
             ? parsed
             : 150;
+
+        var connections = configuration["OpenFlights:MaxConnections"];
+        _maxConnections = int.TryParse(
+            connections,
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var parsedConnections)
+            ? Math.Max(0, parsedConnections)
+            : 2;
     }
 
     public IReadOnlyList<AirportInfo> Airports => _airports;
@@ -102,6 +130,8 @@ public class OpenFlightsService
                 Latitude = lat,
                 Longitude = lng
             });
+
+            _airportByIata[iata] = _airports[_airports.Count - 1];
         }
     }
 
@@ -187,6 +217,92 @@ public class OpenFlightsService
             OriginAirport = originCandidates[0],
             DestinationAirport = destinationCandidates[0],
             Message = $"No direct flight route found from {originCandidates[0].Iata} to {destinationCandidates[0].Iata}."
+        };
+    }
+
+    public FlightPathResult SearchFlightPathAsync(
+        double originLat, double originLng,
+        double destinationLat, double destinationLng)
+    {
+        var originCandidates = FindNearbyServicedAirports(originLat, originLng);
+        var destinationCandidates = FindNearbyServicedAirports(destinationLat, destinationLng);
+
+        if (originCandidates.Count == 0 || destinationCandidates.Count == 0)
+        {
+            return new FlightPathResult
+            {
+                Available = false,
+                Message = "No airport found within the hub radius of the origin or destination."
+            };
+        }
+
+        var destinationSet = destinationCandidates
+            .Select(d => d.Iata)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var maxSegments = _maxConnections + 1;
+
+        var queue = new Queue<(string Iata, List<FlightSegment> Segments)>();
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var origin in originCandidates)
+        {
+            if (destinationSet.Contains(origin.Iata))
+                continue;
+
+            visited.Add(origin.Iata);
+            queue.Enqueue((origin.Iata, new List<FlightSegment>()));
+        }
+
+        while (queue.Count > 0)
+        {
+            var (iata, segments) = queue.Dequeue();
+
+            if (destinationSet.Contains(iata) && segments.Count > 0)
+            {
+                return new FlightPathResult
+                {
+                    Available = true,
+                    Segments = segments
+                };
+            }
+
+            if (segments.Count >= maxSegments)
+                continue;
+
+            if (!_routes.TryGetValue(iata, out var options))
+                continue;
+
+            foreach (var route in options)
+            {
+                if (!_airportByIata.TryGetValue(route.DestinationAirport, out var destinationAirport))
+                    continue;
+
+                if (visited.Contains(route.DestinationAirport))
+                    continue;
+
+                var nextSegments = new List<FlightSegment>(segments)
+                {
+                    new FlightSegment
+                    {
+                        OriginAirport = _airportByIata[iata],
+                        DestinationAirport = destinationAirport,
+                        Airline = route.Airline
+                    }
+                };
+
+                visited.Add(route.DestinationAirport);
+                queue.Enqueue((route.DestinationAirport, nextSegments));
+            }
+        }
+
+        var originIata = originCandidates[0].Iata;
+        var destinationIata = destinationCandidates[0].Iata;
+
+        return new FlightPathResult
+        {
+            Available = false,
+            Message = $"No flight route found from {originIata} to {destinationIata}."
         };
     }
 

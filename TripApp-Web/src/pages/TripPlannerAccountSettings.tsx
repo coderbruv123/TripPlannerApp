@@ -3,18 +3,18 @@ import {
   Bell,
   BriefcaseBusiness,
   ChevronDown,
-  Compass,
   Headphones,
   Heart,
   LogOut,
-  Search,
   Settings,
   UserRound,
   Plus,
   X,
 } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import api from "../api/axiosInstance";
+import { clearAuth } from "../api/authUtils";
+import Navbar from "../components/Navbar";
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
 
@@ -47,13 +47,52 @@ type SavedJourney = {
   totalDurationMinutes: number;
   estimatedPrice: number | null;
   savedAt: string;
-  journey: {
-    mode: string;
-    legs: { mode: string }[];
-    totalDistanceKm: number;
-    totalDurationMinutes: number;
-    estimatedPrice: number | null;
+  trip?: {
+    journeys: TripJourney[];
+    destination?: {
+      name: string;
+      country: string;
+      latitude: number;
+      longitude: number;
+    };
+    origin?: { latitude: number; longitude: number };
+    hotel?: {
+      id: number;
+      name: string;
+      city: string;
+      stars?: number;
+      estimatedPricePerNight?: number | null;
+    };
   };
+};
+
+type TripJourneyPoint = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+type TripLeg = {
+  mode: string;
+  name: string;
+  origin: TripJourneyPoint;
+  destination: TripJourneyPoint;
+  distanceKm: number;
+  durationMinutes: number;
+  geometry?: string;
+  carrier?: string;
+  estimatedPrice?: number;
+};
+
+type TripJourney = {
+  id: string;
+  mode: string;
+  legs: TripLeg[];
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice?: number;
+  available: boolean;
+  message?: string;
 };
 
 const sidebarItems = [
@@ -89,18 +128,21 @@ export const TripPlannerAccountSettings = () => {
    * Settings page later if a theme toggle is needed.
    */
 const logout = () => {
-  localStorage.removeItem("token");
+  clearAuth();
   window.location.reload();
 }
   const [profile, setProfile] = useState<Profile>(defaultProfile);
 
-  const [activeItem, setActiveItem] = useState("Profile");
+  const { search } = useLocation();
+
+  const [activeItem, setActiveItem] = useState<string>(
+    () => {
+      const tab = new URLSearchParams(search).get("tab");
+      return tab === "trips" ? "My Trips" : "Profile";
+    }
+  );
 
   const [savedMessage, setSavedMessage] = useState("");
-
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const [showSearch, setShowSearch] = useState(false);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -137,8 +179,45 @@ const logout = () => {
       );
     } catch (error) {
       console.error("Failed to delete saved journey", error);
-      alert("Failed to delete journey.");
     }
+  };
+
+  const reopenJourney = (saved: SavedJourney) => {
+    const trip = saved.trip;
+
+    const journeys = (trip?.journeys || []).map((j) => ({
+      ...j,
+      available: j.available ?? true,
+    }));
+
+    if (journeys.length === 0) return;
+
+    const savedDestination = trip?.destination;
+
+    const destination =
+      savedDestination && savedDestination.name
+        ? savedDestination
+        : (() => {
+            const lastLeg =
+              journeys[0]?.legs?.at(-1);
+            return lastLeg?.destination
+              ? {
+                  name: lastLeg.destination.name,
+                  country: "",
+                  latitude: lastLeg.destination.latitude,
+                  longitude: lastLeg.destination.longitude,
+                }
+              : undefined;
+          })();
+
+    navigate("/trip", {
+      state: {
+        journeys,
+        destination,
+        origin: trip?.origin,
+        hotel: trip?.hotel,
+      },
+    });
   };
 
   const updateProfile = (
@@ -180,104 +259,7 @@ const logout = () => {
     >
       {/* ================= HEADER ================= */}
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#E9E9EC] bg-white px-5 shadow-[0_2px_12px_rgba(15,31,61,0.05)] sm:px-8">
-        <Link to="/"
-          className="flex items-center gap-2.5"
-          aria-label="TripPlanner home"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E8F8F6] text-[#00BFA5]">
-            <Compass size={21} strokeWidth={2.3} />
-          </span>
-
-          <span className="text-[17px] font-bold tracking-[-0.4px]">
-            TripPlanner
-          </span>
-        </Link>
-
-        <nav
-          className="flex items-center gap-1.5"
-          aria-label="Account actions"
-        >
-          {/* Search */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowSearch((current) => !current)
-            }
-            aria-label="Search"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
-          >
-            {showSearch ? (
-              <X size={18} strokeWidth={1.8} />
-            ) : (
-              <Search size={18} strokeWidth={1.8} />
-            )}
-          </button>
-
-          {/* Notifications */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowNotifications((current) => !current)
-            }
-            aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
-          >
-            <Bell size={18} strokeWidth={1.8} />
-
-            <span className="absolute right-[7px] top-[6px] h-1.5 w-1.5 rounded-full bg-[#FF4444]" />
-          </button>
-
-          <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
-
-          <img
-            src={avatarUrl}
-            alt="Portrait of Alex Johnson"
-            className="ml-1 h-9 w-9 rounded-full border-2 border-[#00BFA5] object-cover"
-          />
-
-          <span className="hidden pl-1 text-[13px] font-semibold text-[#0F1F3D] sm:block">
-            Alex Johnson
-          </span>
-
-          {/* Notifications popup */}
-
-          {showNotifications && (
-            <div
-              role="status"
-              className="absolute right-5 top-[58px] w-64 rounded-xl border border-[#E5E5E5] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(15,31,61,0.12)] sm:right-8"
-            >
-              <strong className="block text-[#0F1F3D]">
-                Notifications
-              </strong>
-
-              <span className="mt-1 block text-[#667085]">
-                Your Yosemite trip is ready to review.
-              </span>
-            </div>
-          )}
-        </nav>
-      </header>
-
-      {/* ================= SEARCH ================= */}
-
-      {showSearch && (
-        <div className="border-b border-[#E5E5E5] bg-white px-5 py-3 sm:px-8">
-          <label className="mx-auto flex max-w-xl items-center gap-2 rounded-lg border border-[#DCDDE2] px-3 py-2 text-sm text-[#888] shadow-sm">
-            <Search size={16} />
-
-            <input
-              autoFocus
-              type="search"
-              placeholder="Search your trips and places"
-              className="w-full bg-transparent outline-none placeholder:text-[#A0A3AA]"
-              aria-label="Search your trips and places"
-            />
-          </label>
-        </div>
-      )}
+      <Navbar />
 
       {/* ================= MAIN LAYOUT ================= */}
 
@@ -429,15 +411,7 @@ const logout = () => {
                       >
                         <button
                           type="button"
-                          onClick={() =>
-                            navigate("/trip", {
-                              state: {
-                                journeys: journey.journey
-                                  ? [journey.journey]
-                                  : [],
-                              },
-                            })
-                          }
+                          onClick={() => reopenJourney(journey)}
                           className="flex min-w-0 flex-1 items-center gap-3 text-left"
                         >
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E8F8F6] text-[#008F7C]">
@@ -448,14 +422,12 @@ const logout = () => {
                           </span>
                           <span className="min-w-0">
                             <strong className="block truncate text-[14px] text-[#0F1F3D]">
-                              {journey.journey
-                                ? journey.journey.mode
-                                : journey.mode}{" "}
+                              {journey.mode}{" "}
                               trip
                             </strong>
                             <span className="block text-[13px] text-[#888]">
-                              {journey.journey
-                                ? journey.journey.legs
+                              {journey.trip?.journeys?.[0]?.legs
+                                ? journey.trip.journeys[0].legs
                                     .map((leg) => leg.mode)
                                     .join(" + ")
                                 : journey.mode}

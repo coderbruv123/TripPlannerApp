@@ -94,7 +94,8 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
             Token = token,
             UserId = user.Id,
             Username = user.Username,
-            Email = user.Email
+            Email = user.Email,
+            Role = user.Role.ToString()
         }
     };
 
@@ -131,7 +132,8 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
             Token = token,
             UserId = user.Id,
             Username = user.Username,
-            Email = user.Email
+            Email = user.Email,
+            Role = user.Role.ToString()
         }
     };
     }
