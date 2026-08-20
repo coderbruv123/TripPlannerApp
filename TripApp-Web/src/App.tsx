@@ -10,7 +10,7 @@ import AdminRoute from "./components/AdminRoute";
 import { TripPlannerAccountSettings } from "./pages/TripPlannerAccountSettings";
 import AdminDashboard from "./pages/Admin/Dashboard";
 import UsersPage from "./pages/Admin/Userpage";
-import AdminHotels from "./pages/Admin/Hotels";
+import Recommendations from "./pages/Admin/Recommendations";
 
 export default function App() {
   return (
@@ -23,19 +23,19 @@ export default function App() {
 
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
-        {/* <Route> */}
           <Route path="/" element={<Home />} />
           <Route path="/trip" element={<TripResults />} />
-          <Route path="/hotels" element={<Hotels />} />
-          <Route path="/profile" element={<TripPlannerAccountSettings />} />
+          <Route path="/profile" element={<TripPlannerAccountSettings />} 
+          
+          />
         </Route>
 
         {/* Admin-only routes */}
         <Route element={<AdminRoute />}>
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/admin/dashboard" element={<AdminDashboard />} />
-          <Route path="/admin/users" element={<UsersPage />} />
-          <Route path="/admin/hotels" element={<AdminHotels />} />
+          <Route path="/admin/users" element={<UsersPage />}/>
+          <Route path="/admin/recommendations" element={<Recommendations />}/>
         </Route>
 
         {/* Unknown routes */}

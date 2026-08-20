@@ -6,42 +6,20 @@ import {
   LogOut,
   ShieldCheck,
 } from "lucide-react";
-import { useAuthState } from "../../hooks/useAuth";
-import { useNotifications } from "../../hooks/useNotifications";
-import { clearAuth } from "../../api/authUtils";
-
-const avatarUrl =
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
-
-const colors = {
-  bg: "#0B1511",
-  border: "#1B3428",
-  text: "#D9E5DE",
-  muted: "#9EADA5",
-  accent: "#7CD9A6",
-  hover: "#132019",
-};
+import { getUserName } from "../../api/authUtils";
 
 export default function AdminTopbar() {
-  const auth = useAuthState();
-  const navigate = useNavigate();
-  const { notifications, unread, markAllRead } =
-    useNotifications(auth.loggedIn);
+  const adminName = getUserName() || "A";
 
-  const [showNotifications, setShowNotifications] =
-    useState(false);
+  return (
+    <header className="sticky top-0 z-40 flex h-20 w-full items-center justify-between border-b border-[#1B3428] bg-[#0B1511]/80 px-4 backdrop-blur-md md:px-6">
 
-  useEffect(() => {
-    document.documentElement.style.colorScheme = "dark";
-    return () => {
-      document.documentElement.style.colorScheme = "";
-    };
-  }, []);
+      {/* Left */}
+      <div className="flex items-center gap-5">
 
-  const handleLogout = () => {
-    clearAuth();
-    navigate("/login");
-  };
+        <button className="text-[#BEC9BF] transition-colors hover:text-[#7CD9A6] md:hidden">
+          <Menu size={22} />
+        </button>
 
   return (
     <>
@@ -122,21 +100,21 @@ export default function AdminTopbar() {
             style={{ backgroundColor: colors.border }}
           />
 
-          {/* Admin profile */}
-          <div className="flex items-center gap-2">
-            <img
-              src={avatarUrl}
-              alt="Admin avatar"
-              className="h-9 w-9 rounded-full border-2 border-[#7CD9A6]/60 object-cover"
-            />
+        {/* Settings */}
+        <button className="text-[#BEC9BF] transition-colors hover:text-[#7CD9A6]">
+          <Settings size={20} />
+        </button>
 
-            <span
-              className="hidden pl-1 text-[13px] font-semibold sm:block"
-              style={{ color: colors.text }}
-            >
-              {auth.name}
-            </span>
-          </div>
+        {/* Avatar */}
+        <div className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-[#1B3428] bg-[#2C3732] text-sm font-bold text-[#7CD9A6]">
+          {adminName.charAt(0).toUpperCase()}
+        </div>
+
+        {/* Add Destination */}
+        <button className="ml-2 hidden items-center gap-2 rounded-[10px] bg-[#2F8F62] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#48B77B] sm:flex">
+          <Plus size={17} />
+          Add Destination
+        </button>
 
           {/* Logout */}
           <button

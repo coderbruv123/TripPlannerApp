@@ -1,18 +1,7 @@
-import {
-  Bell,
-  Compass,
-  Moon,
-  Search,
-  ShieldCheck,
-  Sun,
-  X,
-} from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useState } from "react";
-import { useDarkMode } from "../hooks/useDarkMode";
-import { useAuthState } from "../hooks/useAuth";
-import { useNotifications } from "../hooks/useNotifications";
-import api from "../api/axiosInstance";
+import { Bell, Compass, LogOut, Search, ShieldCheck, X } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useState } from "react";
+import { clearAuth, getUserName, isAdmin } from "../api/authUtils";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
@@ -36,90 +25,12 @@ export default function Navbar({ center }: NavbarProps) {
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] =
     useState(false);
+  const userName = getUserName();
 
-  const [query, setQuery] = useState("");
-  const [results, setResults] = useState<Destination[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [planning, setPlanning] = useState(false);
-
-  const { notifications, unread, markAllRead } =
-    useNotifications(auth.loggedIn);
-
-  useEffect(() => {
-    if (query.trim().length < 2) {
-      setResults([]);
-      return;
-    }
-
-    setSearching(true);
-    const t = window.setTimeout(async () => {
-      try {
-        const res = await api.get<Destination[]>(
-          "/destinations",
-          { params: { search: query.trim() } }
-        );
-        setResults(res.data || []);
-      } catch (error) {
-        console.error("Search failed:", error);
-        setResults([]);
-      } finally {
-        setSearching(false);
-      }
-    }, 300);
-
-    return () => window.clearTimeout(t);
-  }, [query]);
-
-  const chooseDestination = (dest: Destination) => {
-    setQuery("");
-    setResults([]);
-    setShowSearch(false);
-
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported.");
-      return;
-    }
-
-    setPlanning(true);
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const result = await api.post("/trips/search", {
-            originLat: position.coords.latitude,
-            originLng: position.coords.longitude,
-            destinationLat: dest.latitude,
-            destinationLng: dest.longitude,
-          });
-
-          navigate("/trip", {
-            state: {
-              destination: dest,
-              origin: {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-              },
-              journeys: result.data.journeys,
-            },
-          });
-        } catch (error) {
-          console.error(error);
-          alert("Failed to plan trip.");
-        } finally {
-          setPlanning(false);
-        }
-      },
-      () => {
-        setPlanning(false);
-        alert("Location permission denied.");
-      }
-    );
+  const logout = () => {
+    clearAuth();
+    window.location.href = "/login";
   };
-
-  const bg = darkMode ? "#0D1117" : "#FFFFFF";
-  const border = darkMode ? "#232A36" : "#E9E9EC";
-  const text = darkMode ? "#E6EDF3" : "#0F1F3D";
-  const muted = darkMode ? "#8B949E" : "#667085";
 
   return (
     <>
@@ -210,13 +121,25 @@ export default function Navbar({ center }: NavbarProps) {
             )}
           </button>
 
-          {/* Theme toggle */}
-          <button
-            type="button"
-            onClick={() => setDarkMode(!darkMode)}
-            aria-label="Toggle dark mode"
-            className="flex h-9 w-9 items-center justify-center rounded-full transition hover:bg-[#F5F5F7] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
-            style={{ color: muted }}
+          {/* Divider */}
+          <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
+
+          {/* Admin portal (admins only) */}
+          {isAdmin() && (
+            <Link
+              to="/admin/dashboard"
+              className="ml-1 hidden items-center gap-1.5 rounded-full border border-[#00BFA5]/30 bg-[#E8F8F6] px-3 py-1.5 text-[12px] font-semibold text-[#008F7C] transition hover:bg-[#00BFA5]/10 sm:flex"
+              title="Admin portal"
+            >
+              <ShieldCheck size={14} />
+              Admin
+            </Link>
+          )}
+
+          {/* Profile */}
+          <Link
+            to="/profile"
+            className="ml-1 flex items-center gap-2"
           >
             {darkMode ? (
               <Sun size={18} strokeWidth={1.8} />
@@ -247,11 +170,22 @@ export default function Navbar({ center }: NavbarProps) {
             style={{ backgroundColor: border }}
           />
 
-          {/* Profile / Sign in */}
-          {auth.loggedIn ? (
-            <Link
-              to="/profile"
-              className="ml-1 flex items-center gap-2"
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Log out"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#FFF2F2] hover:text-[#FF4444] focus:outline-none focus:ring-2 focus:ring-[#FF4444]/30"
+            title="Log out"
+          >
+            <LogOut size={18} strokeWidth={1.8} />
+          </button>
+
+          {/* Notifications popup */}
+          {showNotifications && (
+            <div
+              role="status"
+              className="absolute right-0 top-[50px] w-64 rounded-xl border border-[#E5E5E5] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(15,31,61,0.12)]"
             >
               <img
                 src={avatarUrl}

@@ -11,67 +11,72 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
-import api from "../../api/axiosInstance";
+import { getAdminStats } from "../../api/admin";
 
-type AdminStats = {
-  totalUsers: number;
-  adminUsers: number;
-  newUsersThisMonth: number;
-  totalSavedTrips: number;
-  totalNotifications: number;
-  destinations: number;
-  recommendations: number;
-};
+const destinations = [
+  { name: "Tokyo", value: "1,240", width: "85%" },
+  { name: "Paris", value: "982", width: "70%" },
+  { name: "Kathmandu", value: "754", width: "55%" },
+  { name: "London", value: "612", width: "45%" },
+  { name: "Bali", value: "490", width: "30%" },
+];
+
+const activities = [
+  {
+    text: "Admin Sarah added a destination",
+    time: "10 minutes ago",
+  },
+  {
+    text: "System backup completed successfully",
+    time: "45 minutes ago",
+  },
+  {
+    text: "New user registered via Google Auth",
+    time: "2 hours ago",
+  },
+  {
+    text: "API rate limit warning triggered for weather service",
+    time: "3 hours ago",
+    warning: true,
+  },
+];
 
 export default function AdminDashboardContent() {
-  const [stats, setStats] = useState<AdminStats | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    adminUsers: 0,
+    newUsersThisMonth: 0,
+  });
 
   useEffect(() => {
-    let active = true;
-
-    api
-      .get<AdminStats>("/admin/stats")
-      .then((res) => {
-        if (active) setStats(res.data);
-      })
-      .catch((error) =>
-        console.error("Failed to load admin stats:", error)
-      )
-      .finally(() => {
-        if (active) setLoading(false);
-      });
-
-    return () => {
-      active = false;
-    };
+    getAdminStats()
+      .then(setStats)
+      .catch(() => {});
   }, []);
 
   const statCards = [
     {
       label: "Total Users",
-      value: loading ? "…" : stats?.totalUsers ?? 0,
+      value: stats.totalUsers.toLocaleString(),
       icon: Users,
     },
     {
-      label: "Admin Users",
-      value: loading ? "…" : stats?.adminUsers ?? 0,
+      label: "Active Users",
+      value: stats.activeUsers.toLocaleString(),
       icon: UserCheck,
     },
     {
-      label: "Destinations",
-      value: loading ? "…" : stats?.destinations ?? 0,
-      icon: MapPin,
+      label: "Administrators",
+      value: stats.adminUsers.toLocaleString(),
+      icon: Shield,
     },
     {
-      label: "Recommendations",
-      value: loading ? "…" : stats?.recommendations ?? 0,
+      label: "New Users (Month)",
+      value: stats.newUsersThisMonth.toLocaleString(),
       icon: Sparkles,
     },
   ];
-
-  const totalTrips = loading ? "…" : stats?.totalSavedTrips ?? 0;
-  const newUsers = loading ? "…" : stats?.newUsersThisMonth ?? 0;
 
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 p-4 md:p-8">
@@ -217,7 +222,7 @@ export default function AdminDashboardContent() {
 
           <div>
             <div className="text-2xl font-bold text-[#D9E5DE]">
-              {newUsers}
+              {stats.newUsersThisMonth.toLocaleString()}
             </div>
 
             <div className="text-xs text-[#9EADA5]">

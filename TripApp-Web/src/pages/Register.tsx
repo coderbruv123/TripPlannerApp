@@ -1,6 +1,13 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Plane } from "lucide-react";
+import api from "./../api/axiosInstance";
+
+interface RegisterResponse {
+  errorCode?: string;
+  message?: string;
+  success: boolean;
+}
 
 export default function Register() {
 
@@ -8,17 +15,38 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    console.log({
-      fullName,
-      email,
-      password,
-    });
+    setError("");
+    setLoading(true);
 
-    // Backend registration will be connected here later.
-    // navigate("/login");
+    try {
+      await api.post<RegisterResponse>("/auth/register", {
+        username: fullName.trim(),
+        email,
+        password,
+      });
+
+      navigate("/login", { replace: true });
+    } catch (err: unknown) {
+      console.error("Registration failed:", err);
+
+      const axiosError = err as {
+        response?: { data?: { message?: string } };
+      };
+
+      if (axiosError.response?.data?.message) {
+        setError(axiosError.response.data.message);
+      } else {
+        setError("Unable to create account. Please try again.");
+      }
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -178,6 +206,13 @@ export default function Register() {
               onSubmit={handleSubmit}
               className="flex flex-col gap-5"
             >
+              {/* Error */}
+              {error && (
+                <div className="rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-600">
+                  {error}
+                </div>
+              )}
+
 
               {/* Full Name */}
               <div>
@@ -249,9 +284,10 @@ export default function Register() {
               {/* Submit */}
               <button
                 type="submit"
-                className="w-full bg-[#006b5f] hover:bg-[#005048] text-white font-semibold py-3 rounded-full transition-colors shadow-sm mt-2"
+                disabled={loading}
+                className="w-full bg-[#006b5f] hover:bg-[#005048] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition-colors shadow-sm mt-2"
               >
-                Create Account
+                {loading ? "Creating Account..." : "Create Account"}
               </button>
 
             </form>

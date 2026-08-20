@@ -1,15 +1,17 @@
+export interface AuthUser {
+  userId: string;
+  username: string;
+  email: string;
+  role: string;
+  isActive: boolean;
+  createdAt?: string;
+}
 
 const TOKEN_KEY = "token";
 const ROLE_KEY = "role";
 const USER_ID_KEY = "userId";
 const EMAIL_KEY = "userEmail";
 const NAME_KEY = "userName";
-
-export const AUTH_EVENT = "tripapp:auth";
-
-export function notifyAuthChange(): void {
-  window.dispatchEvent(new Event(AUTH_EVENT));
-}
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -53,8 +55,6 @@ export function persistAuth(data: {
   if (data.email) localStorage.setItem(EMAIL_KEY, data.email);
   if (data.username) localStorage.setItem(NAME_KEY, data.username);
   if (data.userId) localStorage.setItem(USER_ID_KEY, data.userId);
-
-  notifyAuthChange();
 }
 
 export function clearAuth(): void {
@@ -66,6 +66,4 @@ export function clearAuth(): void {
     NAME_KEY,
     "isLoggedIn",
   ].forEach((key) => localStorage.removeItem(key));
-
-  notifyAuthChange();
 }

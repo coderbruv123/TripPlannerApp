@@ -10,10 +10,12 @@ interface LoginResponse {
   message?: string;
   success: boolean;
   data: {
-  token: string;
-  email?: string;
-  username?: string;
-  role?: string;}
+    token: string;
+    userId: string;
+    email?: string;
+    username?: string;
+    role?: string;
+  };
 }
 
 export default function Login() {
@@ -36,28 +38,33 @@ export default function Login() {
         email,
         password,
       });
-      console.log("Login successful:", response.data);
+      const data = response.data.data;
+
+      // Store JWT token + user info
       persistAuth({
-        token: response.data.data.token,
-        role: response.data.data.role,
-        email: response.data.data.email,
-        username: response.data.data.username,
+        token: data.token,
+        userId: data.userId,
+        email: data.email,
+        username: data.username,
+        role: data.role,
       });
 
-      // Redirect admins to the admin dashboard, everyone else home
+      // Admins go to the admin dashboard, everyone else to home
       navigate(
-        response.data.data.role === "Admin"
-          ? "/admin/dashboard"
-          : "/",
+        data.role === "Admin" ? "/admin/dashboard" : "/",
         { replace: true }
       );
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Login failed:", error);
 
-      if (error.response?.status === 401) {
+      const axiosError = error as {
+        response?: { status?: number; data?: { message?: string } };
+      };
+
+      if (axiosError.response?.status === 401) {
         setError("Invalid email or password.");
-      } else if (error.response?.data?.message) {
-        setError(error.response.data.message);
+      } else if (axiosError.response?.data?.message) {
+        setError(axiosError.response.data.message);
       } else {
         setError("Unable to sign in. Please try again.");
       }

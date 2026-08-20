@@ -12,6 +12,7 @@ import {
   Building2,
   Moon,
   LogOut,
+  Home,
 } from "lucide-react";
 import { clearAuth } from "../../api/authUtils";
 
@@ -71,9 +72,9 @@ const navigation = [
 export default function AdminSidebar() {
   const navigate = useNavigate();
 
-  const handleLogout = () => {
+  const logout = () => {
     clearAuth();
-    navigate("/login");
+    navigate("/login", { replace: true });
   };
 
   return (
@@ -135,10 +136,15 @@ export default function AdminSidebar() {
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col gap-1 border-t border-[#1B3428] pt-4">
 
-        <button
-          className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF]"
-          title="Admin portal is always in dark mode"
+        <NavLink
+          to="/"
+          className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]"
         >
+          <Home size={20} />
+          <span>Back to App</span>
+        </NavLink>
+
+        <button className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]">
           <Moon size={20} />
           <span>Dark mode</span>
           <span className="ml-auto rounded-full bg-[#2C3732]/60 px-2 py-0.5 text-[11px] font-bold text-[#7CD9A6]">
@@ -147,7 +153,7 @@ export default function AdminSidebar() {
         </button>
 
         <button
-          onClick={handleLogout}
+          onClick={logout}
           className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#3A1717] hover:text-[#FFB4AB]"
         >
           <LogOut size={20} />
