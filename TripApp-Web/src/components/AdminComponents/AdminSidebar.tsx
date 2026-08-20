@@ -1,4 +1,4 @@
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -11,8 +11,9 @@ import {
   Settings,
   Moon,
   LogOut,
-  Menu,
+  Home,
 } from "lucide-react";
+import { clearAuth } from "../../api/authUtils";
 
 const navigation = [
   {
@@ -63,6 +64,13 @@ const navigation = [
 ];
 
 export default function AdminSidebar() {
+  const navigate = useNavigate();
+
+  const logout = () => {
+    clearAuth();
+    navigate("/login", { replace: true });
+  };
+
   return (
     <aside className="fixed left-0 top-0 z-50 hidden h-screen w-[260px] flex-col border-r border-[#1B3428] bg-[#06100C] p-4 md:flex">
 
@@ -122,12 +130,23 @@ export default function AdminSidebar() {
       {/* Bottom Actions */}
       <div className="mt-auto flex flex-col gap-1 border-t border-[#1B3428] pt-4">
 
+        <NavLink
+          to="/"
+          className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]"
+        >
+          <Home size={20} />
+          <span>Back to App</span>
+        </NavLink>
+
         <button className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]">
           <Moon size={20} />
           <span>Theme</span>
         </button>
 
-        <button className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#3A1717] hover:text-[#FFB4AB]">
+        <button
+          onClick={logout}
+          className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#3A1717] hover:text-[#FFB4AB]"
+        >
           <LogOut size={20} />
           <span>Logout</span>
         </button>

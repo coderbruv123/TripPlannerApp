@@ -682,11 +682,6 @@ export default function TripPlannerMap() {
       ? parsedBudget
       : 1800;
 
-  const stayCost = Math.round(estimatedBudget * 0.4);
-  const flightCost = Math.round(estimatedBudget * 0.25);
-  const activityCost = Math.round(estimatedBudget * 0.2);
-  const foodCost = Math.round(estimatedBudget * 0.15);
-
   /* =======================================================
      ROUTES
   ======================================================= */

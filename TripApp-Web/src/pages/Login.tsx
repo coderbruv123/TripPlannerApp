@@ -3,15 +3,19 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Plane } from "lucide-react";
 import api from "./../api/axiosInstance";
+import { persistAuth } from "../api/authUtils";
 
 interface LoginResponse {
   errorCode?: string;
   message?: string;
   success: boolean;
   data: {
-  token: string;
-  email?: string;
-  username?: string;}
+    token: string;
+    userId: string;
+    email?: string;
+    username?: string;
+    role?: string;
+  };
 }
 
 export default function Login() {
@@ -34,23 +38,33 @@ export default function Login() {
         email,
         password,
       });
-      console.log("Login successful:", response.data);
-      // Store JWT token
-      localStorage.setItem("token", response.data.data.token);
-             localStorage.setItem("isLoggedIn", "true");
-      localStorage.setItem("userEmail", response.data.data.email || ""); // Store user email if available
-      localStorage.setItem("userName",response.data.data.username || "");
- // Store user name if available
+      const data = response.data.data;
 
-      // Redirect to protected Home page
-      navigate("/", { replace: true });
-    } catch (error: any) {
+      // Store JWT token + user info
+      persistAuth({
+        token: data.token,
+        userId: data.userId,
+        email: data.email,
+        username: data.username,
+        role: data.role,
+      });
+
+      // Admins go to the admin dashboard, everyone else to home
+      navigate(
+        data.role === "Admin" ? "/admin/dashboard" : "/",
+        { replace: true }
+      );
+    } catch (error: unknown) {
       console.error("Login failed:", error);
 
-      if (error.response?.status === 401) {
+      const axiosError = error as {
+        response?: { status?: number; data?: { message?: string } };
+      };
+
+      if (axiosError.response?.status === 401) {
         setError("Invalid email or password.");
-      } else if (error.response?.data?.message) {
-        setError(error.response.data.message);
+      } else if (axiosError.response?.data?.message) {
+        setError(axiosError.response.data.message);
       } else {
         setError("Unable to sign in. Please try again.");
       }

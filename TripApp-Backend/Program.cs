@@ -1,5 +1,9 @@
 
+using System.Text;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
+using TripApp_Backend.Configuration;
 using TripApp_Backend.Services;
 using TripApp_Backend.Data;
 using TripApp_Backend.Services.Auth;
@@ -21,8 +25,29 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     )
 );
 
-// JWT service
+// JWT service + settings
+builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
 builder.Services.AddScoped<IJwtService, JwtService>();
+
+var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>()
+    ?? throw new InvalidOperationException("JWT settings are missing.");
+
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings.Issuer,
+            ValidAudience = jwtSettings.Audience,
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings.Key)
+            )
+        };
+    });
 
 // Application services
 builder.Services.AddHttpClient<IDestinationService, DestinationService>();
@@ -49,7 +74,11 @@ builder.Services.AddCors(options =>
 });
 
 // Authorization
-builder.Services.AddAuthorization();
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("AdminOnly", policy =>
+        policy.RequireRole(UserRole.Admin.ToString()));
+});
 
 var app = builder.Build();
 
