@@ -1,9 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Bell,
   BriefcaseBusiness,
   ChevronDown,
-  Compass,
   Headphones,
   Heart,
   LogOut,
@@ -41,6 +40,61 @@ const defaultProfile: Profile = {
 
 type ProfileKey = keyof Profile;
 
+type SavedJourney = {
+  id: string;
+  mode: string;
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice: number | null;
+  savedAt: string;
+  trip?: {
+    journeys: TripJourney[];
+    destination?: {
+      name: string;
+      country: string;
+      latitude: number;
+      longitude: number;
+    };
+    origin?: { latitude: number; longitude: number };
+    hotel?: {
+      id: number;
+      name: string;
+      city: string;
+      stars?: number;
+      estimatedPricePerNight?: number | null;
+    };
+  };
+};
+
+type TripJourneyPoint = {
+  name: string;
+  latitude: number;
+  longitude: number;
+};
+
+type TripLeg = {
+  mode: string;
+  name: string;
+  origin: TripJourneyPoint;
+  destination: TripJourneyPoint;
+  distanceKm: number;
+  durationMinutes: number;
+  geometry?: string;
+  carrier?: string;
+  estimatedPrice?: number;
+};
+
+type TripJourney = {
+  id: string;
+  mode: string;
+  legs: TripLeg[];
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice?: number;
+  available: boolean;
+  message?: string;
+};
+
 const sidebarItems = [
   {
     label: "Profile",
@@ -71,15 +125,92 @@ const sidebarItems = [
 export const TripPlannerAccountSettings = () => {
   const [profile, setProfile] = useState<Profile>(defaultProfile);
 
-  const [activeItem, setActiveItem] = useState("Profile");
+  const { search } = useLocation();
+
+  const [activeItem, setActiveItem] = useState<string>(
+    () => {
+      const tab = new URLSearchParams(search).get("tab");
+      return tab === "trips" ? "My Trips" : "Profile";
+    }
+  );
 
   const [savedMessage, setSavedMessage] = useState("");
 
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const [showSearch, setShowSearch] = useState(false);
-
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  const navigate = useNavigate();
+
+  const [savedJourneys, setSavedJourneys] = useState<
+    SavedJourney[]
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    api
+      .get("/journeys/saved")
+      .then((response) => {
+        if (!cancelled) {
+          setSavedJourneys(response.data || []);
+        }
+      })
+      .catch((error) => {
+        console.error("Failed to load saved journeys", error);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const removeSavedJourney = async (id: string) => {
+    try {
+      await api.delete(`/journeys/saved/${id}`);
+      setSavedJourneys((current) =>
+        current.filter((journey) => journey.id !== id)
+      );
+    } catch (error) {
+      console.error("Failed to delete saved journey", error);
+    }
+  };
+
+  const reopenJourney = (saved: SavedJourney) => {
+    const trip = saved.trip;
+
+    const journeys = (trip?.journeys || []).map((j) => ({
+      ...j,
+      available: j.available ?? true,
+    }));
+
+    if (journeys.length === 0) return;
+
+    const savedDestination = trip?.destination;
+
+    const destination =
+      savedDestination && savedDestination.name
+        ? savedDestination
+        : (() => {
+            const lastLeg =
+              journeys[0]?.legs?.at(-1);
+            return lastLeg?.destination
+              ? {
+                  name: lastLeg.destination.name,
+                  country: "",
+                  latitude: lastLeg.destination.latitude,
+                  longitude: lastLeg.destination.longitude,
+                }
+              : undefined;
+          })();
+
+    navigate("/trip", {
+      state: {
+        journeys,
+        destination,
+        origin: trip?.origin,
+        hotel: trip?.hotel,
+      },
+    });
+  };
 
   // Password change state
   const [currentPassword, setCurrentPassword] = useState("");
@@ -187,104 +318,7 @@ export const TripPlannerAccountSettings = () => {
     >
       {/* ================= HEADER ================= */}
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#E9E9EC] bg-white px-5 shadow-[0_2px_12px_rgba(15,31,61,0.05)] sm:px-8">
-        <Link to="/"
-          className="flex items-center gap-2.5"
-          aria-label="TripPlanner home"
-        >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E8F8F6] text-[#00BFA5]">
-            <Compass size={21} strokeWidth={2.3} />
-          </span>
-
-          <span className="text-[17px] font-bold tracking-[-0.4px]">
-            TripPlanner
-          </span>
-        </Link>
-
-        <nav
-          className="flex items-center gap-1.5"
-          aria-label="Account actions"
-        >
-          {/* Search */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowSearch((current) => !current)
-            }
-            aria-label="Search"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
-          >
-            {showSearch ? (
-              <X size={18} strokeWidth={1.8} />
-            ) : (
-              <Search size={18} strokeWidth={1.8} />
-            )}
-          </button>
-
-          {/* Notifications */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowNotifications((current) => !current)
-            }
-            aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
-          >
-            <Bell size={18} strokeWidth={1.8} />
-
-            <span className="absolute right-[7px] top-[6px] h-1.5 w-1.5 rounded-full bg-[#FF4444]" />
-          </button>
-
-          <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
-
-          <img
-            src={avatarUrl}
-            alt="Portrait of Alex Johnson"
-            className="ml-1 h-9 w-9 rounded-full border-2 border-[#00BFA5] object-cover"
-          />
-
-          <span className="hidden pl-1 text-[13px] font-semibold text-[#0F1F3D] sm:block">
-            Alex Johnson
-          </span>
-
-          {/* Notifications popup */}
-
-          {showNotifications && (
-            <div
-              role="status"
-              className="absolute right-5 top-[58px] w-64 rounded-xl border border-[#E5E5E5] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(15,31,61,0.12)] sm:right-8"
-            >
-              <strong className="block text-[#0F1F3D]">
-                Notifications
-              </strong>
-
-              <span className="mt-1 block text-[#667085]">
-                Your Yosemite trip is ready to review.
-              </span>
-            </div>
-          )}
-        </nav>
-      </header>
-
-      {/* ================= SEARCH ================= */}
-
-      {showSearch && (
-        <div className="border-b border-[#E5E5E5] bg-white px-5 py-3 sm:px-8">
-          <label className="mx-auto flex max-w-xl items-center gap-2 rounded-lg border border-[#DCDDE2] px-3 py-2 text-sm text-[#888] shadow-sm">
-            <Search size={16} />
-
-            <input
-              autoFocus
-              type="search"
-              placeholder="Search your trips and places"
-              className="w-full bg-transparent outline-none placeholder:text-[#A0A3AA]"
-              aria-label="Search your trips and places"
-            />
-          </label>
-        </div>
-      )}
+      <Navbar />
 
       {/* ================= MAIN LAYOUT ================= */}
 
@@ -402,7 +436,90 @@ export const TripPlannerAccountSettings = () => {
 
             <div className="border-t border-[#E1E1E4]" />
 
+            {/* ================= MY TRIPS (SAVED JOURNEYS) ================= */}
+
+            {activeItem === "My Trips" && (
+              <section
+                className="py-8"
+                aria-labelledby="my-trips-heading"
+              >
+                <h2
+                  id="my-trips-heading"
+                  className="text-[21px] font-bold tracking-[-0.4px]"
+                >
+                  My Trips
+                </h2>
+
+                <p className="mt-1.5 text-[14px] text-[#888]">
+                  Journeys you saved from your searches
+                </p>
+
+                {savedJourneys.length === 0 ? (
+                  <div className="mt-6 rounded-xl border border-dashed border-[#D6D8DE] bg-white p-8 text-center">
+                    <p className="text-[14px] text-[#888]">
+                      No saved journeys yet. Search for a trip
+                      and press "Save" to keep it here.
+                    </p>
+                  </div>
+                ) : (
+                  <ul className="mt-6 space-y-3">
+                    {savedJourneys.map((journey) => (
+                      <li
+                        key={journey.id}
+                        className="flex items-center justify-between gap-4 rounded-xl border border-[#E5E5E5] bg-white p-4 shadow-sm"
+                      >
+                        <button
+                          type="button"
+                          onClick={() => reopenJourney(journey)}
+                          className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                        >
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#E8F8F6] text-[#008F7C]">
+                            <BriefcaseBusiness
+                              size={18}
+                              strokeWidth={1.8}
+                            />
+                          </span>
+                          <span className="min-w-0">
+                            <strong className="block truncate text-[14px] text-[#0F1F3D]">
+                              {journey.mode}{" "}
+                              trip
+                            </strong>
+                            <span className="block text-[13px] text-[#888]">
+                              {journey.trip?.journeys?.[0]?.legs
+                                ? journey.trip.journeys[0].legs
+                                    .map((leg) => leg.mode)
+                                    .join(" + ")
+                                : journey.mode}
+                              {journey.estimatedPrice != null &&
+                                ` • $${journey.estimatedPrice.toFixed(0)}`}{" "}
+                              • Saved on{" "}
+                              {new Date(
+                                journey.savedAt
+                              ).toLocaleDateString()}
+                            </span>
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            removeSavedJourney(journey.id)
+                          }
+                          aria-label="Delete saved journey"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[#A0A3AA] transition hover:bg-[#FFF2F2] hover:text-[#FF4444]"
+                        >
+                          <X size={17} />
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            )}
+
             {/* ================= PROFILE ================= */}
+
+            {activeItem === "Profile" && (
 
             <section
               className="py-8"
@@ -624,9 +741,12 @@ export const TripPlannerAccountSettings = () => {
 
               </div>
             </section>
+            )}
 
             {/* ================= SECURITY ================= */}
 
+            {activeItem === "Profile" && (
+            <>
             <div className="border-t border-[#E1E1E4]" />
 
             <section
@@ -714,6 +834,8 @@ export const TripPlannerAccountSettings = () => {
                 </button>
               </div>
             </section>
+            </>
+            )}
 
           </div>
         </main>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   MapPin,
@@ -10,6 +10,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import DatePicker from "./DatePicker";
+import api from "../api/axiosInstance";
 
 const API_URL = "http://localhost:5176/api/Destinations";
 
@@ -78,6 +79,75 @@ export default function Hero() {
 
   const totalTravelers = adults + children;
 
+  const destinationInputRef = useRef<HTMLInputElement>(null);
+
+  const planTrip = async () => {
+    if (!selectedDestination) return;
+
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported.");
+      return;
+    }
+
+    setPlanning(true);
+
+    try {
+      const position = await new Promise<GeolocationPosition>(
+        (resolve, reject) =>
+          navigator.geolocation.getCurrentPosition(
+            resolve,
+            reject
+          )
+      );
+
+      const result = await api.post("/trips/search", {
+        originLat: position.coords.latitude,
+        originLng: position.coords.longitude,
+        destinationLat: selectedDestination.latitude,
+        destinationLng: selectedDestination.longitude,
+      });
+
+      navigate("/trip", {
+        state: {
+          destination: selectedDestination,
+          origin: {
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+          },
+          journeys: result.data.journeys,
+          budget,
+          adults,
+          children,
+          selectedDates,
+        },
+      });
+    } catch (err) {
+      console.error(err);
+      alert("Failed to plan trip.");
+    } finally {
+      setPlanning(false);
+    }
+  };
+
+  const startPlanning = () => {
+    if (selectedDestination) {
+      planTrip();
+      return;
+    }
+
+    document
+      .getElementById("planner-search")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+
+    window.setTimeout(
+      () => destinationInputRef.current?.focus(),
+      400
+    );
+  };
+
   return (
     <section className="relative z-50 overflow-visible bg-white">
       <div className="mx-auto grid max-w-7xl gap-10 px-6 pb-16 pt-16 lg:grid-cols-2 lg:px-10 lg:pt-24">
@@ -95,14 +165,17 @@ export default function Hero() {
             unforgettable trips all in one place.
           </p>
 
-          <button className="mt-7 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800">
+          <button
+            onClick={startPlanning}
+            className="mt-7 rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold text-white hover:bg-slate-800"
+          >
             Start planning
           </button>
 
 
           {/* Trip Planner Search */}
 
-    <div className="mt-10 rounded-[28px] border border-slate-200 bg-white p-4 shadow-xl">
+    <div id="planner-search" className="mt-10 rounded-[28px] border border-slate-200 bg-white p-4 shadow-xl">
        <div className="grid gap-2 lg:grid-cols-[2fr_1.3fr_1.2fr_1fr_auto]">
 
               {/* Destination */}
@@ -117,6 +190,7 @@ export default function Hero() {
                   </p>
 
                   <input
+                    ref={destinationInputRef}
                     value={query}
                     onFocus={() => setShowDropdown(true)}
                     onBlur={() =>
@@ -383,70 +457,7 @@ onClick={async () => {
   }`}
   onClick={() => {
     if (!selectedDestination) return;
-
-    if (!navigator.geolocation) {
-      alert("Geolocation is not supported.");
-      return;
-    }
-
-    setPlanning(true);
-
-    navigator.geolocation.getCurrentPosition(
-      async (position) => {
-        try {
-          const response = await fetch(
-            "http://localhost:5176/api/trips/search",
-            {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-              },
-              body: JSON.stringify({
-                originLat: position.coords.latitude,
-                originLng: position.coords.longitude,
-
-                destinationLat: selectedDestination.latitude,
-                destinationLng: selectedDestination.longitude,
-              }),
-            }
-          );
-
-          if (!response.ok) {
-            throw new Error("Trip planning failed");
-          }
-
-          const result = await response.json();
-
-          navigate("/trip", {
-            state: {
-              destination: selectedDestination,
-
-              origin: {
-                latitude: position.coords.latitude,
-                longitude: position.coords.longitude,
-              },
-
-              routes: result.routes,
-              flight: result.flight,
-
-              budget,
-              adults,
-              children,
-              selectedDates,
-            },
-          });
-        } catch (err) {
-          console.error(err);
-          alert("Failed to plan trip.");
-        } finally {
-          setPlanning(false);
-        }
-      },
-      () => {
-        setPlanning(false);
-        alert("Location permission denied.");
-      }
-    );
+    planTrip();
   }}
 >
   <Search size={18} />

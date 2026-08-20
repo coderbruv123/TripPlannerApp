@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TripApp_Backend.Models;
 using TripApp_Backend.Services;
@@ -13,6 +14,61 @@ public class HotelsController : ControllerBase
     public HotelsController(IHotelService hotelService)
     {
         _hotelService = hotelService;
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> List()
+    {
+        var hotels = await _hotelService.ListAllAsync();
+        return Ok(hotels);
+    }
+
+    [HttpPost]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Add([FromBody] Hotel hotel)
+    {
+        if (string.IsNullOrWhiteSpace(hotel.Name))
+            return BadRequest("Hotel name is required.");
+
+        if (string.IsNullOrWhiteSpace(hotel.City))
+            return BadRequest("City is required.");
+
+        var created = await _hotelService.AddAsync(hotel);
+        return Ok(created);
+    }
+
+    [HttpDelete("{id:long}")]
+    [Authorize(Roles = "Admin")]
+    public async Task<IActionResult> Delete(long id)
+    {
+        var deleted = await _hotelService.DeleteAsync(id);
+
+        if (!deleted)
+            return NotFound();
+
+        return NoContent();
+    }
+
+    [HttpGet("near")]
+    public async Task<IActionResult> Near(
+        [FromQuery] double latitude,
+        [FromQuery] double longitude,
+        [FromQuery] double radiusKm = 50,
+        [FromQuery] int limit = 20)
+    {
+        if (latitude < -90 || latitude > 90 ||
+            longitude < -180 || longitude > 180)
+        {
+            return BadRequest("Valid latitude and longitude are required.");
+        }
+
+        var hotels = await _hotelService.NearAsync(
+            latitude,
+            longitude,
+            radiusKm,
+            limit);
+
+        return Ok(hotels);
     }
 
     [HttpGet("search")]

@@ -9,6 +9,7 @@ import {
   BarChart3,
   History,
   Settings,
+  Building2,
   Moon,
   LogOut,
   Home,
@@ -40,6 +41,11 @@ const navigation = [
     name: "Recommendations",
     path: "/admin/recommendations",
     icon: Sparkles,
+  },
+  {
+    name: "Hotels",
+    path: "/admin/hotels",
+    icon: Building2,
   },
   {
     name: "Reviews & Feedback",
@@ -140,7 +146,10 @@ export default function AdminSidebar() {
 
         <button className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]">
           <Moon size={20} />
-          <span>Theme</span>
+          <span>Dark mode</span>
+          <span className="ml-auto rounded-full bg-[#2C3732]/60 px-2 py-0.5 text-[11px] font-bold text-[#7CD9A6]">
+            On
+          </span>
         </button>
 
         <button

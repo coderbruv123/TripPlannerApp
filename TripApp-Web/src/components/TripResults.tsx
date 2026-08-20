@@ -484,9 +484,11 @@ import Map, {
   Layer,
   NavigationControl,
 } from "react-map-gl/maplibre";
-
 import { useLocation, useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import api from "../api/axiosInstance";
+import Navbar from "./Navbar";
+import { useDarkMode } from "../hooks/useDarkMode";
 
 import {
   ArrowRight,
@@ -498,11 +500,9 @@ import {
   Expand,
   Globe2,
   MapPin,
-  Moon,
   Plane,
   Plus,
   Search,
-  Sun,
   TentTree,
   UserRound,
   X,
@@ -528,23 +528,32 @@ type Destination = {
   longitude: number;
 };
 
-type RouteOption = {
-  type: string;
+type JourneyPoint = {
   name: string;
-  available: boolean;
-  distanceKm?: number;
-  durationMinutes?: number;
-  estimatedPrice?: number;
-  provider?: string;
-  geometry?: string;
-  message?: string;
+  latitude: number;
+  longitude: number;
 };
 
-type FlightOption = {
-  available: boolean;
-  airline?: string;
-  duration?: number;
+type JourneyLeg = {
+  mode: string;
+  name: string;
+  origin: JourneyPoint;
+  destination: JourneyPoint;
+  distanceKm: number;
+  durationMinutes: number;
+  geometry?: string;
+  carrier?: string;
   estimatedPrice?: number;
+};
+
+type Journey = {
+  id: string;
+  mode: string;
+  legs: JourneyLeg[];
+  totalDistanceKm: number;
+  totalDurationMinutes: number;
+  estimatedPrice?: number;
+  available: boolean;
   message?: string;
 };
 
@@ -563,9 +572,23 @@ type TripState = {
 
   selectedDates?: SelectedDateRange;
 
-  routes?: RouteOption[];
+  journeys?: Journey[];
 
-  flight?: FlightOption;
+  hotel?: Hotel;
+};
+
+type Hotel = {
+  id: number;
+  name: string;
+  address?: string;
+  city: string;
+  latitude: number;
+  longitude: number;
+  distanceKm: number;
+  stars?: number;
+  website?: string;
+  phone?: string;
+  estimatedPricePerNight?: number | null;
 };
 
 type Stop = {
@@ -611,6 +634,29 @@ function formatDuration(minutes?: number) {
   return `${hours}h ${mins}min`;
 }
 
+function formatJourneyMode(mode: string) {
+  const labels: Record<string, string> = {
+    combined: "Flight",
+    flight: "Flight",
+    layover: "Layover",
+    drive: "Drive",
+    bus: "Bus",
+    walk: "Walking",
+    cycle: "Cycling",
+    train: "Train",
+  };
+
+  return labels[mode] ?? mode;
+}
+
+function formatPrice(price?: number) {
+  if (price === undefined || price === null) {
+    return "Price unavailable";
+  }
+
+  return `From $${price.toFixed(2)}`;
+}
+
 /* =========================================================
    COMPONENT
 ========================================================= */
@@ -626,13 +672,36 @@ export default function TripPlannerMap() {
      THEME
   ======================================================= */
 
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode] = useDarkMode();
 
   /* =======================================================
      SAVE
   ======================================================= */
 
   const [saved, setSaved] = useState(false);
+
+  async function handleSave() {
+    if (!selectedJourney) return;
+
+    if (!localStorage.getItem("token")) {
+      alert("Please sign in to save a journey.");
+      return;
+    }
+
+    try {
+      await api.post("/journeys/saved", {
+        selected: selectedJourney,
+        journeys: journeys,
+        destination,
+        origin: userLocation ?? undefined,
+        hotel: selectedHotel ?? undefined,
+      });
+      setSaved(true);
+    } catch (error) {
+      console.error(error);
+      alert("Failed to save journey.");
+    }
+  }
 
   /* =======================================================
      NAV
@@ -683,25 +752,75 @@ export default function TripPlannerMap() {
       : 1800;
 
   /* =======================================================
-     ROUTES
+     JOURNEYS
   ======================================================= */
 
-  const routes = tripState.routes ?? [];
+  const journeys = tripState.journeys ?? [];
 
-  const availableRoutes = routes.filter(
-    (route) => route.available
+  const availableJourneys = journeys.filter(
+    (journey) => journey.available
   );
 
-  const [selectedRoute, setSelectedRoute] =
-    useState<RouteOption | null>(
-      availableRoutes[0] ?? null
+  const [selectedJourney, setSelectedJourney] =
+    useState<Journey | null>(
+      availableJourneys[0] ?? null
     );
 
   /* =======================================================
-     FLIGHT
+     HOTELS NEAR DESTINATION
   ======================================================= */
 
-  const flight = tripState.flight;
+  const [hotels, setHotels] = useState<Hotel[]>([]);
+
+  const [hotelsLoading, setHotelsLoading] = useState(true);
+
+  const [hotelsError, setHotelsError] = useState("");
+
+  const [selectedHotel, setSelectedHotel] =
+    useState<Hotel | null>(tripState.hotel ?? null);
+
+  useEffect(() => {
+    let active = true;
+
+    const timer = window.setTimeout(() => {
+      if (active) {
+        setHotelsLoading(false);
+        setHotelsError(
+          "Hotels are taking longer than expected. Please refresh."
+        );
+      }
+    }, 8000);
+
+    api
+      .get<Hotel[]>("/hotels/near", {
+        params: {
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+          radiusKm: 50,
+          limit: 12,
+        },
+      })
+      .then((res) => {
+        if (active) {
+          setHotels(res.data || []);
+          setHotelsError("");
+        }
+      })
+      .catch((err) => {
+        console.error("Hotel load failed:", err);
+        if (active)
+          setHotelsError("Unable to load hotels for this destination.");
+      })
+      .finally(() => {
+        window.clearTimeout(timer);
+        if (active) setHotelsLoading(false);
+      });
+
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+    };
+  }, [destination.latitude, destination.longitude]);
 
   /* =======================================================
      ADD DESTINATION
@@ -712,25 +831,43 @@ export default function TripPlannerMap() {
   const [searched, setSearched] = useState(false);
 
   /* =======================================================
-     MAP ROUTE GEOMETRY
+     ROUTE GEOMETRY
   ======================================================= */
 
   const routeGeometry = useMemo(() => {
-    if (!selectedRoute?.geometry) {
+
+    if (!selectedJourney) {
       return null;
     }
 
-    try {
-      return JSON.parse(selectedRoute.geometry);
-    } catch (error) {
-      console.error(
-        "Failed to parse route geometry:",
-        error
-      );
+    const geometries: unknown[] = [];
 
+    for (const leg of selectedJourney.legs) {
+      if (!leg.geometry) continue;
+
+      try {
+        geometries.push(JSON.parse(leg.geometry));
+      } catch (error) {
+        console.error(
+          "Failed to parse leg geometry:",
+          error
+        );
+      }
+    }
+
+    if (geometries.length === 0) {
       return null;
     }
-  }, [selectedRoute]);
+
+    if (geometries.length === 1) {
+      return geometries[0];
+    }
+
+    return {
+      type: "GeometryCollection",
+      geometries,
+    };
+  }, [selectedJourney]);
 
   /* =======================================================
      STOPS
@@ -742,13 +879,13 @@ export default function TripPlannerMap() {
       number: "1",
       name: destination.name,
       country: destination.country,
-      transport: selectedRoute?.name,
-      detail: selectedRoute
+      transport: selectedJourney?.mode,
+      detail: selectedJourney
         ? `${formatDuration(
-            selectedRoute.durationMinutes
+            selectedJourney.totalDurationMinutes
           )} · ${
-            selectedRoute.estimatedPrice
-              ? `from $${selectedRoute.estimatedPrice}`
+            selectedJourney.estimatedPrice
+              ? `from $${selectedJourney.estimatedPrice}`
               : "price unavailable"
           }`
         : "Select a transport option",
@@ -912,133 +1049,75 @@ export default function TripPlannerMap() {
           HEADER
       ===================================================== */}
 
-      <header
-        className="flex h-16 items-center gap-5 border-b px-6"
-        style={{
-          backgroundColor: theme.header,
-          borderColor: theme.border,
-        }}
-      >
-        {/* LOGO */}
-
-        <div className="flex w-[220px] shrink-0 items-center gap-2.5">
-          <span
-            className="flex h-8 w-8 items-center justify-center rounded-full"
-            style={{
-              backgroundColor: theme.primary,
-              color: darkMode ? "#071B1B" : "#FFFFFF",
-            }}
+      <Navbar
+        center={
+          <nav
+            className="flex min-w-0 items-center justify-center gap-2"
+            aria-label="Trip destinations"
           >
-            <Compass
-              size={21}
-              strokeWidth={2.7}
-            />
-          </span>
+            <div className="flex min-w-0 items-center gap-2">
+              <div
+                className="flex h-10 min-w-[180px] max-w-[260px] items-center justify-between rounded-full border px-4 text-[14px] font-semibold"
+                style={{
+                  backgroundColor: theme.card,
+                  borderColor: theme.border,
+                }}
+              >
+                <span className="truncate">
+                  {destination.name}
+                </span>
 
-          <span className="text-[19px] font-bold tracking-[-0.04em]">
-            TripPlanner
-          </span>
-        </div>
+                <button
+                  onClick={removeDestination}
+                  aria-label={`Remove ${destination.name}`}
+                  className="ml-2"
+                  style={{
+                    color: theme.muted,
+                  }}
+                >
+                  <X size={15} />
+                </button>
+              </div>
 
-        {/* DESTINATION PATH */}
-
-        <nav
-          className="flex min-w-0 flex-1 items-center justify-center gap-2"
-          aria-label="Trip destinations"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-10 min-w-[180px] max-w-[260px] items-center justify-between rounded-full border px-4 text-[14px] font-semibold"
-              style={{
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              }}
-            >
-              <span className="truncate">
-                {destination.name}
-              </span>
-
-              <button
-                onClick={removeDestination}
-                aria-label={`Remove ${destination.name}`}
-                className="ml-2"
+              <ArrowRight
+                size={16}
                 style={{
                   color: theme.muted,
                 }}
-              >
-                <X size={15} />
-              </button>
+              />
             </div>
 
-            <ArrowRight
-              size={16}
+            <button
+              aria-label="More destinations"
+              className="flex h-10 w-11 items-center justify-center rounded-full border text-lg font-bold"
               style={{
+                backgroundColor: theme.card,
+                borderColor: theme.border,
                 color: theme.muted,
               }}
-            />
-          </div>
+            >
+              •••
+            </button>
 
-          <button
-            aria-label="More destinations"
-            className="flex h-10 w-11 items-center justify-center rounded-full border text-lg font-bold"
-            style={{
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-              color: theme.muted,
-            }}
-          >
-            •••
-          </button>
+            <button
+              onClick={handleSearch}
+              className="ml-1 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-bold transition"
+              style={{
+                backgroundColor: theme.primary,
+                color: darkMode
+                  ? "#071B1B"
+                  : "#FFFFFF",
+              }}
+            >
+              <Search size={16} />
 
-          <button
-            onClick={handleSearch}
-            className="ml-1 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-bold transition"
-            style={{
-              backgroundColor: theme.primary,
-              color: darkMode
-                ? "#071B1B"
-                : "#FFFFFF",
-            }}
-          >
-            <Search size={16} />
-
-            <span>
-              {searched ? "Updated" : "Search"}
-            </span>
-          </button>
-        </nav>
-
-        {/* THEME */}
-
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          aria-label="Toggle theme"
-          className="flex h-10 w-10 items-center justify-center rounded-full border transition"
-          style={{
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-          }}
-        >
-          {darkMode ? (
-            <Sun size={18} />
-          ) : (
-            <Moon size={18} />
-          )}
-        </button>
-
-        {/* SIGN IN */}
-
-        <button
-          onClick={() => navigate("/login")}
-          className="w-[100px] rounded-full border px-4 py-2 text-[13px] font-semibold transition"
-          style={{
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-          }}
-        >
-          Sign in
-        </button>
-      </header>
+              <span>
+                {searched ? "Updated" : "Search"}
+              </span>
+            </button>
+          </nav>
+        }
+      />
 
       {/* =====================================================
           BODY
@@ -1141,9 +1220,8 @@ export default function TripPlannerMap() {
             </div>
 
             <button
-              onClick={() =>
-                setSaved(!saved)
-              }
+              onClick={handleSave}
+              disabled={!selectedJourney}
               className="flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-bold transition"
               style={{
                 backgroundColor: saved
@@ -1172,6 +1250,22 @@ export default function TripPlannerMap() {
                 {saved ? "Saved" : "Save"}
               </span>
             </button>
+
+            {saved && (
+              <button
+                onClick={() =>
+                  navigate("/profile?tab=trips")
+                }
+                className="flex items-center gap-1.5 rounded-lg px-3.5 py-2 text-[13px] font-bold transition hover:bg-[#F5F5F7]"
+                style={{ color: theme.primary }}
+              >
+                <Bookmark
+                  size={16}
+                  fill="none"
+                />
+                View saved trips
+              </button>
+            )}
           </div>
 
           {/* =================================================
@@ -1469,6 +1563,137 @@ export default function TripPlannerMap() {
               </p>
             </div>
           </div>
+
+          {/* =================================================
+              HOTELS NEAR DESTINATION
+          ================================================= */}
+
+          <div className="mt-6">
+            <div className="mb-3 flex items-center gap-2">
+              <Hotel size={17} />
+
+              <h3 className="font-semibold">
+                Hotels in {destination.name}
+              </h3>
+            </div>
+
+            {hotelsLoading && (
+              <p
+                className="text-sm"
+                style={{
+                  color: theme.muted,
+                }}
+              >
+                Finding hotels nearby…
+              </p>
+            )}
+
+            {!hotelsLoading && hotelsError && (
+              <p
+                className="text-sm"
+                style={{
+                  color: theme.muted,
+                }}
+              >
+                {hotelsError}
+              </p>
+            )}
+
+            {!hotelsLoading &&
+              !hotelsError &&
+              hotels.length === 0 && (
+                <p
+                  className="text-sm"
+                  style={{
+                    color: theme.muted,
+                  }}
+                >
+                  No hotels found nearby.
+                </p>
+              )}
+
+            {!hotelsLoading &&
+              !hotelsError &&
+              hotels.length > 0 && (
+                <div className="space-y-2">
+                  {hotels.map((hotel) => {
+                    const isSelected =
+                      selectedHotel?.id === hotel.id;
+
+                    return (
+                      <button
+                        key={hotel.id}
+                        onClick={() =>
+                          setSelectedHotel(hotel)
+                        }
+                        className="flex w-full items-center gap-3 rounded-xl border px-3.5 py-3 text-left transition"
+                        style={{
+                          backgroundColor: isSelected
+                            ? darkMode
+                              ? "#123C3A"
+                              : "#DDF7F2"
+                            : theme.cardSecondary,
+                          borderColor: isSelected
+                            ? theme.primary
+                            : theme.border,
+                        }}
+                      >
+                        <span
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-[13px] font-bold"
+                          style={{
+                            backgroundColor:
+                              darkMode
+                                ? "#123C3A"
+                                : "#DDF7F2",
+                            color: theme.primary,
+                          }}
+                        >
+                          {hotel.stars ? hotel.stars : "H"}
+                        </span>
+
+                        <span className="min-w-0 flex-1">
+                          <span
+                            className="block truncate text-[13px] font-semibold"
+                            style={{
+                              color: theme.text,
+                            }}
+                          >
+                            {hotel.name}
+                          </span>
+
+                          <span
+                            className="block truncate text-[11px]"
+                            style={{
+                              color: theme.muted,
+                            }}
+                          >
+                            {hotel.city}
+                            {hotel.estimatedPricePerNight != null
+                              ? ` · $${Math.round(
+                                  hotel.estimatedPricePerNight
+                                )}/night`
+                              : ""}
+                          </span>
+                        </span>
+
+                        <span
+                          className="text-[11px] font-semibold"
+                          style={{
+                            color: isSelected
+                              ? theme.primary
+                              : theme.muted,
+                          }}
+                        >
+                          {isSelected
+                            ? "Selected"
+                            : "Select"}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+          </div>
         </aside>
 
         {/* ===================================================
@@ -1574,6 +1799,60 @@ export default function TripPlannerMap() {
                 fill="red"
               />
             </Marker>
+
+            {/* ===============================================
+                HOTELS
+            =============================================== */}
+
+            {hotels.map((hotel) => {
+              const isSelected =
+                selectedHotel?.id === hotel.id;
+
+              return (
+                <Marker
+                  key={hotel.id}
+                  longitude={hotel.longitude}
+                  latitude={hotel.latitude}
+                  anchor="bottom"
+                  onClick={(event) => {
+                    event.originalEvent.stopPropagation();
+                    setSelectedHotel(hotel);
+                  }}
+                >
+                  <button
+                    aria-label={hotel.name}
+                    className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold shadow-md transition"
+                    style={{
+                      backgroundColor: isSelected
+                        ? theme.primary
+                        : darkMode
+                        ? "#27313B"
+                        : "#FFFFFF",
+                      color: isSelected
+                        ? darkMode
+                          ? "#071B1B"
+                          : "#FFFFFF"
+                        : theme.text,
+                      border: `2px solid ${
+                        isSelected
+                          ? theme.primary
+                          : theme.border
+                      }`,
+                      transform: isSelected
+                        ? "scale(1.08)"
+                        : undefined,
+                    }}
+                  >
+                    <Hotel size={12} />
+                    <span>
+                      {hotel.stars
+                        ? `${hotel.stars}★`
+                        : "H"}
+                    </span>
+                  </button>
+                </Marker>
+              );
+            })}
           </Map>
 
           {/* =================================================
@@ -1668,7 +1947,7 @@ export default function TripPlannerMap() {
                 </p>
               </div>
 
-              {selectedRoute && (
+              {selectedJourney && (
                 <span
                   className="rounded-full px-3 py-1 text-xs font-semibold"
                   style={{
@@ -1680,32 +1959,34 @@ export default function TripPlannerMap() {
                       theme.primary,
                   }}
                 >
-                  {selectedRoute.type}
+                  {formatJourneyMode(
+                    selectedJourney.mode
+                  )}
                 </span>
               )}
             </div>
 
             <div className="flex gap-3 overflow-x-auto pb-1">
-              {routes.map((route) => {
+              {journeys.map((journey) => {
                 const isSelected =
-                  selectedRoute?.type ===
-                  route.type;
+                  selectedJourney?.id ===
+                  journey.id;
 
                 return (
                   <button
-                    key={route.type}
-                    disabled={!route.available}
+                    key={journey.id}
+                    disabled={!journey.available}
                     onClick={() => {
-                      if (route.available) {
-                        setSelectedRoute(
-                          route
+                      if (journey.available) {
+                        setSelectedJourney(
+                          journey
                         );
                       }
                     }}
                     className="min-w-[180px] rounded-xl border p-3 text-left transition"
                     style={{
                       backgroundColor:
-                        !route.available
+                        !journey.available
                           ? darkMode
                             ? "#151C25"
                             : "#F5F5F7"
@@ -1721,14 +2002,16 @@ export default function TripPlannerMap() {
                           : theme.border,
 
                       opacity:
-                        !route.available
+                        !journey.available
                           ? 0.5
                           : 1,
                     }}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold">
-                        {route.type}
+                        {formatJourneyMode(
+                          journey.mode
+                        )}
                       </span>
 
                       {isSelected && (
@@ -1744,7 +2027,7 @@ export default function TripPlannerMap() {
                       )}
                     </div>
 
-                    {route.available ? (
+                    {journey.available ? (
                       <>
                         <p
                           className="mt-2 text-xs"
@@ -1754,7 +2037,7 @@ export default function TripPlannerMap() {
                           }}
                         >
                           {formatDuration(
-                            route.durationMinutes
+                            journey.totalDurationMinutes
                           )}
                         </p>
 
@@ -1765,25 +2048,40 @@ export default function TripPlannerMap() {
                               theme.muted,
                           }}
                         >
-                          {route.distanceKm?.toFixed(
+                          {journey.totalDistanceKm.toFixed(
                             1
                           )}{" "}
                           km
                         </p>
 
-                        {route.estimatedPrice !==
-                          undefined && (
+                        <p
+                          className="mt-1 text-sm font-semibold"
+                          style={{
+                            color:
+                              theme.primary,
+                          }}
+                        >
+                          {formatPrice(
+                            journey.estimatedPrice
+                          )}
+                        </p>
+
+                        {journey.legs.length >
+                          1 && (
                           <p
-                            className="mt-1 text-sm font-semibold"
+                            className="mt-1 text-[11px]"
                             style={{
                               color:
-                                theme.primary,
+                                theme.muted,
                             }}
                           >
-                            From $
-                            {
-                              route.estimatedPrice
-                            }
+                            {journey.legs
+                              .map((leg) =>
+                                formatJourneyMode(
+                                  leg.mode
+                                )
+                              )
+                              .join(" → ")}
                           </p>
                         )}
                       </>
@@ -1801,70 +2099,101 @@ export default function TripPlannerMap() {
                   </button>
                 );
               })}
-
-              {/* FLIGHT */}
-
-              {flight && (
-                <button
-                  disabled={!flight.available}
-                  className="min-w-[180px] rounded-xl border p-3 text-left"
-                  style={{
-                    backgroundColor:
-                      flight.available
-                        ? theme.card
-                        : darkMode
-                        ? "#151C25"
-                        : "#F5F5F7",
-
-                    borderColor:
-                      theme.border,
-
-                    opacity:
-                      flight.available
-                        ? 1
-                        : 0.5,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">
-                      Flight
-                    </span>
-
-                    <Plane size={18} />
-                  </div>
-
-                  <p
-                    className="mt-2 text-xs"
-                    style={{
-                      color: theme.muted,
-                    }}
-                  >
-                    {flight.available
-                      ? flight.airline ??
-                        "Available"
-                      : "Not available"}
-                  </p>
-
-                  {flight.available &&
-                    flight.estimatedPrice !==
-                      undefined && (
-                      <p
-                        className="mt-1 text-sm font-semibold"
-                        style={{
-                          color:
-                            theme.primary,
-                        }}
-                      >
-                        From $
-                        {
-                          flight.estimatedPrice
-                        }
-                      </p>
-                    )}
-                </button>
-              )}
             </div>
           </div>
+
+          {/* =================================================
+              LEG BREAKDOWN (selected journey)
+          ================================================= */}
+
+          {selectedJourney &&
+            selectedJourney.legs.length > 0 && (
+              <div
+                className="mt-3 rounded-2xl border p-4"
+                style={{
+                  backgroundColor:
+                    theme.card,
+                  borderColor: theme.border,
+                }}
+              >
+                <h3 className="mb-3 text-[13px] font-bold">
+                  Journey breakdown
+                </h3>
+
+                <ol className="space-y-2.5">
+                  {selectedJourney.legs.map(
+                    (leg, index) => (
+                      <li
+                        key={index}
+                        className="rounded-xl border px-3 py-2.5"
+                        style={{
+                          borderColor:
+                            theme.border,
+                        }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span
+                            className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                            style={{
+                              backgroundColor:
+                                leg.mode ===
+                                "flight"
+                                  ? darkMode
+                                    ? "#123C3A"
+                                    : "#DDF7F2"
+                                  : darkMode
+                                  ? "#27313B"
+                                  : "#F1F1F4",
+                              color:
+                                leg.mode ===
+                                "flight"
+                                  ? theme.primary
+                                  : theme.muted,
+                            }}
+                          >
+                            {formatJourneyMode(
+                              leg.mode
+                            )}
+                          </span>
+
+                          {leg.carrier && (
+                            <span
+                              className="text-[11px]"
+                              style={{
+                                color:
+                                  theme.muted,
+                              }}
+                            >
+                              {leg.carrier}
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="mt-1.5 text-[13px] font-semibold">
+                          {leg.origin.name} →{" "}
+                          {leg.destination.name}
+                        </p>
+
+                        <p
+                          className="mt-0.5 text-[11px]"
+                          style={{
+                            color: theme.muted,
+                          }}
+                        >
+                          {formatDuration(
+                            leg.durationMinutes
+                          )}
+                          {leg.distanceKm > 0 &&
+                            ` · ${Math.round(
+                              leg.distanceKm
+                            )} km`}
+                        </p>
+                      </li>
+                    )
+                  )}
+                </ol>
+              </div>
+            )}
 
           {/* =================================================
               MAP EXPAND

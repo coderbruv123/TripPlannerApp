@@ -134,33 +134,21 @@ export default function AdminDashboardContent() {
             <h3 className="text-base font-semibold text-[#D9E5DE]">
               Trip Activity
             </h3>
-
-            <button className="text-[#88948A] hover:text-[#7CD9A6]">
-              •••
-            </button>
           </div>
 
           <div className="text-3xl font-bold text-[#7CD9A6]">
-            18,432
+            {totalTrips}
           </div>
 
           <p className="mt-1 text-sm text-[#BEC9BF]">
-            Total Trips Created
+            Total Trips Created (saved)
           </p>
 
-          <div className="mt-6 flex h-40 items-end gap-2 rounded-lg border border-[#1B3428] bg-[#06100C] p-4">
-
-            {[35, 48, 42, 65, 55, 78, 63, 88, 72, 95].map(
-              (height, index) => (
-                <div
-                  key={index}
-                  className="flex-1 rounded-t bg-[#2F8F62]/70 transition hover:bg-[#48B77B]"
-                  style={{ height: `${height}%` }}
-                />
-              )
-            )}
-
-          </div>
+          <p className="mt-6 rounded-lg border border-[#1B3428] bg-[#06100C] p-4 text-sm text-[#9EADA5]">
+            {totalTrips === 0
+              ? "No trips have been saved yet. Time-series activity will appear here once trips are recorded."
+              : "Trip activity recorded."}
+          </p>
 
         </div>
 
@@ -173,36 +161,15 @@ export default function AdminDashboardContent() {
             </h3>
 
             <span className="rounded bg-[#2C3732] px-3 py-1 text-[11px] text-[#D9E5DE]">
-              This Week
+              In development
             </span>
           </div>
 
-          <div className="space-y-5">
+          <p className="rounded-lg border border-dashed border-[#1B3428] bg-[#06100C] p-6 text-center text-sm text-[#9EADA5]">
+            No destination analytics yet. Popular-destination ranking
+            will appear here once it is tracked.
+          </p>
 
-            {destinations.map((destination) => (
-              <div key={destination.name}>
-
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="text-[#D9E5DE]">
-                    {destination.name}
-                  </span>
-
-                  <span className="font-bold text-[#7CD9A6]">
-                    {destination.value}
-                  </span>
-                </div>
-
-                <div className="h-2 overflow-hidden rounded-full bg-[#06100C]">
-                  <div
-                    className="h-full rounded-full bg-[#7CD9A6]"
-                    style={{ width: destination.width }}
-                  />
-                </div>
-
-              </div>
-            ))}
-
-          </div>
         </div>
 
       </section>
@@ -241,7 +208,6 @@ export default function AdminDashboardContent() {
             <QuickAction
               icon={<MessageSquare size={18} />}
               label="View Reviews"
-              badge="12 Pending"
             />
 
           </div>
@@ -276,45 +242,17 @@ export default function AdminDashboardContent() {
             Recent System Activity
           </h3>
 
-          <a
-            href="/admin/activity"
-            className="text-xs font-medium text-[#7CD9A6] hover:underline"
-          >
-            View All Logs
-          </a>
+          <span className="rounded bg-[#2C3732] px-3 py-1 text-[11px] text-[#D9E5DE]">
+            In development
+          </span>
         </div>
 
-        <div className="space-y-6">
+        <div className="rounded-lg border border-dashed border-[#1B3428] bg-[#06100C] p-6">
 
-          {activities.map((activity, index) => (
-            <div
-              key={index}
-              className="relative flex gap-4"
-            >
-
-              <div
-                className={`mt-1 h-4 w-4 shrink-0 rounded-full border-2 ${
-                  activity.warning
-                    ? "border-[#FFB4AB]"
-                    : "border-[#7CD9A6]"
-                } bg-[#0B1511]`}
-              />
-
-              <div>
-
-                <div className="text-sm font-semibold text-[#D9E5DE]">
-                  {activity.text}
-                </div>
-
-                <div className="mt-1 flex items-center gap-2 text-xs text-[#88948A]">
-                  <Clock size={13} />
-                  {activity.time}
-                </div>
-
-              </div>
-
-            </div>
-          ))}
+          <p className="flex items-center gap-2 text-sm text-[#9EADA5]">
+            <Clock size={13} />
+            No activity has been recorded yet. System logs will appear here.
+          </p>
 
         </div>
 

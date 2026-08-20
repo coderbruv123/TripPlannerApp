@@ -25,4 +25,8 @@ public class Hotel
     public string? ImageUrl { get; set; }
 
     public decimal? EstimatedPricePerNight { get; set; }
+
+    public string City { get; set; } = "";
+
+    public bool IsDefault { get; set; }
 }

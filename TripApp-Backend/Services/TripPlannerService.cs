@@ -6,169 +6,270 @@ namespace TripApp_Backend.Services;
 public class TripPlannerService : ITripPlannerService
 {
     private readonly OpenRouteService _routeService;
+    private readonly OpenFlightsService _flightService;
+    private readonly double _fuelPricePerKm;
 
-    public TripPlannerService(OpenRouteService routeService)
+    public TripPlannerService(
+        OpenRouteService routeService,
+        OpenFlightsService flightService,
+        IConfiguration configuration)
     {
         _routeService = routeService;
+        _flightService = flightService;
+
+        _fuelPricePerKm = double.TryParse(
+            configuration["Pricing:FuelPricePerKm"],
+            System.Globalization.NumberStyles.Float,
+            System.Globalization.CultureInfo.InvariantCulture,
+            out var price)
+            ? price
+            : 0.08;
     }
 
-    public async Task<List<TravelOption>> SearchAsync(
-        TripRequest request)
+    public async Task<List<Journey>> SearchAsync(TripRequest request)
     {
-        var options = new List<TravelOption>();
+        var journeys = new List<Journey>();
 
-        // 🚗 Car
-        var driving = await TryGetRouteAsync(
-            request,
-            "Car",
-            "driving-car");
-
+        var driving = await TryGetRouteLegAsync(request, "Drive", "driving-car");
         if (driving != null)
-        {
-            driving.Name = "Drive";
-            options.Add(driving);
-        }
+            journeys.Add(SingleModeJourney(driving, "drive"));
 
-        // 🚌 Bus
-        // For now, use the road route as the visual bus route.
-        // Later this can be replaced with real bus-provider data.
         var bus = await TryGetBusAsync(request);
-
         if (bus != null)
-            options.Add(bus);
+            journeys.Add(bus);
 
-        // 🚶 Walking
-        var walking = await TryGetRouteAsync(
-            request,
-            "Walking",
-            "foot-walking");
-
+        var walking = await TryGetRouteLegAsync(request, "Walking", "foot-walking");
         if (walking != null)
-            options.Add(walking);
+            journeys.Add(SingleModeJourney(walking, "walk"));
 
-        // 🚲 Cycling
-        var cycling = await TryGetRouteAsync(
-            request,
-            "Cycling",
-            "cycling-regular");
-
+        var cycling = await TryGetRouteLegAsync(request, "Cycling", "cycling-regular");
         if (cycling != null)
-            options.Add(cycling);
+            journeys.Add(SingleModeJourney(cycling, "cycle"));
 
-        // 🚆 Train
-        options.Add(new TravelOption
+        // Combined Drive → Fly → Drive
+        var combined = await TryGetCombinedJourneyAsync(request);
+        if (combined != null)
+            journeys.Add(combined);
+
+        // Train is not available (no free feed).
+        journeys.Add(new Journey
         {
-            Type = "Train",
-            Name = "Train",
+            Mode = "train",
             Available = false,
             Message = "Train routing is not available yet."
         });
 
-        return options;
+        return journeys
+            .OrderBy(j => j.Available ? j.TotalDurationMinutes : double.MaxValue)
+            .ThenBy(j => j.EstimatedPrice)
+            .ToList();
     }
 
-    private async Task<TravelOption?> TryGetBusAsync(
-        TripRequest request)
+    private Journey SingleModeJourney(JourneyLeg leg, string mode)
+    {
+        return new Journey
+        {
+            Mode = mode,
+            Legs = new List<JourneyLeg> { leg },
+            TotalDistanceKm = leg.DistanceKm,
+            TotalDurationMinutes = leg.DurationMinutes,
+            EstimatedPrice = leg.EstimatedPrice
+        };
+    }
+
+    private const double MinFlightDistanceKm = 350;
+
+    private async Task<Journey?> TryGetCombinedJourneyAsync(TripRequest request)
     {
         try
         {
-            // Get the road geometry that the bus would follow.
-            var json = await _routeService.GetRouteAsync(
-                request,
-                "driving-car");
+            var tripDistanceKm = HaversineKm(
+                request.OriginLat, request.OriginLng,
+                request.DestinationLat, request.DestinationLng);
 
-            using var doc = JsonDocument.Parse(json);
-
-            var features = doc.RootElement
-                .GetProperty("features");
-
-            if (features.GetArrayLength() == 0)
+            // Only fly when the trip is far enough that origin and destination
+            // airport candidate sets cannot overlap (each uses a ~150 km hub
+            // radius). For short hops this avoided bogus routes like JKR -> KTM.
+            if (tripDistanceKm < MinFlightDistanceKm)
                 return null;
 
-            var feature = features[0];
+            var path = _flightService.SearchFlightPathAsync(
+                request.OriginLat, request.OriginLng,
+                request.DestinationLat, request.DestinationLng);
 
-            var summary = feature
-                .GetProperty("properties")
-                .GetProperty("summary");
+            if (!path.Available ||
+                path.Segments.Count == 0)
+                return null;
 
-            var distanceKm =
-                summary
-                    .GetProperty("distance")
-                    .GetDouble() / 1000;
+            var firstAirport = path.Segments[0].OriginAirport;
+            var lastAirport = path.Segments[path.Segments.Count - 1].DestinationAirport;
 
-            var drivingMinutes =
-                summary
-                    .GetProperty("duration")
-                    .GetDouble() / 60;
+            var leg1 = await TryGetRouteLegAsync(
+                request.OriginLat, request.OriginLng,
+                firstAirport.Latitude, firstAirport.Longitude,
+                "Drive",
+                "driving-car");
 
-            // Temporary estimate.
-            // Bus normally takes longer than a private car.
-            var busMinutes = drivingMinutes * 1.8;
+            var flightLegs = new List<JourneyLeg>();
 
-            // Temporary estimated fare.
-            // This will eventually come from a real bus API/provider.
-            decimal? estimatedPrice = null;
-
-            if (distanceKm <= 50)
-                estimatedPrice = 300;
-            else if (distanceKm <= 150)
-                estimatedPrice = 700;
-            else if (distanceKm <= 250)
-                estimatedPrice = 1200;
-            else
-                estimatedPrice = 1500;
-
-            return new TravelOption
+            for (var i = 0; i < path.Segments.Count; i++)
             {
-                Type = "Bus",
-                Name = "Bus",
-                Available = true,
+                var segment = path.Segments[i];
 
-                DistanceKm = distanceKm,
+                flightLegs.Add(new JourneyLeg
+                {
+                    Mode = "flight",
+                    Name = "Flight",
+                    Origin = new JourneyPoint
+                    {
+                        Name = $"{segment.OriginAirport.Name} ({segment.OriginAirport.Iata})",
+                        Latitude = segment.OriginAirport.Latitude,
+                        Longitude = segment.OriginAirport.Longitude
+                    },
+                    Destination = new JourneyPoint
+                    {
+                        Name = $"{segment.DestinationAirport.Name} ({segment.DestinationAirport.Iata})",
+                        Latitude = segment.DestinationAirport.Latitude,
+                        Longitude = segment.DestinationAirport.Longitude
+                    },
+                    Carrier = segment.Airline,
+                    EstimatedPrice = null,
+                    DistanceKm = Math.Round(HaversineKm(
+                        segment.OriginAirport.Latitude, segment.OriginAirport.Longitude,
+                        segment.DestinationAirport.Latitude, segment.DestinationAirport.Longitude), 2),
+                    DurationMinutes = Math.Round(
+                        HaversineKm(
+                            segment.OriginAirport.Latitude, segment.OriginAirport.Longitude,
+                            segment.DestinationAirport.Latitude, segment.DestinationAirport.Longitude) / 800.0 * 60.0,
+                        1),
+                    Geometry = BuildFlightLineString(
+                        segment.OriginAirport.Longitude, segment.OriginAirport.Latitude,
+                        segment.DestinationAirport.Longitude, segment.DestinationAirport.Latitude)
+                });
 
-                EstimatedPrice = null,
+                if (i < path.Segments.Count - 1)
+                {
+                    flightLegs.Add(new JourneyLeg
+                    {
+                        Mode = "layover",
+                        Name = "Layover",
+                        Origin = new JourneyPoint
+                        {
+                            Name = $"{segment.DestinationAirport.City} ({segment.DestinationAirport.Iata})",
+                            Latitude = segment.DestinationAirport.Latitude,
+                            Longitude = segment.DestinationAirport.Longitude
+                        },
+                        Destination = new JourneyPoint
+                        {
+                            Name = $"{segment.DestinationAirport.City} ({segment.DestinationAirport.Iata})",
+                            Latitude = segment.DestinationAirport.Latitude,
+                            Longitude = segment.DestinationAirport.Longitude
+                        },
+                        DurationMinutes = 90,
+                        DistanceKm = 0
+                    });
+                }
+            }
 
-                Provider = null,
+            var leg3 = await TryGetRouteLegAsync(
+                lastAirport.Latitude, lastAirport.Longitude,
+                request.DestinationLat, request.DestinationLng,
+                "Drive",
+                "driving-car");
 
+            var legs = new List<JourneyLeg>();
 
-                Geometry =
-                    feature
-                        .GetProperty("geometry")
-                        .GetRawText(),
-Message =
-    "Bus route and duration are estimated. Fare and provider information are not currently available."
+            if (leg1 != null) legs.Add(leg1);
+            legs.AddRange(flightLegs);
+            if (leg3 != null) legs.Add(leg3);
+
+            var totalDistance = legs.Sum(l => l.DistanceKm);
+            var totalDuration = legs.Sum(l => l.DurationMinutes);
+
+            return new Journey
+            {
+                Mode = "flight",
+                Legs = legs,
+                TotalDistanceKm = totalDistance,
+                TotalDurationMinutes = totalDuration,
+                EstimatedPrice = null
             };
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"Bus route failed: {ex.Message}");
-
-            return new TravelOption
-            {
-                Type = "Bus",
-                Name = "Bus",
-                Available = false,
-                Message = "Unable to calculate bus route."
-            };
+            Console.WriteLine($"Combined journey failed: {ex.Message}");
+            return null;
         }
     }
 
-    private async Task<TravelOption?> TryGetRouteAsync(
+    private async Task<JourneyLeg?> TryGetRouteLegAsync(
         TripRequest request,
-        string type,
+        string name,
+        string profile)
+    {
+        return await TryGetRouteLegAsync(
+            request.OriginLat, request.OriginLng,
+            request.DestinationLat, request.DestinationLng,
+            name,
+            profile);
+    }
+
+    private static string BuildFlightLineString(
+        double fromLng, double fromLat,
+        double toLng, double toLat)
+    {
+        return System.Text.Json.JsonSerializer.Serialize(new
+        {
+            type = "LineString",
+            coordinates = new double[][]
+            {
+                new[] { fromLng, fromLat },
+                new[] { toLng, toLat }
+            }
+        });
+    }
+
+    private static double HaversineKm(
+        double lat1, double lng1,
+        double lat2, double lng2)
+    {
+        const double earthRadiusKm = 6371;
+
+        var dLat = ToRadians(lat2 - lat1);
+        var dLng = ToRadians(lng2 - lng1);
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRadians(lat1)) * Math.Cos(ToRadians(lat2)) *
+                Math.Sin(dLng / 2) * Math.Sin(dLng / 2);
+
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        return earthRadiusKm * c;
+    }
+
+    private static double ToRadians(double degrees) => degrees * Math.PI / 180;
+
+    private async Task<JourneyLeg?> TryGetRouteLegAsync(
+        double originLat, double originLng,
+        double destinationLat, double destinationLng,
+        string name,
         string profile)
     {
         try
         {
-            var json = await _routeService.GetRouteAsync(
-                request,
-                profile);
+            var routeRequest = new TripRequest
+            {
+                OriginLat = originLat,
+                OriginLng = originLng,
+                DestinationLat = destinationLat,
+                DestinationLng = destinationLng
+            };
+
+            var json = await _routeService.GetRouteAsync(routeRequest, profile);
 
             using var doc = JsonDocument.Parse(json);
 
-            var features = doc.RootElement
-                .GetProperty("features");
+            var features = doc.RootElement.GetProperty("features");
 
             if (features.GetArrayLength() == 0)
                 return null;
@@ -179,42 +280,79 @@ Message =
                 .GetProperty("properties")
                 .GetProperty("summary");
 
-            return new TravelOption
+            var distanceKm = summary.GetProperty("distance").GetDouble() / 1000;
+            var durationMinutes = summary.GetProperty("duration").GetDouble() / 60;
+
+            var isDriving = profile == "driving-car";
+
+            return new JourneyLeg
             {
-                Type = type,
-                Name = type,
-                Available = true,
-
-                DistanceKm =
-                    summary
-                        .GetProperty("distance")
-                        .GetDouble() / 1000,
-
-                DurationMinutes =
-                    summary
-                        .GetProperty("duration")
-                        .GetDouble() / 60,
-
-                Geometry =
-                    feature
-                        .GetProperty("geometry")
-                        .GetRawText()
+                Mode = isDriving ? "drive" : name.ToLower(),
+                Name = name,
+                Origin = new JourneyPoint
+                {
+                    Name = "Origin",
+                    Latitude = originLat,
+                    Longitude = originLng
+                },
+                Destination = new JourneyPoint
+                {
+                    Name = "Destination",
+                    Latitude = destinationLat,
+                    Longitude = destinationLng
+                },
+                DistanceKm = distanceKm,
+                DurationMinutes = durationMinutes,
+                EstimatedPrice = isDriving
+                    ? (decimal?)(distanceKm * _fuelPricePerKm)
+                    : null,
+                Geometry = feature.GetProperty("geometry").GetRawText()
             };
         }
         catch (Exception ex)
         {
-            Console.WriteLine(
-                $"{type} route failed: {ex.Message}");
+            Console.WriteLine($"{name} route failed: {ex.Message}");
+            return null;
+        }
+    }
 
-            return new TravelOption
+    private async Task<Journey?> TryGetBusAsync(TripRequest request)
+    {
+        try
+        {
+            var driving = await TryGetRouteLegAsync(request, "Bus", "driving-car");
+
+            if (driving == null)
+                return null;
+
+            var busMinutes = driving.DurationMinutes * 1.8;
+
+            var busLeg = new JourneyLeg
             {
-                Type = type,
-                Name = type,
-                Available = false,
-                Message =
-                    $"Unable to calculate {type.ToLower()} route."
+                Mode = "bus",
+                Name = "Bus",
+                Origin = driving.Origin,
+                Destination = driving.Destination,
+                DistanceKm = driving.DistanceKm,
+                DurationMinutes = busMinutes,
+                EstimatedPrice = null,
+                Geometry = driving.Geometry
             };
+
+            return new Journey
+            {
+                Mode = "bus",
+                Legs = new List<JourneyLeg> { busLeg },
+                TotalDistanceKm = busLeg.DistanceKm,
+                TotalDurationMinutes = busLeg.DurationMinutes,
+                EstimatedPrice = null,
+                Message = "Bus route and duration are estimated. Fare and provider information are not currently available."
+            };
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Bus route failed: {ex.Message}");
+            return null;
         }
     }
 }
-

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TripApp_Backend.Dtos;
 using TripApp_Backend.Services.Admin;
+
 namespace TripApp_Backend.Controllers;
 
 [ApiController]
