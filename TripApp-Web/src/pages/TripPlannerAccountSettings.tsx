@@ -7,7 +7,6 @@ import {
   Headphones,
   Heart,
   LogOut,
-  MapPin,
   Search,
   Settings,
   UserRound,
@@ -15,6 +14,8 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { changePassword, updateProfile as updateProfileApi } from "../api/auth";
+import { clearAuth, getUserEmail, getUserName } from "../api/authUtils";
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
 
@@ -29,9 +30,9 @@ type Profile = {
 };
 
 const defaultProfile: Profile = {
-  fullName: localStorage.getItem("userName") || "Undefined",
+  fullName: getUserName() || "Undefined",
   nickname: "None",
-  email: localStorage.getItem("userEmail") || "Undefined",
+  email: getUserEmail() || "Undefined",
   phone: "+1 (555) 123-4567",
   address: "San Francisco, CA 94102",
   occupation: "Adventure Traveler",
@@ -68,17 +69,6 @@ const sidebarItems = [
 ];
 
 export const TripPlannerAccountSettings = () => {
-  /*
-   * Theme state
-   *
-   * This is intentionally NOT being used to change the UI yet.
-   * You can connect this state to your Settings page later.
-   */
-  const [darkMode, setDarkMode] = useState(false);
-const logout = () => {
-  localStorage.removeItem("token");
-  window.location.reload();
-}
   const [profile, setProfile] = useState<Profile>(defaultProfile);
 
   const [activeItem, setActiveItem] = useState("Profile");
@@ -90,6 +80,19 @@ const logout = () => {
   const [showSearch, setShowSearch] = useState(false);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Password change state
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordMessage, setPasswordMessage] = useState("");
+  const [passwordError, setPasswordError] = useState("");
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
+  const logout = () => {
+    clearAuth();
+    window.location.href = "/login";
+  };
 
   const updateProfile = (
     field: ProfileKey,
@@ -103,12 +106,66 @@ const logout = () => {
     setSavedMessage("");
   };
 
-  const saveProfile = () => {
-    setSavedMessage("Profile changes saved");
+  const saveProfile = async () => {
+    try {
+      const result = await updateProfileApi({
+        username: profile.fullName,
+        email: profile.email,
+      });
+
+      if (result.success) {
+        localStorage.setItem("userName", profile.fullName);
+        localStorage.setItem("userEmail", profile.email);
+
+        setSavedMessage("Profile changes saved");
+      } else {
+        setSavedMessage(result.message || "Could not save profile");
+      }
+    } catch {
+      setSavedMessage("Could not save profile. Please try again.");
+    }
 
     window.setTimeout(() => {
       setSavedMessage("");
     }, 2800);
+  };
+
+  const handlePasswordChange = async () => {
+    setPasswordError("");
+    setPasswordMessage("");
+
+    if (newPassword !== confirmPassword) {
+      setPasswordError("New passwords do not match.");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      setPasswordError("New password must be at least 6 characters.");
+      return;
+    }
+
+    setUpdatingPassword(true);
+
+    try {
+      const result = await changePassword({
+        currentPassword,
+        newPassword,
+        confirmNewPassword: confirmPassword,
+      });
+
+      if (result.success) {
+        setPasswordMessage("Password updated successfully.");
+        setCurrentPassword("");
+        setNewPassword("");
+        setConfirmPassword("");
+      } else {
+        setPasswordError(result.message || "Could not update password.");
+      }
+    } catch {
+      setPasswordError("Could not update password. Please try again.");
+    } finally {
+      setUpdatingPassword(false);
+    }
   };
 
   const discardProfile = () => {
@@ -585,6 +642,18 @@ const logout = () => {
 
               <div className="mt-6 max-w-[640px] space-y-4">
 
+                {passwordError && (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-[13px] text-red-600">
+                    {passwordError}
+                  </div>
+                )}
+
+                {passwordMessage && (
+                  <div className="rounded-lg border border-[#00BFA5]/30 bg-[#E8F8F6] px-4 py-3 text-[13px] text-[#008F7C]">
+                    {passwordMessage}
+                  </div>
+                )}
+
                 <label className="block">
                   <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
                     Current password
@@ -592,7 +661,10 @@ const logout = () => {
 
                   <input
                     type="password"
-                    defaultValue="password"
+                    value={currentPassword}
+                    onChange={(e) =>
+                      setCurrentPassword(e.target.value)
+                    }
                     className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
                   />
                 </label>
@@ -604,7 +676,10 @@ const logout = () => {
 
                   <input
                     type="password"
-                    defaultValue="password"
+                    value={newPassword}
+                    onChange={(e) =>
+                      setNewPassword(e.target.value)
+                    }
                     className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
                   />
                 </label>
@@ -616,7 +691,10 @@ const logout = () => {
 
                   <input
                     type="password"
-                    defaultValue="password"
+                    value={confirmPassword}
+                    onChange={(e) =>
+                      setConfirmPassword(e.target.value)
+                    }
                     className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
                   />
                 </label>
@@ -626,14 +704,13 @@ const logout = () => {
               <div className="mt-7 flex justify-end">
                 <button
                   type="button"
-                  onClick={() =>
-                    setSavedMessage(
-                      "Password updated securely"
-                    )
-                  }
-                  className="h-10 rounded-full bg-[#00BFA5] px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-[#00A891] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+                  onClick={handlePasswordChange}
+                  disabled={updatingPassword}
+                  className="h-10 rounded-full bg-[#00BFA5] px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-[#00A891] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
                 >
-                  Update Password
+                  {updatingPassword
+                    ? "Updating..."
+                    : "Update Password"}
                 </button>
               </div>
             </section>

@@ -1,6 +1,7 @@
-import { Bell, Compass, Search, X } from "lucide-react";
+import { Bell, Compass, LogOut, Search, ShieldCheck, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
+import { clearAuth, getUserName, isAdmin } from "../api/authUtils";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
@@ -9,10 +10,12 @@ export default function Navbar() {
   const [showSearch, setShowSearch] = useState(false);
   const [showNotifications, setShowNotifications] =
     useState(false);
-  const [isLoggedIn, setIsLoggedIn] = useState(
-    localStorage.getItem("isLoggedIn") === "true"
-  );
-  const userName = localStorage.getItem("userName") || "User";
+  const userName = getUserName();
+
+  const logout = () => {
+    clearAuth();
+    window.location.href = "/login";
+  };
 
   return (
     <>
@@ -70,6 +73,18 @@ export default function Navbar() {
           {/* Divider */}
           <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
 
+          {/* Admin portal (admins only) */}
+          {isAdmin() && (
+            <Link
+              to="/admin/dashboard"
+              className="ml-1 hidden items-center gap-1.5 rounded-full border border-[#00BFA5]/30 bg-[#E8F8F6] px-3 py-1.5 text-[12px] font-semibold text-[#008F7C] transition hover:bg-[#00BFA5]/10 sm:flex"
+              title="Admin portal"
+            >
+              <ShieldCheck size={14} />
+              Admin
+            </Link>
+          )}
+
           {/* Profile */}
           <Link
             to="/profile"
@@ -85,6 +100,17 @@ export default function Navbar() {
               {userName}
             </span>
           </Link>
+
+          {/* Logout */}
+          <button
+            type="button"
+            onClick={logout}
+            aria-label="Log out"
+            className="ml-1 flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#FFF2F2] hover:text-[#FF4444] focus:outline-none focus:ring-2 focus:ring-[#FF4444]/30"
+            title="Log out"
+          >
+            <LogOut size={18} strokeWidth={1.8} />
+          </button>
 
           {/* Notifications popup */}
           {showNotifications && (

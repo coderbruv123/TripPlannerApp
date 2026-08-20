@@ -5,8 +5,11 @@ import {
   Settings,
   Plus,
 } from "lucide-react";
+import { getUserName } from "../../api/authUtils";
 
 export default function AdminTopbar() {
+  const adminName = getUserName() || "A";
+
   return (
     <header className="sticky top-0 z-40 flex h-20 w-full items-center justify-between border-b border-[#1B3428] bg-[#0B1511]/80 px-4 backdrop-blur-md md:px-6">
 
@@ -66,11 +69,9 @@ export default function AdminTopbar() {
         </button>
 
         {/* Avatar */}
-        <button className="ml-1 h-9 w-9 overflow-hidden rounded-full border border-[#1B3428] bg-[#2C3732]">
-          <div className="flex h-full w-full items-center justify-center text-sm font-bold text-[#7CD9A6]">
-            SA
-          </div>
-        </button>
+        <div className="ml-1 flex h-9 w-9 items-center justify-center rounded-full border border-[#1B3428] bg-[#2C3732] text-sm font-bold text-[#7CD9A6]">
+          {adminName.charAt(0).toUpperCase()}
+        </div>
 
         {/* Add Destination */}
         <button className="ml-2 hidden items-center gap-2 rounded-[10px] bg-[#2F8F62] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#48B77B] sm:flex">

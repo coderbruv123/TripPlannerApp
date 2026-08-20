@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   Users,
   UserCheck,
@@ -10,30 +11,7 @@ import {
   ArrowRight,
   Clock,
 } from "lucide-react";
-
-const stats = [
-  {
-    label: "Total Users",
-    value: "2,481",
-    change: "+12.4%",
-    icon: Users,
-  },
-  {
-    label: "Active Users",
-    value: "1,842",
-    icon: UserCheck,
-  },
-  {
-    label: "Destinations",
-    value: "1,204",
-    icon: MapPin,
-  },
-  {
-    label: "Recommendations",
-    value: "6,892",
-    icon: Sparkles,
-  },
-];
+import { getAdminStats } from "../../api/admin";
 
 const destinations = [
   { name: "Tokyo", value: "1,240", width: "85%" },
@@ -64,6 +42,42 @@ const activities = [
 ];
 
 export default function AdminDashboardContent() {
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    activeUsers: 0,
+    adminUsers: 0,
+    newUsersThisMonth: 0,
+  });
+
+  useEffect(() => {
+    getAdminStats()
+      .then(setStats)
+      .catch(() => {});
+  }, []);
+
+  const statCards = [
+    {
+      label: "Total Users",
+      value: stats.totalUsers.toLocaleString(),
+      icon: Users,
+    },
+    {
+      label: "Active Users",
+      value: stats.activeUsers.toLocaleString(),
+      icon: UserCheck,
+    },
+    {
+      label: "Administrators",
+      value: stats.adminUsers.toLocaleString(),
+      icon: Shield,
+    },
+    {
+      label: "New Users (Month)",
+      value: stats.newUsersThisMonth.toLocaleString(),
+      icon: Sparkles,
+    },
+  ];
+
   return (
     <div className="mx-auto w-full max-w-[1600px] space-y-8 p-4 md:p-8">
 
@@ -81,7 +95,7 @@ export default function AdminDashboardContent() {
       {/* Stats */}
       <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
-        {stats.map((stat) => {
+        {statCards.map((stat) => {
           const Icon = stat.icon;
 
           return (
@@ -95,12 +109,6 @@ export default function AdminDashboardContent() {
                   size={21}
                   className="text-[#7CD9A6]/70 transition-colors group-hover:text-[#7CD9A6]"
                 />
-
-                {stat.change && (
-                  <span className="rounded-full bg-[#7CD9A6]/10 px-2 py-1 text-[11px] font-medium text-[#7CD9A6]">
-                    {stat.change}
-                  </span>
-                )}
 
               </div>
 
@@ -248,7 +256,7 @@ export default function AdminDashboardContent() {
 
           <div>
             <div className="text-2xl font-bold text-[#D9E5DE]">
-              327
+              {stats.newUsersThisMonth.toLocaleString()}
             </div>
 
             <div className="text-xs text-[#9EADA5]">

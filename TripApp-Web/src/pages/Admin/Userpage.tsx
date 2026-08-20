@@ -1,110 +1,124 @@
-import { useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AdminSidebar from "../../components/AdminComponents/AdminSidebar";
 import AdminTopbar from "../../components/AdminComponents/AdminTopbar";
-
-interface User {
-  id: number;
-  name: string;
-  email: string;
-  role: "User" | "Admin" | "Super Admin";
-  status: "Active" | "Suspended" | "Pending";
-  joined: string;
-  lastActive: string;
-  initials?: string;
-}
-
-const initialUsers: User[] = [
-  {
-    id: 1,
-    name: "Elena Rodriguez",
-    email: "elena.r@example.com",
-    role: "Admin",
-    status: "Active",
-    joined: "Oct 12, 2023",
-    lastActive: "2 hours ago",
-  },
-  {
-    id: 2,
-    name: "Marcus Chen",
-    email: "m.chen@example.com",
-    role: "User",
-    status: "Active",
-    joined: "Jan 05, 2024",
-    lastActive: "1 day ago",
-  },
-  {
-    id: 3,
-    name: "Sarah Jenkins",
-    email: "sarah.j@example.com",
-    role: "User",
-    status: "Suspended",
-    joined: "Nov 22, 2023",
-    lastActive: "Mar 15, 2024",
-    initials: "SJ",
-  },
-  {
-    id: 4,
-    name: "David Kim",
-    email: "dkim_global@example.com",
-    role: "Super Admin",
-    status: "Active",
-    joined: "May 01, 2022",
-    lastActive: "Just now",
-  },
-  {
-    id: 5,
-    name: "Alicia Patel",
-    email: "alicia.patel@example.com",
-    role: "User",
-    status: "Pending",
-    joined: "Today",
-    lastActive: "Never",
-    initials: "AP",
-  },
-];
+import {
+  deleteUser,
+  getUsers,
+  searchUsers,
+  setUserStatus,
+  updateUserRole,
+  type UserDto,
+} from "../../api/admin";
+import { getUserId } from "../../api/authUtils";
 
 export default function UsersPage() {
-  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [users, setUsers] = useState<UserDto[]>([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
-  const filteredUsers = useMemo(() => {
-    const query = search.toLowerCase().trim();
+  const currentUserId = getUserId();
 
-    if (!query) return users;
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError("");
 
-    return users.filter(
-      (user) =>
-        user.name.toLowerCase().includes(query) ||
-        user.email.toLowerCase().includes(query)
-    );
-  }, [users, search]);
+    try {
+      const data = await getUsers();
+      setUsers(data);
+    } catch {
+      setError("Failed to load users.");
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const toggleStatus = (id: number) => {
-    setUsers((current) =>
-      current.map((user) => {
-        if (user.id !== id) return user;
+  useEffect(() => {
+    load();
+  }, [load]);
 
-        return {
-          ...user,
-          status:
-            user.status === "Suspended"
-              ? "Active"
-              : "Suspended",
-        };
-      })
-    );
+  useEffect(() => {
+    const timer = setTimeout(async () => {
+      try {
+        const data = search.trim()
+          ? await searchUsers(search.trim())
+          : await getUsers();
+        setUsers(data);
+      } catch {
+        // keep current list
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const filteredUsers = useMemo(() => users, [users]);
+
+  const toggleStatus = async (user: UserDto) => {
+    setBusy(true);
+    try {
+      const result = await setUserStatus(user.id, !user.isActive);
+      if (result.success) {
+        setUsers((current) =>
+          current.map((u) =>
+            u.id === user.id
+              ? { ...u, isActive: result.data?.isActive ?? !user.isActive }
+              : u
+          )
+        );
+      }
+    } catch {
+      alert("Could not update status.");
+    } finally {
+      setBusy(false);
+    }
   };
 
-  const deleteUser = (id: number) => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this user?"
-    );
+  const changeRole = async (user: UserDto, role: string) => {
+    setBusy(true);
+    try {
+      const result = await updateUserRole(user.id, role);
+      if (result.success) {
+        setUsers((current) =>
+          current.map((u) =>
+            u.id === user.id ? { ...u, role } : u
+          )
+        );
+      } else {
+        alert(result.message || "Could not update role.");
+      }
+    } catch {
+      alert("Could not update role.");
+    } finally {
+      setBusy(false);
+    }
+  };
 
+  const handleDelete = async (user: UserDto) => {
+    if (user.id === currentUserId) {
+      alert("You cannot delete your own account.");
+      return;
+    }
+
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${user.username}?`
+    );
     if (!confirmed) return;
 
-    setUsers((current) =>
-      current.filter((user) => user.id !== id)
-    );
+    setBusy(true);
+    try {
+      const result = await deleteUser(user.id);
+      if (result.success) {
+        setUsers((current) => current.filter((u) => u.id !== user.id));
+      } else {
+        alert(result.message || "Could not delete user.");
+      }
+    } catch {
+      alert("Could not delete user.");
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
@@ -115,7 +129,7 @@ export default function UsersPage() {
         <AdminTopbar />
 
         <div className="flex-1 p-4 md:p-8 overflow-x-hidden">
-          
+
           {/* Page Header */}
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
             <div>
@@ -129,12 +143,18 @@ export default function UsersPage() {
             </div>
           </div>
 
+          {error && (
+            <div className="mb-4 rounded-lg border border-[#ffb4ab]/40 bg-[#3A1717] px-4 py-3 text-sm text-[#FFB4AB]">
+              {error}
+            </div>
+          )}
+
           {/* Main Panel */}
           <div className="bg-[rgba(13,26,21,0.7)] backdrop-blur-xl border border-[#1B3428] rounded-xl overflow-hidden">
 
             {/* Toolbar */}
             <div className="p-4 md:p-6 border-b border-[#1B3428] flex flex-col sm:flex-row gap-4 items-center justify-between bg-[#0b1511]/50">
-              
+
               {/* Search */}
               <div className="flex flex-1 w-full sm:w-auto items-center gap-3">
                 <div className="relative flex-1 sm:max-w-xs">
@@ -144,58 +164,12 @@ export default function UsersPage() {
 
                   <input
                     value={search}
-                    onChange={(e) =>
-                      setSearch(e.target.value)
-                    }
+                    onChange={(e) => setSearch(e.target.value)}
                     className="w-full bg-[#0D1A15] border border-[#1B3428] text-[#d9e5de] rounded-lg pl-10 pr-4 py-2.5 outline-none transition-all placeholder:text-[#bec9bf]/50 focus:border-[#48B77B] focus:ring-2 focus:ring-[#48B77B]/20"
                     placeholder="Search users by name or email..."
                     type="text"
                   />
                 </div>
-
-                <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#1B3428] bg-[#0D1A15] text-[#bec9bf] hover:text-white hover:border-[#3f4942] transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">
-                    filter_list
-                  </span>
-
-                  <span className="hidden sm:inline">
-                    Filter
-                  </span>
-                </button>
-
-                <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-[#1B3428] bg-[#0D1A15] text-[#bec9bf] hover:text-white hover:border-[#3f4942] transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">
-                    sort
-                  </span>
-
-                  <span className="hidden sm:inline">
-                    Sort
-                  </span>
-                </button>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
-                <button className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[#1B3428] text-[#d9e5de] hover:bg-[#2c3732]/30 transition-colors">
-                  <span className="material-symbols-outlined text-[18px]">
-                    download
-                  </span>
-
-                  Export CSV
-                </button>
-
-                <button className="bg-[#2F8F62] hover:brightness-110 text-white rounded-lg py-2.5 px-5 flex items-center justify-center gap-2 transition-all font-semibold">
-                  <span
-                    className="material-symbols-outlined text-[18px]"
-                    style={{
-                      fontVariationSettings: "'FILL' 1",
-                    }}
-                  >
-                    person_add
-                  </span>
-
-                  Add User
-                </button>
               </div>
             </div>
 
@@ -207,23 +181,18 @@ export default function UsersPage() {
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold">
                       User
                     </th>
-
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold">
                       Email
                     </th>
-
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold">
                       Role
                     </th>
-
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold">
                       Status
                     </th>
-
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold">
-                      Joined / Last Active
+                      Joined
                     </th>
-
                     <th className="text-[12px] text-[#bec9bf] uppercase py-4 px-6 font-semibold text-right">
                       Actions
                     </th>
@@ -231,134 +200,101 @@ export default function UsersPage() {
                 </thead>
 
                 <tbody className="divide-y divide-[#1B3428]">
-                  {filteredUsers.map((user) => (
-                    <tr
-                      key={user.id}
-                      className="hover:bg-[#2F8F62]/[0.04] transition-colors group"
-                    >
-                      {/* User */}
-                      <td className="py-4 px-6">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full overflow-hidden bg-[#2c3732] shrink-0 border border-[#1B3428] flex items-center justify-center text-[#bec9bf] text-[11px] font-medium">
-                            {user.initials ??
-                              user.name
-                                .split(" ")
-                                .map((n) => n[0])
-                                .join("")
-                                .slice(0, 2)}
-                          </div>
-
-                          <span className="text-[14px] text-white font-medium truncate">
-                            {user.name}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Email */}
-                      <td className="py-4 px-6 text-[13px] text-[#d9e5de]">
-                        {user.email}
-                      </td>
-
-                      {/* Role */}
-                      <td className="py-4 px-6">
-                        <span
-                          className={`
-                            inline-flex items-center px-2 py-1 rounded-md
-                            text-[11px] font-medium
-                            ${
-                              user.role === "Super Admin"
-                                ? "bg-[#2F8F62]/20 border border-[#2F8F62]/30 text-[#7cd9a6]"
-                                : "bg-[#2c3732]/50 border border-[#3f4942]/30 text-white"
-                            }
-                          `}
-                        >
-                          {user.role}
-                        </span>
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-4 px-6">
-                        <StatusBadge status={user.status} />
-                      </td>
-
-                      {/* Dates */}
-                      <td className="py-4 px-6">
-                        <div className="flex flex-col gap-0.5">
-                          <span className="text-[13px] text-white">
-                            {user.joined}
-                          </span>
-
-                          <span className="text-[11px] text-[#bec9bf]">
-                            {user.lastActive}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-6 text-right">
-                        <div className="flex items-center justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          
-                          <button
-                            className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#7cd9a6] hover:bg-[#7cd9a6]/10 transition-colors"
-                            title="Edit"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              edit
-                            </span>
-                          </button>
-
-                          {user.status !== "Pending" && (
-                            <button
-                              onClick={() =>
-                                toggleStatus(user.id)
-                              }
-                              className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#ffb4ab] hover:bg-[#ffb4ab]/10 transition-colors"
-                              title={
-                                user.status === "Suspended"
-                                  ? "Restore"
-                                  : "Suspend"
-                              }
-                            >
-                              <span className="material-symbols-outlined text-[20px]">
-                                {user.status === "Suspended"
-                                  ? "restore"
-                                  : "block"}
-                              </span>
-                            </button>
-                          )}
-
-                          {user.status === "Pending" && (
-                            <button
-                              className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#7cd9a6] hover:bg-[#7cd9a6]/10 transition-colors"
-                              title="Resend Invite"
-                            >
-                              <span className="material-symbols-outlined text-[20px]">
-                                mail
-                              </span>
-                            </button>
-                          )}
-
-                          <button
-                            onClick={() =>
-                              deleteUser(user.id)
-                            }
-                            className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#ffb4ab] hover:bg-[#ffb4ab]/10 transition-colors"
-                            title="Delete"
-                          >
-                            <span className="material-symbols-outlined text-[20px]">
-                              delete
-                            </span>
-                          </button>
-
-                          <button className="p-1.5 rounded-md text-[#bec9bf] hover:text-white hover:bg-[#2c3732] transition-colors">
-                            <span className="material-symbols-outlined text-[20px]">
-                              more_vert
-                            </span>
-                          </button>
-                        </div>
+                  {loading ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-[#bec9bf]">
+                        Loading users...
                       </td>
                     </tr>
-                  ))}
+                  ) : filteredUsers.length === 0 ? (
+                    <tr>
+                      <td colSpan={6} className="py-10 text-center text-[#bec9bf]">
+                        No users found.
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredUsers.map((user) => (
+                      <tr
+                        key={user.id}
+                        className="hover:bg-[#2F8F62]/[0.04] transition-colors group"
+                      >
+                        {/* User */}
+                        <td className="py-4 px-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full overflow-hidden bg-[#2c3732] shrink-0 border border-[#1B3428] flex items-center justify-center text-[#bec9bf] text-[11px] font-medium uppercase">
+                              {user.username.charAt(0) || "U"}
+                            </div>
+
+                            <span className="text-[14px] text-white font-medium truncate">
+                              {user.username}
+                              {user.id === currentUserId && (
+                                <span className="ml-2 text-[11px] text-[#7CD9A6]">
+                                  (you)
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </td>
+
+                        {/* Email */}
+                        <td className="py-4 px-6 text-[13px] text-[#d9e5de]">
+                          {user.email}
+                        </td>
+
+                        {/* Role */}
+                        <td className="py-4 px-6">
+                          <select
+                            value={user.role}
+                            disabled={user.id === currentUserId || busy}
+                            onChange={(e) => changeRole(user, e.target.value)}
+                            className="rounded-md border border-[#1B3428] bg-[#0D1A15] px-2 py-1.5 text-[12px] font-medium text-white outline-none focus:border-[#48B77B] disabled:opacity-50"
+                          >
+                            <option value="User">User</option>
+                            <option value="Admin">Admin</option>
+                          </select>
+                        </td>
+
+                        {/* Status */}
+                        <td className="py-4 px-6">
+                          <StatusBadge active={user.isActive} />
+                        </td>
+
+                        {/* Joined */}
+                        <td className="py-4 px-6">
+                          <span className="text-[13px] text-[#d9e5de]">
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 px-6 text-right">
+                          <div className="flex items-center justify-end gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => toggleStatus(user)}
+                              disabled={user.id === currentUserId || busy}
+                              className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#ffb4ab] hover:bg-[#ffb4ab]/10 transition-colors disabled:opacity-40"
+                              title={user.isActive ? "Suspend" : "Restore"}
+                            >
+                              <span className="material-symbols-outlined text-[20px]">
+                                {user.isActive ? "block" : "restore"}
+                              </span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDelete(user)}
+                              disabled={user.id === currentUserId || busy}
+                              className="p-1.5 rounded-md text-[#bec9bf] hover:text-[#ffb4ab] hover:bg-[#ffb4ab]/10 transition-colors disabled:opacity-40"
+                              title="Delete"
+                            >
+                              <span className="material-symbols-outlined text-[20px]">
+                                delete
+                              </span>
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
                 </tbody>
               </table>
             </div>
@@ -366,25 +302,8 @@ export default function UsersPage() {
             {/* Footer */}
             <div className="p-4 border-t border-[#1B3428] bg-[#06100C] flex items-center justify-between text-[#bec9bf] text-[11px]">
               <span>
-                Showing {filteredUsers.length} of {users.length} users
+                Showing {filteredUsers.length} users
               </span>
-
-              <div className="flex items-center gap-2">
-                <button
-                  disabled
-                  className="p-1 rounded-md hover:bg-[#2c3732] disabled:opacity-50"
-                >
-                  <span className="material-symbols-outlined text-[20px]">
-                    chevron_left
-                  </span>
-                </button>
-
-                <button className="p-1 rounded-md hover:bg-[#2c3732] hover:text-white">
-                  <span className="material-symbols-outlined text-[20px]">
-                    chevron_right
-                  </span>
-                </button>
-              </div>
             </div>
           </div>
         </div>
@@ -393,12 +312,8 @@ export default function UsersPage() {
   );
 }
 
-function StatusBadge({
-  status,
-}: {
-  status: User["status"];
-}) {
-  if (status === "Active") {
+function StatusBadge({ active }: { active: boolean }) {
+  if (active) {
     return (
       <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#48B77B]/15 text-[#48B77B] text-[11px]">
         <span className="w-1.5 h-1.5 rounded-full bg-[#48B77B]" />
@@ -407,19 +322,10 @@ function StatusBadge({
     );
   }
 
-  if (status === "Suspended") {
-    return (
-      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ffb4ab]/15 text-[#ffb4ab] text-[11px]">
-        <span className="w-1.5 h-1.5 rounded-full bg-[#ffb4ab]" />
-        Suspended
-      </span>
-    );
-  }
-
   return (
-    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#85948d]/20 text-[#bbcac2] text-[11px]">
-      <span className="w-1.5 h-1.5 rounded-full bg-[#bbcac2]" />
-      Pending
+    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[#ffb4ab]/15 text-[#ffb4ab] text-[11px]">
+      <span className="w-1.5 h-1.5 rounded-full bg-[#ffb4ab]" />
+      Suspended
     </span>
   );
 }
