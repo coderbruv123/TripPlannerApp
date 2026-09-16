@@ -89,6 +89,30 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
+    [AllowAnonymous]
+    [HttpPost("refresh")]
+    public async Task<IActionResult> Refresh([FromBody] RefreshTokenRequestDto request)
+    {
+        var result = await _authService.RefreshTokenAsync(request.RefreshToken);
+
+        if (!result.Success)
+            return Unauthorized(result);
+
+        return Ok(result);
+    }
+
+    [AllowAnonymous]
+    [HttpPost("revoke")]
+    public async Task<IActionResult> Revoke([FromBody] RefreshTokenRequestDto request)
+    {
+        var result = await _authService.RevokeRefreshTokenAsync(request.RefreshToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
     private Guid? CurrentUserId()
     {
         var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)

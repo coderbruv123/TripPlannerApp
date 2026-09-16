@@ -77,7 +77,12 @@ builder.Services.AddCors(options =>
 builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("AdminOnly", policy =>
-        policy.RequireRole(UserRole.Admin.ToString()));
+        policy.RequireRole(
+            UserRole.Admin.ToString(),
+            UserRole.SuperAdmin.ToString()));
+
+    options.AddPolicy("SuperAdminOnly", policy =>
+        policy.RequireRole(UserRole.SuperAdmin.ToString()));
 });
 
 var app = builder.Build();

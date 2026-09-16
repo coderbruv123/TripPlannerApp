@@ -53,7 +53,7 @@ public class HotelService : IHotelService
         try
         {
             response = await _httpClient.PostAsync(
-                "https://overpass.kumi.systems/api/interpreter",
+                "https://overpass-api.de/api/interpreter",
                 content
             );
         }

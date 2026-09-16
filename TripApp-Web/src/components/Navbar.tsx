@@ -2,6 +2,7 @@ import { Bell, Compass, LogOut, Search, ShieldCheck, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useState } from "react";
 import { clearAuth, getUserName, isAdmin } from "../api/authUtils";
+import { revokeRefreshToken } from "../api/auth";
 
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
@@ -13,6 +14,7 @@ export default function Navbar() {
   const userName = getUserName();
 
   const logout = () => {
+    revokeRefreshToken();
     clearAuth();
     window.location.href = "/login";
   };

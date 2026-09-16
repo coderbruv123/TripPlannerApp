@@ -8,6 +8,7 @@ export interface AuthUser {
 }
 
 const TOKEN_KEY = "token";
+const REFRESH_TOKEN_KEY = "refreshToken";
 const ROLE_KEY = "role";
 const USER_ID_KEY = "userId";
 const EMAIL_KEY = "userEmail";
@@ -15,6 +16,23 @@ const NAME_KEY = "userName";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
+}
+
+export function setToken(token: string): void {
+  localStorage.setItem(TOKEN_KEY, token);
+}
+
+export function getRefreshToken(): string | null {
+  return localStorage.getItem(REFRESH_TOKEN_KEY);
+}
+
+export function setRefreshToken(token: string): void {
+  localStorage.setItem(REFRESH_TOKEN_KEY, token);
+}
+
+export function persistTokens(accessToken: string, refreshToken: string): void {
+  localStorage.setItem(TOKEN_KEY, accessToken);
+  if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
 export function getRole(): string | null {
@@ -43,6 +61,7 @@ export function getUserId(): string | null {
 
 export function persistAuth(data: {
   token: string;
+  refreshToken?: string;
   role?: string;
   email?: string;
   username?: string;
@@ -51,6 +70,7 @@ export function persistAuth(data: {
   localStorage.setItem(TOKEN_KEY, data.token);
   localStorage.setItem("isLoggedIn", "true");
 
+  if (data.refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
   if (data.role) localStorage.setItem(ROLE_KEY, data.role);
   if (data.email) localStorage.setItem(EMAIL_KEY, data.email);
   if (data.username) localStorage.setItem(NAME_KEY, data.username);
@@ -60,6 +80,7 @@ export function persistAuth(data: {
 export function clearAuth(): void {
   [
     TOKEN_KEY,
+    REFRESH_TOKEN_KEY,
     ROLE_KEY,
     USER_ID_KEY,
     EMAIL_KEY,

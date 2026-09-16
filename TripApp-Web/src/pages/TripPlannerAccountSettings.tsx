@@ -14,7 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
-import { changePassword, updateProfile as updateProfileApi } from "../api/auth";
+import { changePassword, revokeRefreshToken, updateProfile as updateProfileApi } from "../api/auth";
 import { clearAuth, getUserEmail, getUserName } from "../api/authUtils";
 const avatarUrl =
   "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
@@ -90,6 +90,7 @@ export const TripPlannerAccountSettings = () => {
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
   const logout = () => {
+    revokeRefreshToken();
     clearAuth();
     window.location.href = "/login";
   };

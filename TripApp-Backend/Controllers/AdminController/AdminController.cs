@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using TripApp_Backend.Dtos;
@@ -6,7 +7,7 @@ namespace TripApp_Backend.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-[Authorize(Roles = "Admin")]
+[Authorize(Policy = "AdminOnly")]
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
@@ -39,10 +40,11 @@ public class AdminController : ControllerBase
         return Ok(result);
     }
 
+    [Authorize(Policy = "SuperAdminOnly")]
     [HttpPut("users/{id:guid}/role")]
     public async Task<IActionResult> UpdateRole(Guid id, [FromBody] UpdateUserRoleDto request)
     {
-        var result = await _adminService.UpdateUserRoleAsync(id, request.Role);
+        var result = await _adminService.UpdateUserRoleAsync(id, request.Role, CurrentUserId());
 
         if (!result.Success)
             return BadRequest(result);
@@ -53,7 +55,7 @@ public class AdminController : ControllerBase
     [HttpPut("users/{id:guid}/status")]
     public async Task<IActionResult> SetStatus(Guid id, [FromBody] SetUserStatusDto request)
     {
-        var result = await _adminService.SetUserStatusAsync(id, request.IsActive);
+        var result = await _adminService.SetUserStatusAsync(id, request.IsActive, CurrentUserId());
 
         if (!result.Success)
             return BadRequest(result);
@@ -64,7 +66,7 @@ public class AdminController : ControllerBase
     [HttpDelete("users/{id:guid}")]
     public async Task<IActionResult> DeleteUser(Guid id)
     {
-        var result = await _adminService.DeleteUserAsync(id);
+        var result = await _adminService.DeleteUserAsync(id, CurrentUserId());
 
         if (!result.Success)
             return BadRequest(result);
@@ -77,5 +79,13 @@ public class AdminController : ControllerBase
     {
         var result = await _adminService.GetStatsAsync();
         return Ok(result);
+    }
+
+    private Guid? CurrentUserId()
+    {
+        var sub = User.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? User.FindFirstValue("sub");
+
+        return Guid.TryParse(sub, out var id) ? id : null;
     }
 }

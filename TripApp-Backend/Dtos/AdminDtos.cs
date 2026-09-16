@@ -26,6 +26,7 @@ public class AdminStatsDto
     public int TotalUsers { get; set; }
     public int ActiveUsers { get; set; }
     public int AdminUsers { get; set; }
+    public int SuperAdminUsers { get; set; }
     public int NewUsersThisMonth { get; set; }
 }
 

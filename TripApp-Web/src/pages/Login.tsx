@@ -11,6 +11,7 @@ interface LoginResponse {
   success: boolean;
   data: {
     token: string;
+    refreshToken: string;
     userId: string;
     email?: string;
     username?: string;
@@ -40,9 +41,10 @@ export default function Login() {
       });
       const data = response.data.data;
 
-      // Store JWT token + user info
+      // Store JWT tokens + user info
       persistAuth({
         token: data.token,
+        refreshToken: data.refreshToken,
         userId: data.userId,
         email: data.email,
         username: data.username,

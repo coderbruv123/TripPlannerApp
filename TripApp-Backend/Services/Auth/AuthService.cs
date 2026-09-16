@@ -83,20 +83,13 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
     await _context.Users.AddAsync(user);
     await _context.SaveChangesAsync();
 
-    var token = _jwtService.GenerateToken(user);
+    var auth = await IssueTokenPairAsync(user);
 
     return new SignupResultDto
     {
         Success = true,
         Message = "Registration successful.",
-        Data = new AuthResponseDto
-        {
-            Token = token,
-            UserId = user.Id,
-            Username = user.Username,
-            Email = user.Email,
-            Role = user.Role.ToString()
-        }
+        Data = auth
     };
 
     }
@@ -128,22 +121,97 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
                 Message = "This account has been suspended. Contact support for help."
             };
 
-        var token = _jwtService.GenerateToken(user);
+        var auth = await IssueTokenPairAsync(user);
 
-
-         return new LoginResultDto
-    {
-        Success = true,
-        Message = "Login successful.",
-        Data = new AuthResponseDto
+        return new LoginResultDto
         {
-            Token = token,
+            Success = true,
+            Message = "Login successful.",
+            Data = auth
+        };
+    }
+
+    public async Task<AuthResponseDto> IssueTokenPairAsync(User user)
+    {
+        var accessToken = _jwtService.GenerateToken(user);
+        var refreshToken = _jwtService.GenerateRefreshToken();
+        var refreshExpiry = DateTime.UtcNow.AddDays(_jwtService.RefreshTokenLifetimeDays);
+
+        _context.RefreshTokens.Add(new RefreshToken
+        {
+            Id = Guid.NewGuid(),
+            Token = refreshToken,
+            UserId = user.Id,
+            CreatedAt = DateTime.UtcNow,
+            ExpiresAt = refreshExpiry
+        });
+
+        await _context.SaveChangesAsync();
+
+        return new AuthResponseDto
+        {
+            Token = accessToken,
+            RefreshToken = refreshToken,
+            TokenExpiresAt = DateTime.UtcNow.AddMinutes(_jwtService.AccessTokenLifetimeMinutes),
+            RefreshTokenExpiresAt = refreshExpiry,
             UserId = user.Id,
             Username = user.Username,
             Email = user.Email,
             Role = user.Role.ToString()
+        };
+    }
+
+    public async Task<RefreshTokenResultDto> RefreshTokenAsync(string refreshToken)
+    {
+        var stored = await _context.RefreshTokens
+            .Include(r => r.User)
+            .FirstOrDefaultAsync(r => r.Token == refreshToken);
+
+        if (stored == null || stored.User == null)
+            return RefreshError("INVALID_REFRESH_TOKEN", "Invalid refresh token.");
+
+        if (stored.IsRevoked)
+            return RefreshError("TOKEN_REVOKED", "This refresh token has been revoked.");
+
+        if (stored.IsExpired)
+            return RefreshError("TOKEN_EXPIRED", "This refresh token has expired.");
+
+        if (!stored.User.IsActive)
+            return RefreshError("ACCOUNT_SUSPENDED", "This account has been suspended.");
+
+        // Rotate: revoke the used token, issue a fresh pair
+        stored.RevokedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        var auth = await IssueTokenPairAsync(stored.User);
+
+        return new RefreshTokenResultDto
+        {
+            Success = true,
+            Message = "Tokens refreshed successfully.",
+            Data = auth
+        };
+    }
+
+    public async Task<RefreshTokenResultDto> RevokeRefreshTokenAsync(string refreshToken)
+    {
+        var stored = await _context.RefreshTokens
+            .FirstOrDefaultAsync(r => r.Token == refreshToken);
+
+        if (stored == null)
+            return RefreshError("INVALID_REFRESH_TOKEN", "Invalid refresh token.");
+
+        if (stored.IsActive)
+        {
+            stored.RevokedAt = DateTime.UtcNow;
+            await _context.SaveChangesAsync();
         }
-    };
+
+        return new RefreshTokenResultDto
+        {
+            Success = true,
+            Message = "Refresh token revoked."
+        };
     }
 
     public async Task<UserDto?> GetUserByIdAsync(Guid userId)
@@ -243,6 +311,14 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
 
     private static ProfileResultDto Error(string code, string message) =>
         new ProfileResultDto
+        {
+            Success = false,
+            ErrorCode = code,
+            Message = message
+        };
+
+    private static RefreshTokenResultDto RefreshError(string code, string message) =>
+        new RefreshTokenResultDto
         {
             Success = false,
             ErrorCode = code,

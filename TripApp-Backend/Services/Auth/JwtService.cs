@@ -1,5 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
+using System.Security.Cryptography;
 using System.Text;
 using Microsoft.IdentityModel.Tokens;
 using TripApp_Backend.Configuration;
@@ -66,4 +67,13 @@ public class JwtService : IJwtService
 
         return new JwtSecurityTokenHandler().WriteToken(token);
     }
+
+    public string GenerateRefreshToken()
+    {
+        return Convert.ToBase64String(RandomNumberGenerator.GetBytes(64));
+    }
+
+    public int RefreshTokenLifetimeDays => _jwtSettings.RefreshTokenExpiresInDays;
+
+    public int AccessTokenLifetimeMinutes => _jwtSettings.ExpiresInMinutes;
 }

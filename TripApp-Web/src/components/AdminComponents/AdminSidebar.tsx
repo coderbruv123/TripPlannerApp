@@ -14,6 +14,7 @@ import {
   Home,
 } from "lucide-react";
 import { clearAuth } from "../../api/authUtils";
+import { revokeRefreshToken } from "../../api/auth";
 
 const navigation = [
   {
@@ -66,7 +67,8 @@ const navigation = [
 export default function AdminSidebar() {
   const navigate = useNavigate();
 
-  const logout = () => {
+  const logout = async () => {
+    await revokeRefreshToken();
     clearAuth();
     navigate("/login", { replace: true });
   };
