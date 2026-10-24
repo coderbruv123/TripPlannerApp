@@ -1,23 +1,19 @@
 import { useState } from "react";
 import {
-  Bell,
-  BriefcaseBusiness,
   ChevronDown,
   Compass,
-  Headphones,
-  Heart,
   LogOut,
-  Search,
+  Moon,
   Settings,
+  Sun,
   UserRound,
-  Plus,
   X,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { changePassword, revokeRefreshToken, updateProfile as updateProfileApi } from "../api/auth";
 import { clearAuth, getUserEmail, getUserName } from "../api/authUtils";
-const avatarUrl =
-  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200&q=80";
+import { getInitials } from "../utils/userInitials";
+import { toggleTheme, useTheme } from "../utils/theme";
 
 type Profile = {
   fullName: string;
@@ -47,37 +43,19 @@ const sidebarItems = [
     icon: UserRound,
   },
   {
-    label: "My Trips",
-    icon: BriefcaseBusiness,
-  },
-  {
-    label: "Saved Places",
-    icon: Heart,
-  },
-  {
-    label: "Notifications",
-    icon: Bell,
-  },
-  {
-    label: "Help & Support",
-    icon: Headphones,
-  },
-  {
     label: "Settings",
     icon: Settings,
   },
 ];
 
 export const TripPlannerAccountSettings = () => {
+  const navigate = useNavigate();
+
   const [profile, setProfile] = useState<Profile>(defaultProfile);
 
   const [activeItem, setActiveItem] = useState("Profile");
 
   const [savedMessage, setSavedMessage] = useState("");
-
-  const [showNotifications, setShowNotifications] = useState(false);
-
-  const [showSearch, setShowSearch] = useState(false);
 
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -89,10 +67,14 @@ export const TripPlannerAccountSettings = () => {
   const [passwordError, setPasswordError] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
+  const displayName = getUserName();
+  const initials = getInitials(displayName);
+  const theme = useTheme();
+
   const logout = () => {
     revokeRefreshToken();
     clearAuth();
-    window.location.href = "/login";
+    navigate("/login", { replace: true });
   };
 
   const updateProfile = (
@@ -180,20 +162,15 @@ export const TripPlannerAccountSettings = () => {
   };
 
   return (
-    <div
-      className="min-h-screen bg-[#F5F5F7] font-sans text-[#0F1F3D]"
-      style={{
-        background: "rgb(239, 239, 239)",
-      }}
-    >
+    <div className="min-h-screen bg-canvas font-sans text-ink">
       {/* ================= HEADER ================= */}
 
-      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-[#E9E9EC] bg-white px-5 shadow-[0_2px_12px_rgba(15,31,61,0.05)] sm:px-8">
+      <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-line bg-surface px-5 shadow-[0_2px_12px_rgba(15,31,61,0.05)] sm:px-8">
         <Link to="/"
           className="flex items-center gap-2.5"
           aria-label="TripPlanner home"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-[#E8F8F6] text-[#00BFA5]">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[10px] bg-brand-50 text-brand">
             <Compass size={21} strokeWidth={2.3} />
           </span>
 
@@ -206,86 +183,38 @@ export const TripPlannerAccountSettings = () => {
           className="flex items-center gap-1.5"
           aria-label="Account actions"
         >
-          {/* Search */}
+          <div className="ml-1 hidden h-8 w-px bg-line sm:block" />
 
           <button
             type="button"
-            onClick={() =>
-              setShowSearch((current) => !current)
+            onClick={() => toggleTheme()}
+            aria-label={
+              theme === "dark" ? "Switch to light theme" : "Switch to dark theme"
             }
-            aria-label="Search"
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+            aria-pressed={theme === "dark"}
+            title={theme === "dark" ? "Light theme" : "Dark theme"}
+            className="grid h-9 w-9 place-items-center rounded-lg text-muted transition hover:bg-canvas hover:text-ink"
           >
-            {showSearch ? (
-              <X size={18} strokeWidth={1.8} />
+            {theme === "dark" ? (
+              <Sun size={17} strokeWidth={1.8} />
             ) : (
-              <Search size={18} strokeWidth={1.8} />
+              <Moon size={17} strokeWidth={1.8} />
             )}
           </button>
 
-          {/* Notifications */}
-
-          <button
-            type="button"
-            onClick={() =>
-              setShowNotifications((current) => !current)
-            }
-            aria-label="Notifications"
-            className="relative flex h-9 w-9 items-center justify-center rounded-full text-[#667085] transition hover:bg-[#F5F5F7] hover:text-[#0F1F3D] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+          <span
+            aria-hidden="true"
+            className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-brand bg-brand-50 text-[13px] font-bold text-brand-strong"
           >
-            <Bell size={18} strokeWidth={1.8} />
-
-            <span className="absolute right-[7px] top-[6px] h-1.5 w-1.5 rounded-full bg-[#FF4444]" />
-          </button>
-
-          <div className="ml-1 hidden h-8 w-px bg-[#E9E9EC] sm:block" />
-
-          <img
-            src={avatarUrl}
-            alt="Portrait of Alex Johnson"
-            className="ml-1 h-9 w-9 rounded-full border-2 border-[#00BFA5] object-cover"
-          />
-
-          <span className="hidden pl-1 text-[13px] font-semibold text-[#0F1F3D] sm:block">
-            Alex Johnson
+            {initials}
           </span>
 
-          {/* Notifications popup */}
-
-          {showNotifications && (
-            <div
-              role="status"
-              className="absolute right-5 top-[58px] w-64 rounded-xl border border-[#E5E5E5] bg-white p-4 text-sm shadow-[0_12px_30px_rgba(15,31,61,0.12)] sm:right-8"
-            >
-              <strong className="block text-[#0F1F3D]">
-                Notifications
-              </strong>
-
-              <span className="mt-1 block text-[#667085]">
-                Your Yosemite trip is ready to review.
-              </span>
-            </div>
-          )}
+          <span className="hidden pl-1 text-[13px] font-semibold text-ink sm:block">
+            {displayName}
+          </span>
         </nav>
       </header>
 
-      {/* ================= SEARCH ================= */}
-
-      {showSearch && (
-        <div className="border-b border-[#E5E5E5] bg-white px-5 py-3 sm:px-8">
-          <label className="mx-auto flex max-w-xl items-center gap-2 rounded-lg border border-[#DCDDE2] px-3 py-2 text-sm text-[#888] shadow-sm">
-            <Search size={16} />
-
-            <input
-              autoFocus
-              type="search"
-              placeholder="Search your trips and places"
-              className="w-full bg-transparent outline-none placeholder:text-[#A0A3AA]"
-              aria-label="Search your trips and places"
-            />
-          </label>
-        </div>
-      )}
 
       {/* ================= MAIN LAYOUT ================= */}
 
@@ -294,7 +223,7 @@ export const TripPlannerAccountSettings = () => {
         {/* ================= SIDEBAR ================= */}
 
         <aside
-          className={`fixed inset-y-16 left-0 z-20 w-[260px] border-r border-[#E5E5E5] bg-white p-6 shadow-[3px_0_14px_rgba(15,31,61,0.03)] transition-transform md:sticky md:top-16 md:block md:translate-x-0 ${
+          className={`fixed inset-y-16 left-0 z-20 w-[260px] border-r border-line bg-surface p-6 shadow-[3px_0_14px_rgba(15,31,61,0.03)] transition-transform md:sticky md:top-16 md:block md:translate-x-0 ${
             mobileNavOpen
               ? "translate-x-0"
               : "-translate-x-full"
@@ -314,7 +243,7 @@ export const TripPlannerAccountSettings = () => {
             </button>
           </div>
 
-          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-[#A0A3AA]">
+          <p className="mb-3 px-3 text-[10px] font-bold uppercase tracking-[0.14em] text-faint">
             Account
           </p>
 
@@ -336,10 +265,10 @@ export const TripPlannerAccountSettings = () => {
                       ? "page"
                       : undefined
                   }
-                  className={`flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] font-medium transition focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40 ${
+                  className={`flex h-11 w-full items-center gap-3 rounded-lg px-3 text-left text-[13px] font-medium transition focus:outline-none focus:ring-2 focus:ring-brand/40 ${
                     activeItem === label
-                      ? "bg-[#E8F8F6] text-[#008F7C]"
-                      : "text-[#666] hover:bg-[#F7F7F8] hover:text-[#0F1F3D]"
+                      ? "bg-brand-50 text-brand-strong"
+                      : "text-muted hover:bg-canvas hover:text-ink"
                   }`}
                 >
                   <Icon
@@ -353,12 +282,12 @@ export const TripPlannerAccountSettings = () => {
             )}
           </nav>
 
-          <div className="my-6 border-t border-[#E9E9EC]" />
+          <div className="my-6 border-t border-line" />
 
           <button
             type="button"
             onClick={logout}
-            className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-[#FF4444] transition hover:bg-[#FFF2F2] focus:outline-none focus:ring-2 focus:ring-[#FF4444]/30"
+            className="flex h-11 w-full items-center gap-3 rounded-lg px-3 text-[13px] font-medium text-danger transition hover:bg-danger-50 focus:outline-none focus:ring-2 focus:ring-danger/30"
           >
             <LogOut
               size={18}
@@ -386,7 +315,7 @@ export const TripPlannerAccountSettings = () => {
                   Account Settings
                 </h1>
 
-                <p className="mt-1.5 text-[14px] text-[#888]">
+                <p className="mt-1.5 text-[14px] text-faint">
                   Manage your profile and preferences
                 </p>
               </div>
@@ -395,13 +324,13 @@ export const TripPlannerAccountSettings = () => {
                 type="button"
                 onClick={() => setMobileNavOpen(true)}
                 aria-label="Open account menu"
-                className="mt-1 flex h-10 w-10 items-center justify-center rounded-lg border border-[#E0E0E0] bg-white text-[#667085] md:hidden"
+                className="mt-1 flex h-10 w-10 items-center justify-center rounded-lg border border-line bg-surface text-muted md:hidden"
               >
                 <span className="text-lg">☰</span>
               </button>
             </div>
 
-            <div className="border-t border-[#E1E1E4]" />
+            <div className="border-t border-line" />
 
             {/* ================= PROFILE ================= */}
 
@@ -416,41 +345,12 @@ export const TripPlannerAccountSettings = () => {
                 Profile
               </h2>
 
-              {/* Avatar */}
-
-              <div className="my-6 flex items-center gap-5">
-                <div className="relative">
-                  <img
-                    src={avatarUrl}
-                    alt="Portrait of Alex Johnson"
-                    className="h-20 w-20 rounded-full border-[3px] border-[#00BFA5] object-cover shadow-[0_4px_14px_rgba(15,31,61,0.10)]"
-                  />
-
-                  <button
-                    type="button"
-                    aria-label="Edit avatar"
-                    className="absolute bottom-0 right-0 flex h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-[#00BFA5] text-white shadow-sm"
-                  >
-                    <Plus
-                      size={13}
-                      strokeWidth={2.5}
-                    />
-                  </button>
-                </div>
-
-                <p className="max-w-[330px] text-[13px] leading-5 text-[#888]">
-                  Update your avatar by clicking the image.
-                  288x288 px recommended in PNG or JPG
-                  format only.
-                </p>
-              </div>
-
               {/* Profile fields */}
 
               <div className="space-y-4">
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     Full Name
                   </span>
 
@@ -462,12 +362,12 @@ export const TripPlannerAccountSettings = () => {
                         event.target.value
                       )
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     Nickname
                   </span>
 
@@ -479,14 +379,14 @@ export const TripPlannerAccountSettings = () => {
                         event.target.value
                       )
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
                 <div className="grid gap-4 sm:grid-cols-2">
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
                       Email
                     </span>
 
@@ -499,12 +399,12 @@ export const TripPlannerAccountSettings = () => {
                           event.target.value
                         )
                       }
-                      className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
                       Phone
                     </span>
 
@@ -516,14 +416,14 @@ export const TripPlannerAccountSettings = () => {
                           event.target.value
                         )
                       }
-                      className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                     />
                   </label>
 
                 </div>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     Address
                   </span>
 
@@ -535,14 +435,14 @@ export const TripPlannerAccountSettings = () => {
                         event.target.value
                       )
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
                 <div className="grid gap-4 sm:grid-cols-2">
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
                       Occupation
                     </span>
 
@@ -554,12 +454,12 @@ export const TripPlannerAccountSettings = () => {
                           event.target.value
                         )
                       }
-                      className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                     />
                   </label>
 
                   <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
                       Location
                     </span>
 
@@ -573,7 +473,7 @@ export const TripPlannerAccountSettings = () => {
                             event.target.value
                           )
                         }
-                        className="h-11 w-full appearance-none rounded-lg border border-[#E0E0E0] bg-white px-3 pr-9 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                        className="h-11 w-full appearance-none rounded-lg border border-line bg-surface px-3 pr-9 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                       >
                         <option>
                           United States
@@ -587,7 +487,7 @@ export const TripPlannerAccountSettings = () => {
 
                       <ChevronDown
                         size={16}
-                        className="pointer-events-none absolute right-3 top-3.5 text-[#888]"
+                        className="pointer-events-none absolute right-3 top-3.5 text-faint"
                       />
 
                     </span>
@@ -602,7 +502,7 @@ export const TripPlannerAccountSettings = () => {
 
                 <span
                   role="status"
-                  className="mr-auto text-[13px] font-medium text-[#00A891]"
+                  className="mr-auto text-[13px] font-medium text-brand-strong"
                 >
                   {savedMessage}
                 </span>
@@ -610,7 +510,7 @@ export const TripPlannerAccountSettings = () => {
                 <button
                   type="button"
                   onClick={discardProfile}
-                  className="h-10 rounded-full border border-[#26334A] bg-white px-5 text-[13px] font-semibold text-[#4D5868] transition hover:bg-[#F5F5F7] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+                  className="h-10 rounded-full border border-line bg-surface px-5 text-[13px] font-semibold text-muted transition hover:bg-canvas focus:outline-none focus:ring-2 focus:ring-brand/40"
                 >
                   Discard
                 </button>
@@ -618,7 +518,7 @@ export const TripPlannerAccountSettings = () => {
                 <button
                   type="button"
                   onClick={saveProfile}
-                  className="h-10 rounded-full bg-[#00BFA5] px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-[#00A891] focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+                  className="h-10 rounded-full bg-brand px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-brand-strong focus:outline-none focus:ring-2 focus:ring-brand/40"
                 >
                   Save Changes
                 </button>
@@ -628,7 +528,7 @@ export const TripPlannerAccountSettings = () => {
 
             {/* ================= SECURITY ================= */}
 
-            <div className="border-t border-[#E1E1E4]" />
+            <div className="border-t border-line" />
 
             <section
               className="py-8"
@@ -650,13 +550,13 @@ export const TripPlannerAccountSettings = () => {
                 )}
 
                 {passwordMessage && (
-                  <div className="rounded-lg border border-[#00BFA5]/30 bg-[#E8F8F6] px-4 py-3 text-[13px] text-[#008F7C]">
+                  <div className="rounded-lg border border-brand/30 bg-brand-50 px-4 py-3 text-[13px] text-brand-strong">
                     {passwordMessage}
                   </div>
                 )}
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     Current password
                   </span>
 
@@ -666,12 +566,12 @@ export const TripPlannerAccountSettings = () => {
                     onChange={(e) =>
                       setCurrentPassword(e.target.value)
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     New password
                   </span>
 
@@ -681,12 +581,12 @@ export const TripPlannerAccountSettings = () => {
                     onChange={(e) =>
                       setNewPassword(e.target.value)
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
                 <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-[#666]">
+                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
                     Confirm new password
                   </span>
 
@@ -696,7 +596,7 @@ export const TripPlannerAccountSettings = () => {
                     onChange={(e) =>
                       setConfirmPassword(e.target.value)
                     }
-                    className="h-11 w-full rounded-lg border border-[#E0E0E0] bg-white px-3 text-[14px] text-[#0F1F3D] outline-none transition focus:border-[#00BFA5] focus:ring-4 focus:ring-[#00BFA5]/10"
+                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
                   />
                 </label>
 
@@ -707,7 +607,7 @@ export const TripPlannerAccountSettings = () => {
                   type="button"
                   onClick={handlePasswordChange}
                   disabled={updatingPassword}
-                  className="h-10 rounded-full bg-[#00BFA5] px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-[#00A891] disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-[#00BFA5]/40"
+                  className="h-10 rounded-full bg-brand px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-brand-strong disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-brand/40"
                 >
                   {updatingPassword
                     ? "Updating..."

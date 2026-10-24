@@ -6,9 +6,12 @@ import {
   getToken,
   persistTokens,
 } from "./authUtils";
+import { emitLogout } from "../utils/authEvents";
 
 const api = axios.create({
-  baseURL: "http://localhost:5176/api",
+  baseURL:
+    import.meta.env.VITE_API_URL ??
+    "http://localhost:5176/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -91,9 +94,8 @@ api.interceptors.response.use(
 
     if (isAuthFlow || alreadyRetried || !getRefreshToken()) {
       clearAuth();
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      // Let the router do the redirect (client-side, no full reload).
+      emitLogout();
       return Promise.reject(error);
     }
 
@@ -103,9 +105,8 @@ api.interceptors.response.use(
 
     if (!newToken) {
       clearAuth();
-      if (!window.location.pathname.startsWith("/login")) {
-        window.location.href = "/login";
-      }
+      // Let the router do the redirect (client-side, no full reload).
+      emitLogout();
       return Promise.reject(error);
     }
 

@@ -1,0 +1,1911 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TripPlanner · Redesign mock v1</title>
+<style>
+/* ============================================================
+   TOKENS
+   ============================================================ */
+:root{
+  --navy:#0C1B33;
+  --ink:#101828;
+  --body:#475467;
+  --muted:#667085;
+  --faint:#98A2B3;
+  --line:#E4E7EC;
+  --line-soft:#EEF0F3;
+  --bg:#F6F7F9;
+  --surface:#FFFFFF;
+  --surface-2:#FAFBFC;
+  --brand:#0E9384;
+  --brand-strong:#0B7A6E;
+  --brand-ink:#05463F;
+  --brand-50:#E7F7F4;
+  --brand-100:#CFF0EA;
+  --accent:#F79009;
+  --accent-50:#FEF3E2;
+  --danger:#D92D20;
+  --danger-50:#FEF3F2;
+  --sky:#2E90FA;
+  --sky-50:#EAF3FF;
+  --violet:#7A5AF8;
+  --radius-lg:18px;
+  --radius:14px;
+  --radius-sm:10px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 4px 16px -4px rgba(16,24,40,.10), 0 1px 2px rgba(16,24,40,.04);
+  --shadow-lg:0 24px 60px -20px rgba(12,27,51,.30), 0 2px 6px rgba(12,27,51,.05);
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  --mockbar:58px;
+}
+[data-theme="dark"]{
+  --navy:#EAF2F1;
+  --ink:#E7EDF0;
+  --body:#AAB6BF;
+  --muted:#8C9AA5;
+  --faint:#6E7C88;
+  --line:#233039;
+  --line-soft:#1B262E;
+  --bg:#0B1419;
+  --surface:#111C23;
+  --surface-2:#0F1920;
+  --brand:#2ED3BC;
+  --brand-strong:#2ED3BC;
+  --brand-ink:#04211D;
+  --brand-50:#0F2F2C;
+  --brand-100:#14403B;
+  --accent:#FDB022;
+  --accent-50:#2B2113;
+  --danger:#FDA29B;
+  --danger-50:#2A1715;
+  --sky:#84CAFF;
+  --sky-50:#12212F;
+  --violet:#BDB4FE;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow:0 4px 18px -6px rgba(0,0,0,.6);
+  --shadow-lg:0 30px 70px -30px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--body);font-family:var(--font);
+  font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input{font:inherit;color:inherit;background:none;border:0;outline:none;width:100%}
+a{color:inherit;text-decoration:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ============================================================
+   MOCK CHROME
+   ============================================================ */
+.mockbar{
+  position:sticky;top:0;z-index:80;display:flex;align-items:center;gap:12px;
+  padding:10px 16px;background:#0B1B33;color:#D7E3EA;font-size:12.5px;
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.mockbar__tag{
+  display:inline-flex;align-items:center;gap:7px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;font-size:10.5px;color:#0B1B33;background:#5EEAD4;
+  padding:4px 9px;border-radius:999px;
+}
+.mockbar__note{color:#93A4B0}
+.seg{display:flex;gap:2px;background:rgba(255,255,255,.06);padding:3px;border-radius:999px}
+.seg button{
+  padding:6px 13px;border-radius:999px;font-size:12.5px;font-weight:600;color:#B7C6D2;
+}
+.seg button[aria-selected="true"]{background:#FFFFFF;color:#0B1B33}
+.mockbar__right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--muted);
+}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand)}
+.mockbar .icon-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#D7E3EA}
+.mockbar .icon-btn:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+
+/* ============================================================
+   SHARED
+   ============================================================ */
+.screen{display:none}
+.screen.is-active{display:block}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px}
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--brand);
+}
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+}
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;
+  padding:0 16px;border-radius:10px;font-size:13.5px;font-weight:650;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  transition:.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--faint)}
+.btn--primary{
+  background:var(--brand);border-color:var(--brand);color:#fff;
+  box-shadow:0 6px 16px -8px rgba(14,147,132,.7);
+}
+[data-theme="dark"] .btn--primary{color:#04211D}
+.btn--primary:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
+.btn--quiet{background:transparent;border-color:transparent;color:var(--muted)}
+.btn--quiet:hover{background:var(--surface-2);color:var(--ink)}
+.btn--sm{height:32px;padding:0 11px;font-size:12.5px;border-radius:8px}
+.btn--block{width:100%}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);font-size:12px;font-weight:600;color:var(--body);
+}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
+.chip.is-on{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-strong)}
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;
+}
+.badge--brand{background:var(--brand-50);color:var(--brand-strong)}
+.badge--warn{background:var(--accent-50);color:#B54708}
+[data-theme="dark"] .badge--warn{color:var(--accent)}
+.badge--sky{background:var(--sky-50);color:#175CD3}
+[data-theme="dark"] .badge--sky{color:var(--sky)}
+.badge--neutral{background:var(--surface-2);color:var(--muted);border:1px solid var(--line)}
+.muted{color:var(--muted)}
+.tiny{font-size:12px}
+.mono{font-family:var(--mono);font-size:12px}
+.hr{height:1px;background:var(--line);border:0;margin:0}
+.section-title{font-size:19px;font-weight:750;color:var(--ink);letter-spacing:-.015em}
+.section-sub{font-size:13.5px;color:var(--muted);margin-top:4px}
+.row{display:flex;align-items:center;gap:10px}
+.stack{display:flex;flex-direction:column}
+.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico--sm{width:15px;height:15px}
+.ico--lg{width:22px;height:22px}
+
+/* ============================================================
+   APP NAV
+   ============================================================ */
+.nav{
+  display:flex;align-items:center;gap:28px;height:64px;padding:0 24px;
+  background:var(--surface);border-bottom:1px solid var(--line);
+  position:sticky;top:44px;z-index:40;
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:800;color:var(--navy);letter-spacing:-.02em;font-size:16px}
+.brand__mark{
+  display:grid;place-items:center;width:30px;height:30px;border-radius:9px;
+  background:var(--brand-50);color:var(--brand);
+}
+.nav__links{display:flex;gap:4px;margin-left:6px}
+.nav__link{padding:7px 11px;border-radius:8px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.nav__link:hover{background:var(--surface-2);color:var(--ink)}
+.nav__link.is-active{color:var(--brand-strong);background:var(--brand-50)}
+.nav__right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.avatar{
+  width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  background:var(--brand-50);color:var(--brand-strong);font-size:12px;font-weight:800;
+  border:1.5px solid var(--brand-100);
+}
+
+/* ============================================================
+   PLAN SCREEN
+   ============================================================ */
+.hero{padding:44px 0 26px;display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,.85fr);gap:44px;align-items:start}
+.hero h1{
+  font-size:clamp(34px,4.2vw,52px);line-height:1.03;letter-spacing:-.035em;
+  color:var(--navy);font-weight:800;margin-top:14px;
+}
+.hero .lede{margin-top:14px;max-width:44ch;font-size:15.5px;color:var(--body)}
+.hero__proof{display:flex;gap:18px;margin-top:18px;font-size:12.5px;color:var(--muted);flex-wrap:wrap}
+.hero__proof span{display:flex;align-items:center;gap:6px}
+.tick{color:var(--brand)}
+
+/* planner */
+.planner{
+  position:relative;margin-top:22px;border-radius:20px;background:var(--surface);
+  border:1px solid var(--line);box-shadow:var(--shadow-lg);padding:12px;
+}
+.planner__grid{
+  display:grid;grid-template-columns:1.7fr 1.15fr 1fr .95fr;
+  gap:2px;border-radius:14px;background:var(--line-soft);
+}
+.field{
+  position:relative;display:flex;align-items:center;gap:10px;padding:13px 12px;
+  background:var(--surface);min-width:0;
+}
+.field:first-child{border-radius:13px 0 0 13px}
+.field:last-of-type{border-radius:0 13px 13px 0}
+.field__icon{color:var(--faint);flex:none}
+.field__body{min-width:0;flex:1}
+.field__label{font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.field__value{font-size:13.5px;font-weight:650;color:var(--ink);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field__sub{font-size:11.5px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.field--active{box-shadow:inset 0 0 0 2px var(--brand);border-radius:12px;background:var(--surface);z-index:3}
+.field__ghost{color:var(--faint);font-weight:600}
+.field--static{cursor:default}
+.planner__foot{display:flex;align-items:center;gap:12px;padding:12px 6px 4px;flex-wrap:wrap}
+.planner__hint{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted)}
+.planner__origin{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);flex-wrap:wrap}
+.planner__origin strong{color:var(--ink);font-weight:650}
+.linkish{font-size:12px;font-weight:650;color:var(--brand-strong);border-bottom:1px dashed var(--brand-100);padding-bottom:1px}
+.linkish:hover{color:var(--brand)}
+.field{cursor:pointer}
+.planner__cta{margin-left:auto;display:flex;align-items:center;gap:8px}
+.kbd{
+  font-family:var(--mono);font-size:10.5px;padding:2px 5px;border-radius:5px;
+  border:1px solid var(--line);background:var(--surface-2);color:var(--muted);
+}
+
+/* suggestions */
+.suggestions{
+  position:absolute;left:0;top:calc(100% + 8px);width:min(420px,92vw);z-index:20;
+  background:var(--surface);border:1px solid var(--line);border-radius:14px;
+  box-shadow:var(--shadow-lg);padding:6px;display:none;
+}
+.field.is-open .suggestions,.field:focus-within .suggestions{display:block}
+.suggestion{
+  display:flex;align-items:center;gap:10px;padding:8px 9px;border-radius:9px;width:100%;text-align:left;
+}
+.suggestion:hover,.suggestion.is-cursor{background:var(--brand-50)}
+.suggestion__thumb{
+  width:34px;height:34px;border-radius:8px;flex:none;
+  background:linear-gradient(135deg,#A6E3DC,#4FB3A7);
+  display:grid;place-items:center;color:#fff;font-size:11px;font-weight:800;
+}
+.suggestion__name{font-size:13px;font-weight:650;color:var(--ink)}
+.suggestion__meta{font-size:11.5px;color:var(--muted)}
+.suggestion__side{margin-left:auto;font-size:11px;color:var(--faint)}
+.suggestions__head{
+  display:flex;align-items:center;justify-content:space-between;padding:7px 9px 5px;
+  font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--faint);
+}
+.suggestions__foot{
+  display:flex;align-items:center;gap:7px;border-top:1px solid var(--line-soft);
+  margin-top:5px;padding:8px 9px 5px;font-size:11.5px;color:var(--muted);
+}
+
+/* chips row */
+.styles{display:flex;align-items:center;gap:7px;margin-top:16px;flex-wrap:wrap}
+.styles__label{font-size:12px;font-weight:650;color:var(--muted);margin-right:2px}
+
+/* hero art */
+.hero-art{position:relative;height:100%;min-height:430px}
+.art-card{
+  position:absolute;inset:0 0 48px 24px;border-radius:24px;overflow:hidden;
+  background:
+    radial-gradient(120% 90% at 80% 0%, #7FD6C9 0%, transparent 55%),
+    radial-gradient(90% 80% at 10% 100%, #0E9384 0%, transparent 60%),
+    linear-gradient(160deg,#0B3A46 0%,#0E5E5A 45%,#0B1B33 100%);
+  box-shadow:var(--shadow-lg);
+}
+.art-sun{
+  position:absolute;right:52px;top:46px;width:86px;height:86px;border-radius:50%;
+  background:radial-gradient(circle at 40% 40%,#FFF1C9,#FFD98A 60%,rgba(255,217,138,0) 72%);
+  filter:blur(.4px);
+}
+.art-ridge{position:absolute;inset:auto 0 0 0;height:52%}
+.art-ridge svg{width:100%;height:100%;display:block}
+.art-caption{
+  position:absolute;left:22px;right:22px;bottom:20px;color:#fff;
+  display:flex;align-items:flex-end;justify-content:space-between;gap:12px;
+}
+.art-caption h3{font-size:20px;font-weight:750;letter-spacing:-.02em}
+.art-caption p{font-size:12.5px;color:#C7E6E1;margin-top:2px}
+.art-badge{
+  background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.22);
+  border-radius:999px;padding:5px 10px;font-size:11px;font-weight:650;color:#fff;
+  backdrop-filter:blur(6px);
+}
+.float-card{
+  position:absolute;background:var(--surface);border:1px solid var(--line);
+  border-radius:14px;box-shadow:var(--shadow-lg);padding:11px 13px;
+}
+.float-card--a{left:-18px;bottom:82px;width:196px;animation:float 7s ease-in-out infinite}
+.float-card--b{right:-10px;bottom:8px;width:172px;animation:float 8.5s ease-in-out infinite reverse}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+@media (prefers-reduced-motion:reduce){.float-card{animation:none}}
+.float-card__label{font-size:10.5px;font-weight:750;letter-spacing:.07em;text-transform:uppercase;color:var(--faint)}
+.float-card__value{font-size:15px;font-weight:750;color:var(--ink);margin-top:2px}
+.float-card__meta{font-size:11.5px;color:var(--muted)}
+.spark{display:flex;align-items:flex-end;gap:3px;height:24px;margin-top:8px}
+.spark i{display:block;width:6px;border-radius:2px;background:var(--brand-100)}
+.spark i.on{background:var(--brand)}
+
+/* saved trips */
+.section{padding:34px 0}
+.section__head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:16px}
+.trip-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.trip-card{padding:0;overflow:hidden;text-align:left;transition:.15s}
+.trip-card:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--brand-100)}
+.trip-card__top{height:116px;position:relative;background:linear-gradient(120deg,#0E9384,#0B3A46)}
+.trip-card__top.t2{background:linear-gradient(120deg,#2E90FA,#0B3A46)}
+.trip-card__top.t3{background:linear-gradient(120deg,#F79009,#7A2E0E)}
+.trip-card__top::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(60% 80% at 80% 10%,rgba(255,255,255,.35),transparent 60%);
+}
+.trip-card__status{position:absolute;left:12px;top:12px;background:rgba(255,255,255,.92);color:#0B1B33}
+.trip-card__body{padding:15px 15px 17px}
+.trip-card__title{font-size:14.5px;font-weight:700;color:var(--ink)}
+.trip-card__meta{font-size:12px;color:var(--muted);margin-top:3px}
+.progress{height:5px;border-radius:99px;background:var(--line-soft);margin-top:11px;overflow:hidden}
+.progress i{display:block;height:100%;border-radius:99px;background:var(--brand)}
+.trip-card__foot{display:flex;justify-content:space-between;margin-top:7px;font-size:11.5px;color:var(--muted)}
+
+/* stays */
+.stay-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.stay{padding:0;overflow:hidden;text-align:left}
+.stay__img{height:128px;position:relative;background:linear-gradient(135deg,#B8D8D3,#4C8F88)}
+.stay__img.b{background:linear-gradient(135deg,#F3D7B2,#B07B43)}
+.stay__img.c{background:linear-gradient(135deg,#C8D4F2,#5566A8)}
+.stay__img .badge{position:absolute;left:9px;top:9px;background:#fff;color:#0B1B33}
+.stay__body{padding:13px 13px 15px}
+.stay__name{font-size:13.5px;font-weight:700;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.stay__meta{display:flex;align-items:center;gap:5px;font-size:11.5px;color:var(--muted);margin-top:3px}
+.star{color:#FDB022;fill:#FDB022}
+.stay__price{display:flex;align-items:baseline;gap:4px;margin-top:9px}
+.stay__price strong{font-size:15px;color:var(--ink)}
+.stay__price span{font-size:11.5px;color:var(--muted)}
+.skeleton{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.skeleton__img{height:118px;background:linear-gradient(90deg,var(--line-soft),var(--line),var(--line-soft));background-size:200% 100%;animation:shimmer 1.4s infinite}
+.skeleton__line{height:10px;border-radius:99px;background:var(--line-soft);margin:10px 12px;animation:shimmer 1.4s infinite}
+.skeleton__line.w60{width:60%}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* ============================================================
+   TRIP WORKSPACE
+   ============================================================ */
+.trip-head{
+  display:flex;align-items:center;gap:14px;padding:14px 24px;background:var(--surface);
+  border-bottom:1px solid var(--line);
+}
+.back{width:34px;height:34px;border-radius:9px;display:grid;place-items:center;border:1px solid var(--line);color:var(--muted)}
+.back:hover{color:var(--brand);border-color:var(--brand-100);background:var(--brand-50)}
+.trip-title{font-size:18px;font-weight:750;color:var(--navy);letter-spacing:-.02em}
+.trip-meta{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);margin-top:3px;flex-wrap:wrap}
+.dot{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+.trip-head__actions{margin-left:auto;display:flex;align-items:center;gap:8px}
+
+.screen[data-screen="trip"].is-active{display:flex;flex-direction:column;height:calc(100vh - var(--mockbar));overflow:hidden}
+.screen[data-screen="trip"] .nav{position:static}
+.screen[data-screen="trip"] .trip-head{flex:none}
+.workspace{
+  display:grid;grid-template-columns:352px minmax(0,1fr) 356px;
+  gap:14px;padding:14px 24px 20px;flex:1;min-height:0;
+  max-width:1560px;margin:0 auto;width:100%;
+}
+.panel{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;
+}
+.panel__head{padding:16px 16px 13px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+.panel__title{font-size:14px;font-weight:750;color:var(--ink)}
+.panel__sub{font-size:11.5px;color:var(--muted);margin-top:1px}
+.panel__body{flex:1;overflow-y:auto;min-height:0}
+.panel__foot{border-top:1px solid var(--line-soft);padding:14px 16px;background:var(--surface-2)}
+
+/* day tabs */
+.days{display:flex;gap:6px;padding:11px 14px;overflow-x:auto;border-bottom:1px solid var(--line-soft)}
+.day{
+  flex:none;display:flex;flex-direction:column;align-items:center;gap:1px;min-width:54px;
+  padding:6px 8px;border-radius:9px;border:1px solid var(--line);color:var(--muted);
+}
+.day b{font-size:13px;color:var(--ink);font-weight:750}
+.day span{font-size:10px;letter-spacing:.04em;text-transform:uppercase}
+.day.is-active{background:var(--brand);border-color:var(--brand);color:rgba(255,255,255,.85)}
+.day.is-active b{color:#fff}
+[data-theme="dark"] .day.is-active b{color:#04211D}
+[data-theme="dark"] .day.is-active{color:#04211D}
+
+/* timeline */
+.timeline{padding:14px 14px 6px;position:relative}
+.stop{display:flex;gap:11px;position:relative;padding-bottom:6px}
+.stop__rail{width:22px;flex:none;display:flex;flex-direction:column;align-items:center;position:relative}
+.stop__node{
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;flex:none;margin-top:2px;
+  background:var(--brand-50);color:var(--brand-strong);font-size:10.5px;font-weight:800;
+  border:1.5px solid var(--brand-100);z-index:1;
+}
+.stop__node.origin{background:var(--sky-50);border-color:var(--sky);color:#175CD3}
+[data-theme="dark"] .stop__node.origin{color:var(--sky)}
+.stop__line{flex:1;width:2px;background:repeating-linear-gradient(to bottom,var(--line) 0 4px,transparent 4px 8px);margin:2px 0}
+.stop__card{flex:1;min-width:0;padding:2px 0 14px}
+.stop__top{display:flex;align-items:flex-start;gap:8px}
+.stop__time{font-size:10.5px;font-weight:750;color:var(--faint);font-variant-numeric:tabular-nums;padding-top:2px}
+.stop__name{font-size:13.5px;font-weight:700;color:var(--ink);letter-spacing:-.01em}
+.stop__meta{font-size:11.5px;color:var(--muted);margin-top:4px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.stop__thumb{width:44px;height:44px;border-radius:9px;flex:none;background:linear-gradient(135deg,#CFE9E4,#3C8C82)}
+.stop__thumb.b{background:linear-gradient(135deg,#F6DCC2,#B77B4A)}
+.stop__thumb.c{background:linear-gradient(135deg,#D4DCF5,#5B68A8)}
+.stop__tools{margin-left:auto;display:flex;gap:2px;opacity:0;transition:.15s}
+.stop:hover .stop__tools,.stop:focus-within .stop__tools{opacity:1}
+.tool{width:24px;height:24px;border-radius:6px;display:grid;place-items:center;color:var(--faint)}
+.tool:hover{background:var(--surface-2);color:var(--ink)}
+.leg{
+  display:flex;align-items:center;gap:8px;margin:-2px 0 10px 33px;
+  font-size:11.5px;color:var(--muted);
+}
+.leg__line{width:14px;height:2px;background:var(--line);border-radius:2px}
+.leg__pill{
+  display:inline-flex;align-items:center;gap:5px;padding:2px 8px;border-radius:999px;
+  background:var(--surface-2);border:1px solid var(--line);font-size:11px;font-weight:600;
+}
+.add-stop{
+  display:flex;align-items:center;gap:9px;margin:4px 14px 16px;padding:11px 11px;
+  border:1px dashed var(--line);border-radius:11px;color:var(--muted);background:var(--surface-2);
+}
+.add-stop input{font-size:12.5px}
+.add-stop__plus{
+  width:22px;height:22px;border-radius:50%;display:grid;place-items:center;
+  background:var(--brand);color:#fff;flex:none;
+}
+[data-theme="dark"] .add-stop__plus{color:#04211D}
+.empty-day{padding:28px 18px;text-align:center;color:var(--muted);font-size:12.5px}
+.empty-day__art{
+  width:56px;height:56px;border-radius:16px;margin:0 auto 10px;display:grid;place-items:center;
+  background:var(--brand-50);color:var(--brand);
+}
+
+/* budget */
+.budget{padding:14px 16px}
+.budget__row{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:9px}
+.budget__total{font-size:20px;font-weight:800;color:var(--ink);letter-spacing:-.02em}
+.budget__of{font-size:12px;color:var(--muted)}
+.budget__bars{display:flex;flex-direction:column;gap:9px;margin-top:4px}
+.bar{display:grid;grid-template-columns:74px 1fr 62px;align-items:center;gap:8px;font-size:11.5px;padding:1px 0}
+.bar__label{color:var(--muted)}
+.bar__track{display:block;height:6px;border-radius:99px;background:var(--line-soft);overflow:hidden}
+.bar__fill{display:block;height:100%;border-radius:99px;background:var(--brand)}
+.bar__fill.sky{background:var(--sky)}
+.bar__fill.accent{background:var(--accent)}
+.bar__fill.violet{background:var(--violet)}
+.bar__value{text-align:right;color:var(--body);font-variant-numeric:tabular-nums}
+.budget__note{display:flex;align-items:center;gap:6px;font-size:11.5px;color:var(--brand-strong);margin-top:10px}
+
+/* map */
+.map-pane{position:relative;border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--line);background:#CFE7EA;min-height:0}
+.map{position:absolute;inset:0;width:100%;height:100%}
+.map__top{
+  position:absolute;left:14px;top:14px;z-index:4;display:flex;gap:8px;align-items:stretch;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;
+  box-shadow:var(--shadow);padding:9px 11px;
+}
+.map__route{display:flex;align-items:center;gap:9px}
+.map__route strong{display:block;font-size:12.5px;color:var(--ink);font-weight:750}
+.map__route span{font-size:11px;color:var(--muted)}
+.route-dot{width:9px;height:9px;border-radius:50%;background:var(--sky);box-shadow:0 0 0 3px var(--sky-50)}
+.route-dash{width:26px;height:0;border-top:2px dashed var(--brand)}
+.route-pin{color:var(--brand)}
+.map__controls{position:absolute;right:14px;top:14px;z-index:4;display:flex;flex-direction:column;gap:6px}
+.map__controls button{
+  width:32px;height:32px;border-radius:9px;background:var(--surface);border:1px solid var(--line);
+  box-shadow:var(--shadow-sm);display:grid;place-items:center;color:var(--muted);
+}
+.map__controls button:hover{color:var(--brand)}
+.map__legend{
+  position:absolute;left:14px;bottom:30px;z-index:4;display:flex;gap:6px;flex-wrap:wrap;
+  background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:7px 9px;
+  box-shadow:var(--shadow-sm);font-size:10.5px;color:var(--muted);
+}
+.legend-item{display:flex;align-items:center;gap:5px}
+.legend-swatch{width:14px;height:3px;border-radius:2px}
+.map__attr{
+  position:absolute;right:12px;bottom:8px;z-index:4;font-size:9.5px;color:#2F4A50;
+  background:rgba(255,255,255,.75);padding:2px 6px;border-radius:5px;
+}
+.map__count{
+  position:absolute;left:14px;top:60px;z-index:4;display:flex;align-items:center;gap:6px;
+  background:var(--surface);border:1px solid var(--line);border-radius:999px;
+  padding:4px 10px;font-size:10.5px;color:var(--muted);box-shadow:var(--shadow-sm);
+}
+.pulse{animation:pulse 2.4s ease-out infinite}
+@keyframes pulse{0%{transform:scale(.6);opacity:.9}70%{transform:scale(1.8);opacity:0}100%{opacity:0}}
+
+/* detail panels */
+.mode{
+  display:flex;align-items:center;gap:11px;width:100%;text-align:left;padding:12px 12px;
+  border:1px solid var(--line);border-radius:11px;background:var(--surface);margin-bottom:7px;
+  transition:.15s;
+}
+.mode:hover{border-color:var(--brand-100);background:var(--brand-50)}
+.mode{padding:13px 12px}
+.mode__ico{
+  width:36px;height:36px;border-radius:9px;display:grid;place-items:center;flex:none;
+  background:var(--surface-2);border:1px solid var(--line-soft);color:var(--body);
+}
+.mode__name{font-size:13px;font-weight:700;color:var(--ink);display:flex;align-items:center;gap:6px;line-height:1.5}
+.mode__meta{font-size:11.5px;color:var(--muted);margin-top:2px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.mode__price{text-align:right;white-space:nowrap;min-width:78px;font-variant-numeric:tabular-nums}
+.mode__price strong{font-size:12.5px;color:var(--ink);font-weight:750}
+.mode__price span{display:block;font-size:10.5px;color:var(--muted);max-width:86px;margin-left:auto}
+.mode__radio{
+  width:16px;height:16px;border-radius:50%;border:1.5px solid var(--line);flex:none;margin-left:4px;
+  display:grid;place-items:center;
+}
+.mode.is-selected{border-color:var(--brand);background:var(--brand-50);box-shadow:inset 0 0 0 1px var(--brand)}
+.mode.is-selected .mode__radio{border-color:var(--brand);background:var(--brand)}
+.mode.is-selected .mode__radio::after{content:"";width:5px;height:5px;border-radius:50%;background:#fff}
+[data-theme="dark"] .mode.is-selected .mode__radio::after{background:#04211D}
+.mode.is-selected .mode__ico{background:var(--surface);color:var(--brand-strong)}
+.mode[disabled]{opacity:.55;cursor:not-allowed}
+.mode[disabled]:hover{border-color:var(--line);background:var(--surface)}
+.mode__note{
+  display:flex;align-items:flex-start;gap:6px;font-size:10.5px;line-height:1.4;
+  color:#B54708;background:var(--accent-50);border-radius:7px;padding:6px 8px;margin:-1px 0 8px;
+}
+[data-theme="dark"] .mode__note{color:var(--accent)}
+.side-section{padding:15px 16px;border-top:1px solid var(--line-soft)}
+.side-title{font-size:12px;font-weight:750;color:var(--ink);margin-bottom:9px}
+.stay-mini{display:flex;gap:10px;align-items:center}
+.stay-mini__img{width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#CFE9E4,#3C8C82);flex:none}
+.stay-mini__name{font-size:12.5px;font-weight:700;color:var(--ink)}
+.stay-mini__meta{font-size:11px;color:var(--muted);margin-top:2px}
+.tool-list{display:flex;flex-direction:column;gap:2px}
+.tool-item{display:flex;align-items:center;gap:9px;padding:9px 6px;border-radius:8px;font-size:12.5px;color:var(--body);text-align:left;width:100%}
+.tool-item:hover{background:var(--surface-2);color:var(--ink)}
+.tool-item .ico{color:var(--faint)}
+.tool-item__meta{margin-left:auto;font-size:10.5px;color:var(--faint)}
+
+/* mobile btm bar (only visible small) */
+.mobilebar{display:none}
+
+/* ============================================================
+   NOTES / REVIEW SCREEN
+   ============================================================ */
+.notes{padding:30px 0 60px}
+.notes__head{max-width:760px}
+.notes h1{font-size:32px;letter-spacing:-.03em;color:var(--navy);font-weight:800}
+.notes__lede{margin-top:10px;font-size:15px;color:var(--body)}
+.notes__grid{display:grid;grid-template-columns:1.15fr .85fr;gap:18px;margin-top:26px;align-items:start}
+.note-card{padding:0;overflow:hidden}
+.note-card__head{padding:15px 16px;border-bottom:1px solid var(--line-soft);display:flex;align-items:center;gap:9px}
+.note-card__head h2{font-size:14.5px;font-weight:750;color:var(--ink)}
+.issue{display:grid;grid-template-columns:auto 1fr;gap:9px;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+.issue:last-child{border-bottom:0}
+.issue__sev{width:8px;height:8px;border-radius:50%;margin-top:6px;background:var(--danger)}
+.issue__sev.med{background:var(--accent)}
+.issue__sev.low{background:var(--faint)}
+.issue__title{font-size:13px;font-weight:700;color:var(--ink)}
+.issue__body{font-size:12px;color:var(--muted);margin-top:3px;line-height:1.5}
+.issue__file{font-family:var(--mono);font-size:10.5px;color:var(--brand-strong);margin-top:4px;display:block}
+.feat{display:flex;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line-soft)}
+.feat:last-child{border-bottom:0}
+.feat__n{
+  width:20px;height:20px;border-radius:6px;background:var(--brand-50);color:var(--brand-strong);
+  display:grid;place-items:center;font-size:10.5px;font-weight:800;flex:none;margin-top:1px;
+}
+.feat__title{font-size:13px;font-weight:700;color:var(--ink)}
+.feat__body{font-size:12px;color:var(--muted);margin-top:2px;line-height:1.5}
+.feat__tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+.tokens{display:flex;gap:8px;flex-wrap:wrap;padding:14px 16px}
+.swatch{width:104px}
+.swatch__chip{height:44px;border-radius:10px;border:1px solid rgba(0,0,0,.06)}
+.swatch__name{font-size:11px;font-weight:650;color:var(--ink);margin-top:5px}
+.swatch__hex{font-family:var(--mono);font-size:10px;color:var(--faint)}
+.type-row{display:flex;align-items:baseline;gap:12px;padding:9px 16px;border-bottom:1px solid var(--line-soft)}
+.type-row:last-child{border-bottom:0}
+.type-row span{font-size:11px;color:var(--faint);width:88px;flex:none;font-family:var(--mono)}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:1180px){
+  .workspace{grid-template-columns:320px minmax(0,1fr) 320px}
+  .stay-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .trip-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:1040px){
+  .hero{grid-template-columns:1fr;gap:30px}
+  .hero-art{display:none}
+  .planner__grid{grid-template-columns:1fr 1fr}
+  .field:first-child,.field:last-of-type{border-radius:12px}
+  .notes__grid{grid-template-columns:1fr}
+  .screen[data-screen="trip"].is-active{height:auto;overflow:visible}
+  .workspace{
+    grid-template-columns:1fr;flex:none;height:auto;min-height:0;padding-bottom:76px;
+  }
+  .map-pane{order:-1;height:46vh;min-height:300px}
+  .panel{max-height:none}
+  .mobilebar{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:60;
+    background:var(--surface);border-top:1px solid var(--line);padding:8px 10px 10px;
+    justify-content:space-around;box-shadow:0 -6px 20px -12px rgba(12,27,51,.4);
+  }
+  .mobilebar button{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:650;color:var(--muted);padding:4px 12px;border-radius:9px}
+  .mobilebar button.is-active{color:var(--brand-strong)}
+  .mobilebar button.is-active .ico{stroke-width:2.2}
+  .nav__links{display:none}
+}
+@media (max-width:720px){
+  .wrap{padding:0 16px}
+  .nav,.trip-head{padding:0 16px}
+  .trip-head{padding-top:10px;padding-bottom:10px;flex-wrap:wrap;gap:10px}
+  .trip-head__actions{width:100%;margin-left:0}
+  .trip-head__actions .btn{flex:1;padding:0 10px}
+  .workspace{padding:10px 16px 84px;gap:10px}
+  .planner__grid{grid-template-columns:1fr}
+  .field{border-radius:0!important}
+  .field:first-child{border-radius:12px 12px 0 0!important}
+  .field:last-of-type{border-radius:0 0 12px 12px!important}
+  .planner__cta{margin-left:0;width:100%}
+  .planner__cta .btn{width:100%}
+  .stay-grid{grid-template-columns:1fr 1fr}
+  .trip-grid{grid-template-columns:1fr}
+  .mockbar__note{display:none}
+  .map-pane{height:38vh}
+  .budget__of span{display:none}
+}
+@media (max-width:520px){
+  .stay-grid{grid-template-columns:1fr}
+  .hero{padding-top:26px}
+  .bar{grid-template-columns:64px 1fr 54px;font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     MOCK CHROME
+     ============================================================ -->
+<div class="mockbar">
+  <span class="mockbar__tag">Mock v1</span>
+  <span class="mockbar__note">Static design proposal — not wired to the app yet</span>
+  <div class="seg" role="tablist" aria-label="Screens">
+    <button role="tab" aria-selected="true" data-screen-btn="plan">Plan</button>
+    <button role="tab" aria-selected="false" data-screen-btn="trip">Trip workspace</button>
+    <button role="tab" aria-selected="false" data-screen-btn="notes">Review notes</button>
+  </div>
+  <div class="mockbar__right">
+    <button class="icon-btn" id="phoneBtn" title="Phone preview" aria-label="Toggle phone preview">
+      <svg class="ico" viewBox="0 0 24 24"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18.5h2"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 1 — PLAN
+     ============================================================ -->
+<div class="screen is-active" data-screen="plan">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link is-active" href="#">Plan</a>
+      <a class="nav__link" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <button class="btn btn--quiet btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Search
+      </button>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <section class="hero">
+      <div class="hero-copy">
+        <span class="eyebrow">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          Plan a trip
+        </span>
+        <h1>Where to next?</h1>
+        <p class="lede">Pick a place, a few dates and a budget. We'll compare routes, build a day-by-day plan, and keep the numbers honest.</p>
+
+        <!-- PLANNER -->
+        <div class="planner">
+          <div class="planner__grid">
+            <div class="field field--active" data-suggest role="combobox" aria-expanded="false" tabindex="0">
+              <span class="field__icon">
+                <svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+              </span>
+              <div class="field__body">
+                <div class="field__label">Destination</div>
+                <div class="field__value">Athens</div>
+                <div class="field__sub">Greece · click to see 2 matches</div>
+              </div>
+
+              <div class="suggestions" role="listbox" aria-label="Destination suggestions">
+                <div class="suggestions__head">
+                  <span>Destinations</span>
+                  <span>City-level only</span>
+                </div>
+                <button class="suggestion is-cursor">
+                  <span class="suggestion__thumb">AT</span>
+                  <span>
+                    <span class="suggestion__name">Athens</span>
+                    <span class="suggestion__meta">Greece · 37.98, 23.72</span>
+                  </span>
+                  <span class="suggestion__side">City</span>
+                </button>
+                <button class="suggestion">
+                  <span class="suggestion__thumb">RO</span>
+                  <span>
+                    <span class="suggestion__name">Rome</span>
+                    <span class="suggestion__meta">Italy · 41.89, 12.51</span>
+                  </span>
+                  <span class="suggestion__side">City</span>
+                </button>
+                <button class="suggestion">
+                  <span class="suggestion__thumb">LI</span>
+                  <span>
+                    <span class="suggestion__name">Lisbon</span>
+                    <span class="suggestion__meta">Portugal · 38.72, -9.14</span>
+                  </span>
+                  <span class="suggestion__side">City</span>
+                </button>
+                <div class="suggestions__foot">
+                  <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+                  Filtered to city-level places — no neighbourhoods or districts.
+                </div>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="field__icon">
+                <svg class="ico" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4m8-4v4M3.5 10h17"/></svg>
+              </span>
+              <div class="field__body">
+                <div class="field__label">Dates</div>
+                <div class="field__value">9 – 12 Oct</div>
+                <div class="field__sub">3 nights · Fri → Mon</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="field__icon">
+                <svg class="ico" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 20a5.5 5.5 0 0 1 11 0M16 5.2a3.2 3.2 0 0 1 0 5.6M17 20a5.4 5.4 0 0 0-1.3-3.5"/></svg>
+              </span>
+              <div class="field__body">
+                <div class="field__label">Travelers</div>
+                <div class="field__value">2 adults, 1 child</div>
+                <div class="field__sub">Ages 34 · 35 · 8</div>
+              </div>
+            </div>
+
+            <div class="field">
+              <span class="field__icon">
+                <svg class="ico" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="3"/><path d="M2.5 10h19"/></svg>
+              </span>
+              <div class="field__body">
+                <div class="field__label">Budget</div>
+                <div class="field__value">$1,500</div>
+                <div class="field__sub">$500 per person</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="planner__foot">
+            <div class="planner__origin">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg>
+              From <strong>Kolonaki, Athens</strong>
+              <span class="badge badge--sky">Using my location</span>
+              <button class="linkish" type="button">Change</button>
+            </div>
+            <div class="planner__cta">
+              <span class="kbd">⌘ ↵</span>
+              <button class="btn btn--primary" id="planCta">
+                Build my trip
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M5 12h14m-6-6 6 6-6 6"/></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="styles" aria-label="Trip style">
+          <span class="styles__label">Trip style</span>
+          <button class="chip is-on">City break</button>
+          <button class="chip">Food</button>
+          <button class="chip is-on">History</button>
+          <button class="chip">Beach</button>
+          <button class="chip">Slow travel</button>
+          <span class="tiny muted" style="margin-left:4px">Used to rank recommendations</span>
+        </div>
+
+        <div class="hero__proof">
+          <span><svg class="ico ico--sm tick" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Free to plan</span>
+          <span><svg class="ico ico--sm tick" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> No card needed</span>
+          <span><svg class="ico ico--sm tick" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></svg> Works offline once saved</span>
+        </div>
+      </div>
+
+      <aside class="hero-art" aria-hidden="true">
+        <div class="art-card">
+          <div class="art-sun"></div>
+          <div class="art-ridge">
+            <svg viewBox="0 0 600 300" preserveAspectRatio="none">
+              <path d="M0 230 L90 150 L160 195 L240 110 L330 190 L410 120 L500 185 L600 130 L600 300 L0 300 Z" fill="#0B3A46" opacity=".55"/>
+              <path d="M0 260 L80 205 L150 240 L250 175 L340 235 L430 180 L520 230 L600 195 L600 300 L0 300 Z" fill="#072A33" opacity=".85"/>
+              <path d="M0 285 L110 255 L210 275 L310 245 L420 272 L520 250 L600 268 L600 300 L0 300 Z" fill="#04161C"/>
+            </svg>
+          </div>
+          <div class="art-caption">
+            <div>
+              <h3>3 nights in Athens</h3>
+              <p>Acropolis at sunrise · Plaka by night</p>
+            </div>
+            <span class="art-badge">3 nights</span>
+          </div>
+        </div>
+
+        <div class="float-card float-card--a">
+          <div class="float-card__label">Trip budget</div>
+          <div class="float-card__value">$1,180 <span class="tiny muted" style="font-weight:500">of $1,500</span></div>
+          <div class="spark"><i class="on" style="height:10px"></i><i class="on" style="height:15px"></i><i class="on" style="height:12px"></i><i class="on" style="height:19px"></i><i class="on" style="height:17px"></i><i style="height:22px"></i><i style="height:24px"></i></div>
+          <div class="float-card__meta" style="margin-top:6px;color:var(--brand-strong)">$320 under budget</div>
+        </div>
+
+        <div class="float-card float-card--b">
+          <div class="float-card__label">Getting there</div>
+          <div class="row" style="gap:7px;margin-top:5px">
+            <svg class="ico ico--sm" style="color:var(--brand)" viewBox="0 0 24 24"><path d="M5 17h14M6 17V9l2-4h8l2 4v8"/><circle cx="8" cy="17" r="1.6"/><circle cx="16" cy="17" r="1.6"/></svg>
+            <div>
+              <div class="float-card__value" style="font-size:13px">3 min · 1.0 km</div>
+              <div class="float-card__meta">Fastest option</div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="section">
+      <div class="section__head">
+        <div>
+          <h2 class="section-title">Continue planning</h2>
+          <p class="section-sub">Saved trips sync across devices and stay editable.</p>
+        </div>
+        <button class="btn btn--sm">All trips</button>
+      </div>
+
+      <div class="trip-grid">
+        <button class="card trip-card">
+          <div class="trip-card__top">
+            <span class="badge trip-card__status">In progress</span>
+          </div>
+          <div class="trip-card__body">
+            <div class="trip-card__title">Athens, Greece</div>
+            <div class="trip-card__meta">9 – 12 Oct · 3 nights · 2 adults, 1 child</div>
+            <div class="progress"><i style="width:72%"></i></div>
+            <div class="trip-card__foot"><span>$1,180 of $1,500</span><span>Day 3 of 4</span></div>
+          </div>
+        </button>
+
+        <button class="card trip-card">
+          <div class="trip-card__top t2">
+            <span class="badge trip-card__status">Draft</span>
+          </div>
+          <div class="trip-card__body">
+            <div class="trip-card__title">Lisbon, Portugal</div>
+            <div class="trip-card__meta">2 – 6 Nov · 4 nights · 2 adults</div>
+            <div class="progress"><i style="width:28%;background:var(--sky)"></i></div>
+            <div class="trip-card__foot"><span>$420 of $1,900</span><span>Day 1 of 4</span></div>
+          </div>
+        </button>
+
+        <button class="card trip-card">
+          <div class="trip-card__top t3">
+            <span class="badge trip-card__status">Shared</span>
+          </div>
+          <div class="trip-card__body">
+            <div class="trip-card__title">Rome, Italy</div>
+            <div class="trip-card__meta">14 – 18 Dec · 4 nights · 4 adults</div>
+            <div class="progress"><i style="width:100%;background:var(--accent)"></i></div>
+            <div class="trip-card__foot"><span>Booked · $2,240</span><span>Completed</span></div>
+          </div>
+        </button>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:6px">
+      <div class="section__head">
+        <div>
+          <h2 class="section-title">Stays near your next stop</h2>
+          <p class="section-sub">Real places from OpenStreetMap, priced per night for your dates.</p>
+        </div>
+        <span class="badge badge--neutral">Live data</span>
+      </div>
+
+      <div class="stay-grid">
+        <button class="card stay">
+          <div class="stay__img"><span class="badge">12% off</span></div>
+          <div class="stay__body">
+            <div class="stay__name">Hotel Grande Bretagne</div>
+            <div class="stay__meta"><svg class="ico ico--sm star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9Z"/></svg> 4.9 · 812 reviews · 0.4 km</div>
+            <div class="stay__price"><strong>$189</strong><span>/night</span></div>
+          </div>
+        </button>
+
+        <button class="card stay">
+          <div class="stay__img b"></div>
+          <div class="stay__body">
+            <div class="stay__name">Plaka Boutique Rooms</div>
+            <div class="stay__meta"><svg class="ico ico--sm star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9Z"/></svg> 4.6 · 356 reviews · 0.9 km</div>
+            <div class="stay__price"><strong>$96</strong><span>/night</span></div>
+          </div>
+        </button>
+
+        <button class="card stay">
+          <div class="stay__img c"></div>
+          <div class="stay__body">
+            <div class="stay__name">Kolonaki Garden Suites</div>
+            <div class="stay__meta"><svg class="ico ico--sm star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.5 6 .9-4.4 4.2 1 6-5.3-2.8-5.3 2.8 1-6L3.3 9.4l6-.9Z"/></svg> 4.8 · 673 reviews · 0.2 km</div>
+            <div class="stay__price"><strong>$210</strong><span>/night</span></div>
+          </div>
+        </button>
+
+        <!-- loading state example -->
+        <div class="skeleton" aria-label="Loading stay">
+          <div class="skeleton__img"></div>
+          <div class="skeleton__line" style="width:70%"></div>
+          <div class="skeleton__line w60"></div>
+          <div class="skeleton__line" style="width:36%;margin-bottom:18px"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;padding-bottom:56px">
+      <div class="card" style="padding:20px 22px;display:flex;align-items:center;gap:18px;flex-wrap:wrap">
+        <div style="flex:1;min-width:240px">
+          <h3 class="section-title" style="font-size:16px">One planner, everything in it</h3>
+          <p class="section-sub">Routes, stays, day plans and budget live in the same trip — no spreadsheets.</p>
+        </div>
+        <div class="row" style="gap:8px;flex-wrap:wrap">
+          <span class="chip">Route comparison</span>
+          <span class="chip">Day-by-day plan</span>
+          <span class="chip">Budget guardrails</span>
+          <span class="chip">Share &amp; export</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 2 — TRIP WORKSPACE
+     ============================================================ -->
+<div class="screen" data-screen="trip">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="trip-head">
+    <button class="back" aria-label="Back to trips">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+    </button>
+    <div>
+      <h1 class="trip-title">Athens, Greece</h1>
+      <div class="trip-meta">
+        <span>9 – 12 Oct 2026</span><span class="dot"></span>
+        <span>3 nights</span><span class="dot"></span>
+        <span>2 adults, 1 child</span><span class="dot"></span>
+        <span class="badge badge--brand">Saved</span>
+      </div>
+    </div>
+    <div class="trip-head__actions">
+      <button class="btn btn--sm" id="saveBtn">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M6 4h12v17l-6-4-6 4Z"/></svg>
+        <span>Save</span>
+      </button>
+      <button class="btn btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="m8.2 10.8 7.6-4.3M8.2 13.2l7.6 4.3"/></svg>
+        Share
+      </button>
+      <button class="btn btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3v12m0 0 4-4m-4 4-4-4M4 19h16"/></svg>
+        Export
+      </button>
+      <button class="btn btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M4 20a5 5 0 0 1 10 0M17 9v6m-3-3h6"/></svg>
+        Invite
+      </button>
+      <button class="btn btn--primary btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+        Add stop
+      </button>
+    </div>
+  </div>
+
+  <div class="workspace">
+
+    <!-- ITINERARY -->
+    <aside class="panel">
+      <div class="panel__head">
+        <div>
+          <div class="panel__title">Itinerary</div>
+          <div class="panel__sub">Drag to reorder · times auto-adjust</div>
+        </div>
+        <span class="badge badge--neutral" style="margin-left:auto">4 days</span>
+      </div>
+
+      <div class="days" role="tablist" aria-label="Trip days">
+        <button class="day is-active" role="tab" data-day="1"><span>Day</span><b>1</b><span>Fri</span></button>
+        <button class="day" role="tab" data-day="2"><span>Day</span><b>2</b><span>Sat</span></button>
+        <button class="day" role="tab" data-day="3"><span>Day</span><b>3</b><span>Sun</span></button>
+        <button class="day" role="tab" data-day="4"><span>Day</span><b>4</b><span>Mon</span></button>
+        <button class="day" aria-label="Add day" style="min-width:42px;justify-content:center"><b>+</b></button>
+      </div>
+
+      <div class="panel__body">
+        <div class="timeline" data-day-panel="1">
+          <div class="stop">
+            <div class="stop__rail">
+              <span class="stop__node origin" title="Start">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/></svg>
+              </span>
+              <span class="stop__line"></span>
+            </div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">08:40 · START</div>
+                  <div class="stop__name">Kolonaki, Athens</div>
+                  <div class="stop__meta">Hotel Grande Bretagne · 0.2 km from centre</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="leg">
+            <span class="leg__line"></span>
+            <span class="leg__pill">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><path d="m9 20 1.5-5.5L9 11l3-2 2 3 2.5 1"/></svg>
+              Walk · 12 min · 1.0 km
+            </span>
+          </div>
+
+          <div class="stop">
+            <div class="stop__rail">
+              <span class="stop__node">1</span>
+              <span class="stop__line"></span>
+            </div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">09:00 – 11:30</div>
+                  <div class="stop__name">Acropolis of Athens</div>
+                  <div class="stop__meta">
+                    <span class="badge badge--brand">Booked</span>
+                    $30 · 2 adults, 1 child
+                  </div>
+                </div>
+                <div class="stop__thumb"></div>
+                <div class="stop__tools">
+                  <button class="tool" aria-label="Reorder">
+                    <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></svg>
+                  </button>
+                  <button class="tool" aria-label="More">
+                    <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="leg">
+            <span class="leg__line"></span>
+            <span class="leg__pill">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><path d="m9 20 1.5-5.5L9 11l3-2 2 3 2.5 1"/></svg>
+              Walk · 4 min · 0.3 km
+            </span>
+          </div>
+
+          <div class="stop">
+            <div class="stop__rail">
+              <span class="stop__node">2</span>
+              <span class="stop__line"></span>
+            </div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">11:45 – 13:15</div>
+                  <div class="stop__name">Acropolis Museum</div>
+                  <div class="stop__meta">$18 · Indoor · Opens till 20:00</div>
+                </div>
+                <div class="stop__thumb b"></div>
+                <div class="stop__tools">
+                  <button class="tool" aria-label="Reorder">
+                    <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 7h8M8 12h8M8 17h8"/></svg>
+                  </button>
+                  <button class="tool" aria-label="More">
+                    <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="leg">
+            <span class="leg__line"></span>
+            <span class="leg__pill">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><path d="m9 20 1.5-5.5L9 11l3-2 2 3 2.5 1"/></svg>
+              Walk · 8 min · 0.6 km
+            </span>
+          </div>
+
+          <div class="stop">
+            <div class="stop__rail">
+              <span class="stop__node">3</span>
+            </div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">13:30</div>
+                  <div class="stop__name">Lunch in Plaka</div>
+                  <div class="stop__meta">$32 planned · 2 options nearby</div>
+                </div>
+                <div class="stop__thumb c"></div>
+                <div class="stop__tools">
+                  <button class="tool" aria-label="More">
+                    <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="6" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="18" cy="12" r="1"/></svg>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="add-stop">
+            <span class="add-stop__plus">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg>
+            </span>
+            <input placeholder="Add a place, restaurant or activity…" aria-label="Add stop" />
+          </div>
+        </div>
+
+        <div class="timeline" data-day-panel="2" hidden>
+          <div class="stop">
+            <div class="stop__rail"><span class="stop__node origin">S</span><span class="stop__line"></span></div>
+            <div class="stop__card">
+              <div class="stop__top"><div style="flex:1"><div class="stop__time">09:30</div><div class="stop__name">Kolonaki, Athens</div><div class="stop__meta">Hotel · breakfast included</div></div></div>
+            </div>
+          </div>
+          <div class="leg"><span class="leg__line"></span><span class="leg__pill">Metro M2 · 9 min · 3 stops</span></div>
+          <div class="stop">
+            <div class="stop__rail"><span class="stop__node">1</span><span class="stop__line"></span></div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">10:00 – 12:00</div>
+                  <div class="stop__name">National Archaeological Museum</div>
+                  <div class="stop__meta">$24 · 2 adults, 1 child</div>
+                </div>
+                <div class="stop__thumb b"></div>
+              </div>
+            </div>
+          </div>
+          <div class="leg"><span class="leg__line"></span><span class="leg__pill">Walk · 6 min · 0.5 km</span></div>
+          <div class="stop">
+            <div class="stop__rail"><span class="stop__node">2</span></div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">12:30</div>
+                  <div class="stop__name">Exarcheia street food walk</div>
+                  <div class="stop__meta">$28 planned · Flexible timing</div>
+                </div>
+                <div class="stop__thumb c"></div>
+              </div>
+            </div>
+          </div>
+          <div class="add-stop">
+            <span class="add-stop__plus"><svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg></span>
+            <input placeholder="Add a place, restaurant or activity…" aria-label="Add stop" />
+          </div>
+        </div>
+
+        <div class="timeline" data-day-panel="3" hidden>
+          <div class="stop">
+            <div class="stop__rail"><span class="stop__node">1</span><span class="stop__line"></span></div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">08:00 – 13:00</div>
+                  <div class="stop__name">Day trip to Cape Sounion</div>
+                  <div class="stop__meta">Bus KTEL · 1h 20m each way · $16 total</div>
+                </div>
+                <div class="stop__thumb"></div>
+              </div>
+            </div>
+          </div>
+          <div class="leg"><span class="leg__line"></span><span class="leg__pill">Bus · 80 min · 68 km</span></div>
+          <div class="stop">
+            <div class="stop__rail"><span class="stop__node">2</span></div>
+            <div class="stop__card">
+              <div class="stop__top">
+                <div style="flex:1;min-width:0">
+                  <div class="stop__time">13:30</div>
+                  <div class="stop__name">Temple of Poseidon</div>
+                  <div class="stop__meta">$10 · Sunset viewpoint 19:40</div>
+                </div>
+                <div class="stop__thumb b"></div>
+              </div>
+            </div>
+          </div>
+          <div class="add-stop">
+            <span class="add-stop__plus"><svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg></span>
+            <input placeholder="Add a place, restaurant or activity…" aria-label="Add stop" />
+          </div>
+        </div>
+
+        <div class="timeline" data-day-panel="4" hidden>
+          <div class="empty-day">
+            <div class="empty-day__art">
+              <svg class="ico ico--lg" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4m8-4v4M3.5 10h17"/></svg>
+            </div>
+            <strong style="color:var(--ink);font-size:13px">Nothing planned for Monday yet</strong>
+            <p style="margin-top:4px">Try a suggestion based on your trip style.</p>
+            <div class="row" style="justify-content:center;gap:6px;margin-top:10px;flex-wrap:wrap">
+              <span class="chip">Ancient Agora</span>
+              <span class="chip">Syntagma walk</span>
+              <span class="chip">Airport transfer</span>
+            </div>
+          </div>
+          <div class="add-stop">
+            <span class="add-stop__plus"><svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg></span>
+            <input placeholder="Add a place, restaurant or activity…" aria-label="Add stop" />
+          </div>
+        </div>
+      </div>
+
+      <div class="panel__foot">
+        <div class="budget">
+          <div class="budget__row">
+            <div class="row" style="align-items:baseline;gap:6px">
+              <span class="budget__total">$1,180</span>
+              <span class="budget__of">of $1,500</span>
+            </div>
+            <span class="badge badge--brand">Under by $320</span>
+          </div>
+          <div class="budget__bars">
+            <div class="bar"><span class="bar__label">Stays</span><span class="bar__track"><i class="bar__fill" style="width:80%"></i></span><span class="bar__value">$567</span></div>
+            <div class="bar"><span class="bar__label">Transport</span><span class="bar__track"><i class="bar__fill sky" id="transportBar" style="width:32%"></i></span><span class="bar__value" id="transportValue">$46</span></div>
+            <div class="bar"><span class="bar__label">Food</span><span class="bar__track"><i class="bar__fill accent" style="width:72%"></i></span><span class="bar__value">$340</span></div>
+            <div class="bar"><span class="bar__label">Activities</span><span class="bar__track"><i class="bar__fill violet" style="width:62%"></i></span><span class="bar__value">$227</span></div>
+          </div>
+          <div class="budget__note">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m5 13 4 4L19 7"/></svg>
+            Prices update when you switch transport options
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- MAP -->
+    <div class="map-pane">
+      <svg class="map" viewBox="0 0 900 720" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map of Athens with a walking route from Kolonaki to the Acropolis">
+        <defs>
+          <linearGradient id="sea" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#CFE7EA"/><stop offset="1" stop-color="#B9DBE2"/>
+          </linearGradient>
+          <filter id="soft"><feGaussianBlur stdDeviation="6"/></filter>
+          <pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse">
+            <path d="M60 0H0v60" fill="none" stroke="#000" stroke-opacity=".035"/>
+          </pattern>
+        </defs>
+
+        <rect width="900" height="720" fill="url(#sea)"/>
+        <rect width="900" height="720" fill="url(#grid)"/>
+
+        <!-- land -->
+        <path d="M-20 -40 L120 -30 L260 10 L380 -20 L520 4 L640 -28 L760 6 L900 -34 L920 720 L-20 720 Z" fill="#F3F0E7"/>
+        <path d="M-20 90 L120 60 L260 96 L380 62 L520 92 L640 58 L760 86 L900 46" fill="none" stroke="#DDD7C7" stroke-width="2"/>
+
+        <!-- parks -->
+        <ellipse cx="255" cy="250" rx="78" ry="52" fill="#DDEBD3"/>
+        <ellipse cx="620" cy="330" rx="62" ry="44" fill="#DDEBD3"/>
+        <ellipse cx="430" cy="520" rx="88" ry="48" fill="#DDEBD3"/>
+
+        <!-- water inlet bottom left -->
+        <path d="M-20 630 Q120 600 190 660 Q240 710 150 740 L-20 740 Z" fill="#BFDFE6"/>
+
+        <!-- roads -->
+        <g stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" opacity=".95">
+          <path d="M60 200 L840 260"/>
+          <path d="M60 360 L840 330"/>
+          <path d="M120 96 L240 700"/>
+          <path d="M420 70 L470 700"/>
+          <path d="M700 70 L660 700"/>
+          <path d="M60 500 L840 470"/>
+        </g>
+        <g stroke="#EDE6D6" stroke-width="1.5" opacity=".9">
+          <path d="M60 200 L840 260"/><path d="M60 360 L840 330"/><path d="M60 500 L840 470"/>
+        </g>
+        <g stroke="#FFFFFF" stroke-width="4" opacity=".85">
+          <path d="M180 100 L300 690"/><path d="M300 120 L380 680"/><path d="M520 80 L560 690"/>
+          <path d="M100 280 L800 300"/><path d="M100 430 L800 410"/><path d="M90 580 L810 545"/>
+        </g>
+
+        <!-- blocks -->
+        <g fill="#EAE5D8" opacity=".55">
+          <rect x="330" y="380" width="60" height="38" rx="3"/>
+          <rect x="410" y="390" width="48" height="30" rx="3"/>
+          <rect x="500" y="372" width="66" height="42" rx="3"/>
+          <rect x="585" y="392" width="44" height="34" rx="3"/>
+          <rect x="330" y="440" width="52" height="30" rx="3"/>
+          <rect x="470" y="446" width="70" height="34" rx="3"/>
+        </g>
+
+        <!-- route variants -->
+        <g fill="none" stroke-linejoin="round" stroke-linecap="round">
+          <path id="routeCar" d="M392 452 L410 420 L452 392 L486 356 L512 330 L540 304 L560 286" stroke="#FFFFFF" stroke-width="11" opacity=".9"/>
+          <path d="M392 452 L410 420 L452 392 L486 356 L512 330 L540 304 L560 286" stroke="#0E9384" stroke-width="5.5" stroke-dasharray="0"/>
+
+          <path id="routeWalk" d="M392 452 L378 430 L392 404 L420 384 L448 364 L470 340 L500 322 L528 306 L560 286" stroke="#2E90FA" stroke-width="4.5" stroke-dasharray="9 7" opacity="0" fill="none"/>
+
+          <path id="routeBike" d="M392 452 L420 468 L470 452 L512 428 L556 400 L580 360 L572 320 L560 286" stroke="#7A5AF8" stroke-width="4.5" stroke-dasharray="4 6" opacity="0" fill="none"/>
+        </g>
+
+        <!-- labels -->
+        <g font-family="ui-sans-serif,system-ui" fill="#8C8578" font-size="11" letter-spacing="1.6">
+          <text x="232" y="236">NATIONAL GARDEN</text>
+          <text x="596" y="322">LYCABETTUS</text>
+          <text x="404" y="512">PLAKA</text>
+          <text x="330" y="410">MONASTIRAKI</text>
+          <text x="620" y="470">KOLONAKI</text>
+          <text x="120" y="620">SARONIC GULF</text>
+        </g>
+
+        <!-- POIs -->
+        <g>
+          <circle cx="470" cy="392" r="4.5" fill="#0E9384" opacity=".85"/>
+          <circle cx="512" cy="428" r="4.5" fill="#0E9384" opacity=".85"/>
+          <circle cx="556" cy="400" r="4.5" fill="#0E9384" opacity=".85"/>
+          <circle cx="392" cy="404" r="4.5" fill="#0E9384" opacity=".85"/>
+          <circle cx="330" cy="470" r="4.5" fill="#0E9384" opacity=".55"/>
+          <circle cx="612" cy="352" r="4.5" fill="#0E9384" opacity=".55"/>
+          <circle cx="480" cy="312" r="4.5" fill="#0E9384" opacity=".55"/>
+        </g>
+
+        <!-- origin -->
+        <g>
+          <circle cx="392" cy="452" r="9" fill="#2E90FA"/>
+          <circle cx="392" cy="452" r="9" fill="none" stroke="#2E90FA" stroke-width="2" opacity=".45" class="pulse" style="transform-origin:392px 452px"/>
+          <circle cx="392" cy="452" r="3.4" fill="#fff"/>
+        </g>
+
+        <!-- destination -->
+        <g>
+          <path d="M560 268 c-11 0 -20 9 -20 20 0 14 20 30 20 30 s20 -16 20 -30 c0 -11 -9 -20 -20 -20 z" fill="#0E9384" stroke="#fff" stroke-width="2.5"/>
+          <circle cx="560" cy="288" r="6.4" fill="#fff"/>
+        </g>
+      </svg>
+
+      <div class="map__top">
+        <div class="map__route">
+          <span class="route-dot"></span>
+          <span class="route-dash"></span>
+          <span class="route-pin">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          </span>
+        </div>
+        <div>
+          <strong>Kolonaki → Acropolis</strong>
+          <span id="mapRouteMeta">Car · 3 min · 1.0 km · fare unavailable</span>
+        </div>
+      </div>
+
+      <div class="map__count">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        7 places pinned for this trip
+      </div>
+
+      <div class="map__controls">
+        <button aria-label="Zoom in"><svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14m-7-7h14"/></svg></button>
+        <button aria-label="Zoom out"><svg class="ico" viewBox="0 0 24 24"><path d="M5 12h14"/></svg></button>
+        <button aria-label="Recenter"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3m0 14v3M2 12h3m14 0h3"/></svg></button>
+        <button aria-label="Layers"><svg class="ico" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Zm9 9-9 5-9-5"/></svg></button>
+      </div>
+
+      <div class="map__legend">
+        <span class="legend-item"><i class="legend-swatch" style="background:#0E9384"></i> Day 1</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#2E90FA"></i> Day 2</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#7A5AF8"></i> Day 3</span>
+        <span class="legend-item"><i class="legend-swatch" style="background:#D6336C"></i> Stay</span>
+      </div>
+
+      <div class="map__attr">© OpenStreetMap contributors · OpenFreeMap</div>
+    </div>
+
+    <!-- DETAIL -->
+    <aside class="panel">
+      <div class="panel__head">
+        <div>
+          <div class="panel__title">Getting there</div>
+          <div class="panel__sub">1.0 km · compare before you commit</div>
+        </div>
+      </div>
+
+      <div class="panel__body">
+        <div style="padding:12px 14px 4px">
+          <button class="mode is-selected" data-mode="car" data-price="0" data-min="3" data-km="1.0" data-fare="Fare unavailable">
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><path d="M5 17h14M6 17V9l2-4h8l2 4v8"/><circle cx="8" cy="17" r="1.7"/><circle cx="16" cy="17" r="1.7"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Car <span class="badge badge--brand">Fastest</span></span>
+              <span class="mode__meta">Fastest · 3 min · 1.0 km</span>
+            </span>
+            <span class="mode__price"><strong>Fare n/a</strong><span>provider returned none</span></span>
+            <span class="mode__radio"></span>
+          </button>
+
+          <button class="mode" data-mode="bus" data-price="2" data-min="11" data-km="1.0" data-fare="$2 est.">
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><rect x="5" y="4" width="14" height="12" rx="2.5"/><path d="M5 10h14M8 20v-2m8 2v-2"/><circle cx="8.5" cy="13.5" r="1"/><circle cx="15.5" cy="13.5" r="1"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Bus <span class="badge badge--warn">Estimated</span></span>
+              <span class="mode__meta">11 min · ~1.0 km · route estimated</span>
+            </span>
+            <span class="mode__price"><strong>$2</strong><span>est. fare</span></span>
+            <span class="mode__radio"></span>
+          </button>
+
+          <button class="mode" data-mode="walk" data-price="0" data-min="12" data-km="1.0" data-fare="Free">
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.8"/><path d="m9 20 1.5-5.5L9 11l3-2 2 3 2.5 1"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Walk <span class="badge badge--sky">Cheapest</span></span>
+              <span class="mode__meta">12 min · 1.0 km · step-free</span>
+            </span>
+            <span class="mode__price"><strong>Free</strong><span>no booking</span></span>
+            <span class="mode__radio"></span>
+          </button>
+
+          <button class="mode" data-mode="bike" data-price="4" data-min="6" data-km="1.6" data-fare="$4 est.">
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><circle cx="6.5" cy="17" r="3"/><circle cx="17.5" cy="17" r="3"/><path d="M6.5 17 10 9h5l2.5 8M10 9 8 6h3"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Bike</span>
+              <span class="mode__meta">6 min · 1.6 km · bike lanes</span>
+            </span>
+            <span class="mode__price"><strong>$4</strong><span>est. fare</span></span>
+            <span class="mode__radio"></span>
+          </button>
+
+          <button class="mode" disabled>
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><rect x="5" y="3.5" width="14" height="12" rx="3"/><path d="M8 19h8M12 15.5V19M7.5 7.5h9"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Train <span class="badge badge--neutral">Unavailable</span></span>
+              <span class="mode__meta">No rail line for this route</span>
+            </span>
+            <span class="mode__price"><strong>—</strong><span>not yet</span></span>
+            <span class="mode__radio" style="opacity:.35"></span>
+          </button>
+
+          <button class="mode" disabled>
+            <span class="mode__ico"><svg class="ico" viewBox="0 0 24 24"><path d="M4 14.5 20 8l-4 12-4.5-4.5L4 14.5Z"/></svg></span>
+            <span style="flex:1;min-width:0">
+              <span class="mode__name">Flight <span class="badge badge--neutral">Soon</span></span>
+              <span class="mode__meta">Not available for 1.0 km</span>
+            </span>
+            <span class="mode__price"><strong>—</strong><span>not yet</span></span>
+            <span class="mode__radio" style="opacity:.35"></span>
+          </button>
+        </div>
+
+        <div class="side-section">
+          <div class="side-title">Stay for these dates</div>
+          <div class="stay-mini">
+            <div class="stay-mini__img"></div>
+            <div style="flex:1;min-width:0">
+              <div class="stay-mini__name">Hotel Grande Bretagne</div>
+              <div class="stay-mini__meta">4.9 · 0.2 km · $189/night</div>
+            </div>
+            <button class="btn btn--sm">Change</button>
+          </div>
+          <div class="row" style="justify-content:space-between;margin-top:10px;font-size:11.5px;color:var(--muted)">
+            <span>3 nights · 1 room · sleeps 3</span>
+            <strong style="color:var(--ink)">$567</strong>
+          </div>
+        </div>
+
+        </div>
+      </div>
+    </aside>
+  </div>
+
+  <div class="mobilebar">
+    <button class="is-active"><svg class="ico" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>Plan</button>
+    <button><svg class="ico" viewBox="0 0 24 24"><path d="M12 21s7-5.5 7-11a7 7 0 1 0-14 0c0 5.5 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>Map</button>
+    <button><svg class="ico" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="16" rx="3"/><path d="M8 3v4m8-4v4M3.5 10h17"/></svg>Dates</button>
+    <button><svg class="ico" viewBox="0 0 24 24"><path d="M4 19V5m5 14V9m5 10V7m5 12v-6"/></svg>Budget</button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 3 — REVIEW NOTES
+     ============================================================ -->
+<div class="screen" data-screen="notes">
+  <nav class="nav">
+    <a class="brand" href="#">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link" href="#">My trips</a>
+      <a class="nav__link is-active" href="#">Review</a>
+    </div>
+    <div class="nav__right"><div class="avatar">DR</div></div>
+  </nav>
+
+  <div class="wrap notes">
+    <div class="notes__head">
+      <span class="eyebrow">Design review · mock v1</span>
+      <h1>What I'd change, and why</h1>
+      <p class="notes__lede">
+        These are observations from actually running the web app (backend + SQL Server + Vite, demo account, real
+        destination lookup and a real <span class="mono">/api/trips/search</span> response), not guesses from reading code.
+        Everything below is what the mock proposes — nothing is applied to the app yet.
+      </p>
+    </div>
+
+    <div class="notes__grid">
+      <div>
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--warn">Bugs</span>
+            <h2>Broken while running it</h2>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev"></span>
+            <div>
+              <div class="issue__title">Route panel is nested inside the map card (desktop and mobile)</div>
+              <div class="issue__body">The “How do you want to travel?” panel is a child of the destination card. Measured at 1440px it renders 102px wide and 418px tall inside a 158px card; at 390px it sits at x=489, fully off-screen. The map pane also measures 0px wide on phones.</div>
+              <span class="issue__file">TripResults.tsx — unbalanced divs before the transport block; sidebar is fixed at 380px with no breakpoint</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev"></span>
+            <div>
+              <div class="issue__title">“From $” with no number</div>
+              <div class="issue__body">The routing API returns <span class="mono">estimatedPrice: null</span>. The check is <span class="mono">!== undefined</span>, so null passes and renders “From $” with an empty value. Same for the stop summary.</div>
+              <span class="issue__file">TripResults.tsx — price conditions</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev"></span>
+            <div>
+              <div class="issue__title">Geolocation is a hard requirement — denial is a dead end</div>
+              <div class="issue__body">Plan My Trip calls <span class="mono">getCurrentPosition</span> with no manual origin fallback. Deny it, or fail inside a browser without a location provider, and the only feedback is an alert().</div>
+              <span class="issue__file">Hero.tsx — Plan My Trip handler</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev med"></span>
+            <div>
+              <div class="issue__title">Destination search returns districts, not cities</div>
+              <div class="issue__body">Typing “Paris” returns ten arrondissements; Santorini returns an empty list even though it's the hardcoded fallback destination on the trip page.</div>
+              <span class="issue__file">DestinationService.cs — namePrefix only, no feature-class filter or ranking</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev med"></span>
+            <div>
+              <div class="issue__title">Signed-in users see a “Sign in” button</div>
+              <div class="issue__body">The trip workspace header hardcodes the auth CTA while the user is authenticated; it also duplicates the global navbar with a different brand mark.</div>
+              <span class="issue__file">TripResults.tsx — header</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev med"></span>
+            <div>
+              <div class="issue__title">CORS blocks 127.0.0.1</div>
+              <div class="issue__body">Only <span class="mono">localhost:5173</span> and <span class="mono">:3000</span> are allowed, so opening the dev server at 127.0.0.1 makes every API call fail with an opaque “Unable to sign in”.</div>
+              <span class="issue__file">Program.cs — ReactPolicy; Vite binds 127.0.0.1 by default</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev low"></span>
+            <div>
+              <div class="issue__title">Planner fields collapse to 118px and the card sits below the fold</div>
+              <div class="issue__body">At 1280px the 5-column grid has only 4 children, so “Dates” renders 118×117px with a wrapping label. On a 768px-tall laptop the planner card starts below the fold.</div>
+              <span class="issue__file">Hero.tsx — grid-cols-[2fr_1.3fr_1.2fr_1fr_auto] with 4 items</span>
+            </div>
+          </div>
+
+          <div class="issue">
+            <span class="issue__sev low"></span>
+            <div>
+              <div class="issue__title">Dead controls</div>
+              <div class="issue__body">Explore / Travelers / Places only toggle icon colour; the add-destination input accepts text and never submits; the hotel hearts and badges are decorative; “Saved” is local state only.</div>
+              <span class="issue__file">TripResults.tsx, HotelStays.tsx</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card note-card" style="margin-top:16px">
+          <div class="note-card__head">
+            <span class="badge badge--brand">System</span>
+            <h2>Design tokens this mock uses</h2>
+          </div>
+          <div class="tokens">
+            <div class="swatch"><div class="swatch__chip" style="background:#0E9384"></div><div class="swatch__name">Brand</div><div class="swatch__hex">#0E9384</div></div>
+            <div class="swatch"><div class="swatch__chip" style="background:#0C1B33"></div><div class="swatch__name">Navy / heading</div><div class="swatch__hex">#0C1B33</div></div>
+            <div class="swatch"><div class="swatch__chip" style="background:#475467"></div><div class="swatch__name">Body</div><div class="swatch__hex">#475467</div></div>
+            <div class="swatch"><div class="swatch__chip" style="background:#F79009"></div><div class="swatch__name">Accent / warning</div><div class="swatch__hex">#F79009</div></div>
+            <div class="swatch"><div class="swatch__chip" style="background:#E4E7EC"></div><div class="swatch__name">Border</div><div class="swatch__hex">#E4E7EC</div></div>
+            <div class="swatch"><div class="swatch__chip" style="background:#F6F7F9"></div><div class="swatch__name">App background</div><div class="swatch__hex">#F6F7F9</div></div>
+          </div>
+          <div class="type-row"><span>Display</span><div style="font-size:28px;font-weight:800;letter-spacing:-.03em;color:var(--navy)">Where to next?</div></div>
+          <div class="type-row"><span>Title</span><div style="font-size:18px;font-weight:750;color:var(--ink)">Athens, Greece</div></div>
+          <div class="type-row"><span>Body</span><div style="font-size:13.5px;color:var(--body)">Compare routes before you commit.</div></div>
+          <div class="type-row"><span>Caption</span><div style="font-size:11.5px;color:var(--muted)">Prices update when you switch transport</div></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--sky">Features</span>
+            <h2>Worth adding next</h2>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">1</span>
+            <div>
+              <div class="feat__title">Persist trips end to end</div>
+              <div class="feat__body">Save/load from the API, resume drafts, duplicate a trip. The Save button should write to the backend, not local state.</div>
+              <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Backend + frontend</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">2</span>
+            <div>
+              <div class="feat__title">Day-by-day itinerary with time-aware legs</div>
+              <div class="feat__body">Stops per day, auto-inserted travel legs between them, drag to reorder, opening-hours warnings. This is the feature the home page already promises.</div>
+              <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Frontend</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">3</span>
+            <div>
+              <div class="feat__title">Real stays from the hotel service</div>
+              <div class="feat__body">HotelService (OSM/Overpass) already exists and is unused by the UI. Feed the home page and the trip panel from it with skeletons, empty and error states.</div>
+              <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Wire-up</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">4</span>
+            <div>
+              <div class="feat__title">Honest availability and pricing</div>
+              <div class="feat__body">Badges for Fastest / Cheapest / Recommended, “fare unavailable” instead of “$0” or “From $”, disabled modes with a reason, estimated-data labels.</div>
+              <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Frontend</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">5</span>
+            <div>
+              <div class="feat__title">Budget with categories and per-person split</div>
+              <div class="feat__body">Transport, stays, food, activities; projected vs actual; over-budget warnings; currency and per-person/or-group toggle.</div>
+              <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">Frontend</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">6</span>
+            <div>
+              <div class="feat__title">Manual origin + saved places</div>
+              <div class="feat__body">Type an origin, choose “use my location”, or pick a saved address. Add bookmarkable POIs to a trip from the map.</div>
+              <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">Frontend</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">7</span>
+            <div>
+              <div class="feat__title">Share, export, collaborate</div>
+              <div class="feat__body">Read-only share link, .ics and PDF export, invite travellers with per-person budget. Route data is already in the app state.</div>
+              <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">Full stack</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">8</span>
+            <div>
+              <div class="feat__title">Weather and daylight on the itinerary</div>
+              <div class="feat__body">Forecast for the trip dates, sunset times for viewpoints, “indoor option” suggestions when rain is likely.</div>
+              <div class="feat__tags"><span class="badge badge--neutral">Later</span><span class="badge badge--neutral">API</span></div>
+            </div>
+          </div>
+
+          <div class="feat">
+            <span class="feat__n">9</span>
+            <div>
+              <div class="feat__title">Unified shell and one palette</div>
+              <div class="feat__body">Today: teal navbar, indigo CTA, sky/emerald gradient banner, dark-green admin, and a separate dark mode that only exists on one page. Consolidate into tokens and one app shell with a global theme.</div>
+              <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Refactor</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card note-card" style="margin-top:16px">
+          <div class="note-card__head">
+            <span class="badge badge--neutral">Components</span>
+            <h2>New pieces this design needs</h2>
+          </div>
+          <div class="feat"><span class="feat__n">A</span><div><div class="feat__title">SearchCombobox</div><div class="feat__body">Debounced, keyboard-navigable, grouped results, loading and empty states, recent searches. Replaces both the hero input and the dead add-destination field.</div></div></div>
+          <div class="feat"><span class="feat__n">B</span><div><div class="feat__title">DateRangeField + TravelersField + BudgetField</div><div class="feat__body">Shared field shell (label / value / sub / popover), min-date and ordering constraints, nights count, per-person math, currency input with formatting.</div></div></div>
+          <div class="feat"><span class="feat__n">C</span><div><div class="feat__title">ItineraryTimeline + StopCard + TransportLeg</div><div class="feat__body">Day tabs, reorderable stops, computed legs, empty-day suggestions. The single biggest visual and functional win on the trip page.</div></div></div>
+          <div class="feat"><span class="feat__n">D</span><div><div class="feat__title">TransportOptionList</div><div class="feat__body">Radio-style rows with badges, disabled reasons, estimated flags, fare fallbacks. Fixes the nested/overflowing panel by moving it into its own column.</div></div></div>
+          <div class="feat"><span class="feat__n">E</span><div><div class="feat__title">BudgetMeter</div><div class="feat__body">Category bars, remaining amount, warning colour above 90%. Reads from the same trip state as the itinerary.</div></div></div>
+          <div class="feat"><span class="feat__n">F</span><div><div class="feat__title">Skeleton / EmptyState / Toast</div><div class="feat__body">Replace alert() and silent failures. Skeletons for search and stays, empty states with next actions, toasts for save/export errors.</div></div></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:18px;padding:16px 18px;display:flex;gap:12px;align-items:flex-start">
+      <svg class="ico" style="color:var(--brand);margin-top:2px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <p class="tiny" style="color:var(--body);max-width:80ch">
+        This file is standalone — open it directly in a browser, no build or backend. Toggle <strong>Review notes</strong> for the full list,
+        the phone icon for a 390px preview of the trip workspace, and the moon for the dark theme.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  /* keep the workspace exactly one viewport tall */
+  function syncMockbar(){
+    var bar=document.querySelector('.mockbar');
+    if(bar) document.documentElement.style.setProperty('--mockbar', bar.offsetHeight+'px');
+  }
+  if(document.readyState!=='loading') syncMockbar();
+  window.addEventListener('resize', syncMockbar);
+  window.addEventListener('load', syncMockbar);
+
+  /* screen switching */
+  var tabs=[].slice.call(document.querySelectorAll('[data-screen-btn]'));
+  function show(name){
+    [].slice.call(document.querySelectorAll('.screen')).forEach(function(s){
+      s.classList.toggle('is-active', s.dataset.screen===name);
+    });
+    tabs.forEach(function(t){ t.setAttribute('aria-selected', String(t.dataset.screenBtn===name)); });
+    window.scrollTo({top:0,behavior:'instant'});
+  }
+  tabs.forEach(function(t){ t.addEventListener('click',function(){ show(t.dataset.screenBtn); }); });
+
+  /* theme */
+  document.getElementById('themeBtn').addEventListener('click',function(){
+    var root=document.documentElement;
+    root.dataset.theme = root.dataset.theme==='dark' ? 'light' : 'dark';
+  });
+
+  /* day tabs */
+  var dayBtns=[].slice.call(document.querySelectorAll('[data-day]'));
+  dayBtns.forEach(function(btn){
+    btn.addEventListener('click',function(){
+      var day=btn.dataset.day;
+      dayBtns.forEach(function(b){ b.classList.toggle('is-active', b===btn); });
+      [].slice.call(document.querySelectorAll('[data-day-panel]')).forEach(function(p){
+        p.hidden = p.dataset.dayPanel!==day;
+      });
+    });
+  });
+
+  /* transport selection */
+  var modes=[].slice.call(document.querySelectorAll('[data-mode]'));
+  var routeMeta=document.getElementById('mapRouteMeta');
+  var transportValue=document.getElementById('transportValue');
+  var transportBar=document.getElementById('transportBar');
+  var labels={car:'Car',bus:'Bus',walk:'Walk',bike:'Bike'};
+  modes.forEach(function(m){
+    m.addEventListener('click',function(){
+      if(m.disabled) return;
+      modes.forEach(function(o){ o.classList.remove('is-selected'); });
+      m.classList.add('is-selected');
+      var d=m.dataset;
+      var fare=d.fare||'Fare unavailable';
+      routeMeta.textContent = labels[d.mode]+' · '+d.min+' min · '+d.km+' km · '+fare.toLowerCase();
+      var price=Number(d.price||0);
+      transportValue.textContent='$'+price;
+      transportBar.style.width=Math.min(100,Math.max(6,price/150*100))+'%';
+      /* highlight matching route */
+      var ids={car:'routeCar',walk:'routeWalk',bike:'routeBike'};
+      ['routeCar','routeWalk','routeBike'].forEach(function(id){
+        var el=document.getElementById(id);
+        if(!el) return;
+        var on = ids[d.mode]===id;
+        if(id==='routeCar') el.style.opacity = on?'1':'0.12';
+        else el.style.opacity = on?'1':'0';
+      });
+      if(d.mode==='bus'){
+        document.getElementById('routeCar').style.opacity='0.25';
+      }
+    });
+  });
+
+  /* suggestion combobox demo */
+  var combo=document.querySelector('[data-suggest]');
+  if(combo){
+    combo.addEventListener('click',function(e){
+      var open=combo.classList.toggle('is-open');
+      combo.setAttribute('aria-expanded',String(open));
+      e.stopPropagation();
+    });
+    document.addEventListener('click',function(){
+      combo.classList.remove('is-open');
+      combo.setAttribute('aria-expanded','false');
+    });
+  }
+
+  /* save toggle */
+  var saved=false;
+  var saveBtn=document.getElementById('saveBtn');
+  saveBtn.addEventListener('click',function(){
+    saved=!saved;
+    saveBtn.querySelector('span').textContent = saved?'Saved':'Save';
+    saveBtn.style.background = saved?'var(--brand-50)':'';
+    saveBtn.style.color = saved?'var(--brand-strong)':'';
+    saveBtn.style.borderColor = saved?'var(--brand-100)':'';
+  });
+
+  /* plan cta jumps to trip workspace */
+  document.getElementById('planCta').addEventListener('click',function(){ show('trip'); });
+
+  /* phone preview iframe */
+  var phone=null;
+  document.getElementById('phoneBtn').addEventListener('click',function(){
+    if(phone){ phone.remove(); phone=null; return; }
+    var dock=document.createElement('div');
+    dock.style.cssText='position:fixed;right:18px;bottom:18px;z-index:90;width:400px;height:min(860px,88vh);background:var(--surface);border:1px solid var(--line);border-radius:26px;box-shadow:var(--shadow-lg);padding:10px;display:flex;flex-direction:column;gap:8px';
+    var bar=document.createElement('div');
+    bar.style.cssText='display:flex;align-items:center;justify-content:space-between;font-size:11.5px;color:var(--muted);padding:0 4px';
+    bar.innerHTML='<span>Phone preview · 390 × 844</span>';
+    var close=document.createElement('button');
+    close.textContent='Close';
+    close.className='btn btn--sm';
+    close.onclick=function(){ dock.remove(); phone=null; };
+    bar.appendChild(close);
+    var frame=document.createElement('iframe');
+    frame.src='?embed=1&screen=trip';
+    frame.style.cssText='flex:1;width:100%;border:0;border-radius:16px;background:var(--bg)';
+    dock.appendChild(bar); dock.appendChild(frame);
+    document.body.appendChild(dock);
+    phone=dock;
+  });
+
+  /* embed mode: hide mock chrome, jump to requested screen */
+  var params=new URLSearchParams(location.search);
+  if(params.get('embed')==='1'){
+    document.querySelector('.mockbar').style.display='none';
+    show(params.get('screen')||'trip');
+    document.documentElement.style.setProperty('--embed','1');
+  }
+})();
+</script>
+</body>
+</html>

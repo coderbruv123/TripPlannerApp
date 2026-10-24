@@ -18,12 +18,27 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-// Database
+// Database — local dev runs on SQLite (no server to install); set
+// Database:Provider=SqlServer (or Database__Provider env var) for SQL Server.
+var databaseProvider =
+    builder.Configuration["Database:Provider"] ?? "Sqlite";
+
 builder.Services.AddDbContext<ApplicationDbContext>(options =>
-    options.UseSqlServer(
-        builder.Configuration.GetConnectionString("DefaultConnection")
-    )
-);
+{
+    if (databaseProvider.Equals("SqlServer", StringComparison.OrdinalIgnoreCase))
+    {
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection")
+        );
+    }
+    else
+    {
+        options.UseSqlite(
+            builder.Configuration.GetConnectionString("Sqlite")
+            ?? "Data Source=tripplanner.db"
+        );
+    }
+});
 
 // JWT service + settings
 builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("Jwt"));
@@ -50,7 +65,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 // Application services
-builder.Services.AddHttpClient<IDestinationService, DestinationService>();
+builder.Services
+    .AddHttpClient<IDestinationService, DestinationService>(client =>
+    {
+        // The service gives up at 8s itself; this is the outer safety net so a
+        // stalled connection can never hang the city picker.
+        client.Timeout = TimeSpan.FromSeconds(15);
+    });
 builder.Services.AddHttpClient<OpenRouteService>();
 
 builder.Services.AddScoped<ITripPlannerService, TripPlannerService>();
@@ -63,11 +84,26 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactPolicy", policy =>
     {
+        // Dev origins: loopback on any port (vite picks 5173/5174/4173) plus
+        // the machine's own LAN address, so opening the site as 127.0.0.1 or
+        // from a phone doesn't fail with an opaque "Unable to sign in".
         policy
-            .WithOrigins(
-                "http://localhost:5173",
-                "http://localhost:3000"
-            )
+            .SetIsOriginAllowed(origin =>
+            {
+                if (!Uri.TryCreate(origin, UriKind.Absolute, out var uri))
+                {
+                    return false;
+                }
+
+                var host = uri.Host;
+
+                return host is "localhost" or "127.0.0.1" or "::1"
+                    || host.StartsWith("192.168.")
+                    || host.StartsWith("10.")
+                    || System.Net.IPAddress.TryParse(host, out var address)
+                       && address.IsIPv4MappedToIPv6 == false
+                       && System.Net.IPAddress.IsLoopback(address);
+            })
             .AllowAnyHeader()
             .AllowAnyMethod();
     });
@@ -86,6 +122,24 @@ builder.Services.AddAuthorization(options =>
 });
 
 var app = builder.Build();
+
+// Create the schema (SQLite: from the models; SQL Server: from migrations)
+// and make sure the seeded super admin exists.
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+
+    if (db.Database.IsSqlite())
+    {
+        db.Database.EnsureCreated();
+    }
+    else
+    {
+        db.Database.Migrate();
+    }
+
+    await DbSeeder.SeedAsync(scope.ServiceProvider, app.Logger);
+}
 
 // Swagger
 if (app.Environment.IsDevelopment())

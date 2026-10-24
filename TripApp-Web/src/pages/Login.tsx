@@ -51,9 +51,11 @@ export default function Login() {
         role: data.role,
       });
 
-      // Admins go to the admin dashboard, everyone else to home
+      // Admins (Admin and SuperAdmin) go to the admin dashboard, everyone else home
       navigate(
-        data.role === "Admin" ? "/admin/dashboard" : "/",
+        data.role === "Admin" || data.role === "SuperAdmin"
+          ? "/admin/dashboard"
+          : "/",
         { replace: true }
       );
     } catch (error: unknown) {
@@ -76,13 +78,13 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
 
       {/* Main Container */}
-      <div className="w-full max-w-[1280px] overflow-hidden rounded-[40px] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.05)] flex flex-col md:flex-row md:h-[700px]">
+      <div className="w-full max-w-[1280px] overflow-hidden rounded-[40px] bg-surface shadow-card flex flex-col md:flex-row md:h-[700px]">
 
         {/* ================= LEFT : LOGIN FORM ================= */}
-        <div className="w-full md:w-1/2 bg-[#f8f9ff] p-6 md:p-12 flex items-center">
+        <div className="w-full md:w-1/2 bg-canvas p-6 md:p-12 flex items-center">
 
           <div className="max-w-[400px] w-full mx-auto">
 
@@ -90,90 +92,25 @@ export default function Login() {
             <div className="flex items-center gap-2 mb-8">
               <Plane
                 size={32}
-                className="text-[#006b5f]"
+                className="text-brand-strong"
               />
 
-              <span className="text-2xl font-extrabold text-[#006b5f]">
+              <span className="text-2xl font-extrabold text-brand-strong">
                 TripPlanner
               </span>
             </div>
 
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-[32px] leading-[40px] font-bold tracking-tight text-[#0b1c30]">
+              <h1 className="text-[32px] leading-[40px] font-bold tracking-tight text-ink">
                 Welcome back
               </h1>
 
-              <p className="mt-2 text-base leading-6 text-[#3c4947]">
+              <p className="mt-2 text-base leading-6 text-body">
                 Sign in to continue planning your next adventure.
               </p>
             </div>
 
-            {/* Social Login */}
-            <div className="flex flex-col gap-4 mb-8">
-
-              <button
-                type="button"
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full border border-[#bbcac6] bg-white hover:bg-[#eff4ff] transition-colors"
-              >
-                {/* Google */}
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    fill="#4285F4"
-                    d="M21.35 12.23c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
-                  />
-                  <path
-                    fill="#34A853"
-                    d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.6Z"
-                  />
-                  <path
-                    fill="#FBBC05"
-                    d="M6.54 13.69A5.86 5.86 0 0 1 6.23 12c0-.59.1-1.16.31-1.69V7.78H3.3A9.6 9.6 0 0 0 2.4 12c0 1.53.37 2.98.9 4.22l3.24-2.53Z"
-                  />
-                  <path
-                    fill="#EA4335"
-                    d="M12 6.28c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.37 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C7.31 8 9.46 6.28 12 6.28Z"
-                  />
-                </svg>
-
-                <span className="font-semibold text-[#0b1c30]">
-                  Continue with Google
-                </span>
-              </button>
-
-              <button
-                type="button"
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full border border-[#bbcac6] bg-white hover:bg-[#eff4ff] transition-colors"
-              >
-                {/* Facebook */}
-                <svg
-                  className="w-5 h-5 text-[#1877F2]"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M24 12.073C24 5.446 18.627 0 12 0S0 5.446 0 12.073c0 6.02 4.388 11.027 10.125 11.927v-8.438H7.078v-3.489h3.047V9.41c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953h-1.515c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.489h-2.796V24C19.612 23.1 24 18.093 24 12.073Z" />
-                </svg>
-
-                <span className="font-semibold text-[#0b1c30]">
-                  Continue with Facebook
-                </span>
-              </button>
-
-            </div>
-
-            {/* Divider */}
-            <div className="relative flex items-center mb-8">
-              <div className="flex-grow border-t border-[#bbcac6]" />
-
-              <span className="mx-4 text-xs font-medium text-[#3c4947]">
-                OR
-              </span>
-
-              <div className="flex-grow border-t border-[#bbcac6]" />
-            </div>
 
             {/* Login Form */}
             <form
@@ -183,7 +120,7 @@ export default function Login() {
 
               {/* Error */}
               {error && (
-                <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-600">
+                <div className="rounded-lg bg-danger-50 border border-danger/30 px-4 py-3 text-sm text-danger">
                   {error}
                 </div>
               )}
@@ -192,7 +129,7 @@ export default function Login() {
               <div className="flex flex-col gap-1">
                 <label
                   htmlFor="email"
-                  className="text-xs font-medium text-[#0b1c30]"
+                  className="text-xs font-medium text-ink"
                 >
                   Email Address
                 </label>
@@ -205,28 +142,19 @@ export default function Login() {
                   placeholder="Enter your email"
                   required
                   disabled={loading}
-                  className="w-full bg-transparent border border-[#bbcac6] focus:border-[#006b5f] focus:ring-1 focus:ring-[#006b5f] rounded-lg px-4 py-3 text-sm text-[#0b1c30] placeholder:text-[#3c4947]/50 outline-none transition disabled:opacity-50"
+                  className="w-full bg-transparent border border-line focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-4 py-3 text-sm text-ink placeholder:text-faint outline-none transition disabled:opacity-50"
                 />
               </div>
 
               {/* Password */}
               <div className="flex flex-col gap-1">
 
-                <div className="flex justify-between items-center">
-                  <label
-                    htmlFor="password"
-                    className="text-xs font-medium text-[#0b1c30]"
-                  >
-                    Password
-                  </label>
-
-                  <Link
-                    to="/forgot-password"
-                    className="text-xs text-[#006b5f] hover:underline"
-                  >
-                    Forgot Password?
-                  </Link>
-                </div>
+                <label
+                  htmlFor="password"
+                  className="text-xs font-medium text-ink"
+                >
+                  Password
+                </label>
 
                 <input
                   id="password"
@@ -236,7 +164,7 @@ export default function Login() {
                   placeholder="Enter your password"
                   required
                   disabled={loading}
-                  className="w-full bg-transparent border border-[#bbcac6] focus:border-[#006b5f] focus:ring-1 focus:ring-[#006b5f] rounded-lg px-4 py-3 text-sm text-[#0b1c30] placeholder:text-[#3c4947]/50 outline-none transition disabled:opacity-50"
+                  className="w-full bg-transparent border border-line focus:border-brand focus:ring-1 focus:ring-brand rounded-lg px-4 py-3 text-sm text-ink placeholder:text-faint outline-none transition disabled:opacity-50"
                 />
               </div>
 
@@ -244,7 +172,7 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#1a1c1e] hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition mt-2 shadow-md"
+                className="w-full bg-navy hover:opacity-90 dark:bg-brand-50 disabled:opacity-50 disabled:cursor-not-allowed text-white dark:text-brand-ink font-semibold py-3 rounded-full transition mt-2 shadow-md"
               >
                 {loading ? "Signing in..." : "Sign In"}
               </button>
@@ -253,12 +181,12 @@ export default function Login() {
 
             {/* Sign Up */}
             <div className="mt-8 text-center">
-              <p className="text-sm text-[#3c4947]">
+              <p className="text-sm text-body">
                 Don't have an account?{" "}
 
                 <Link
                   to="/register"
-                  className="text-[#006b5f] font-semibold hover:underline"
+                  className="text-brand-strong font-semibold hover:underline"
                 >
                   Sign up
                 </Link>

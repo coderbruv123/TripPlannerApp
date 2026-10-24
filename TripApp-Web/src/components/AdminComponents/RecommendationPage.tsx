@@ -36,7 +36,7 @@ const recommendations: Recommendation[] = [
     rating: 4.8,
     reviews: "8.1k",
     status: "Draft",
-    updated: "Oct 12, 2023",
+    updated: "1 day ago",
     image:
       "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=300&q=80",
   },
@@ -49,7 +49,7 @@ const recommendations: Recommendation[] = [
     rating: 5.0,
     reviews: "412",
     status: "Published",
-    updated: "Oct 10, 2023",
+    updated: "4 days ago",
     image:
       "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=300&q=80",
   },
@@ -137,26 +137,6 @@ export default function RecommendationsPage() {
               />
             </div>
 
-            {/* Add Recommendation */}
-            <button
-              className="
-                flex items-center justify-center gap-2
-                rounded-[10px]
-                bg-[#44a173]
-                px-5 py-2.5
-                text-sm font-semibold
-                text-[#00311c]
-                shadow-[0_0_15px_rgba(68,161,115,0.15)]
-                transition-all
-                hover:brightness-110
-              "
-            >
-              <span className="material-symbols-outlined text-[20px]">
-                add
-              </span>
-
-              Add Recommendation
-            </button>
           </div>
         </div>
 
@@ -281,98 +261,6 @@ export default function RecommendationsPage() {
                 )}
               </tbody>
             </table>
-          </div>
-
-          {/* Pagination */}
-          <div
-            className="
-              flex flex-col gap-4
-              border-t border-[#1B3428]
-              bg-[#06100C]
-              px-6 py-4
-              sm:flex-row
-              sm:items-center
-              sm:justify-between
-            "
-          >
-            <p className="text-sm text-[#bec9bf]">
-              Showing 1 to {filteredRecommendations.length} of 45
-              recommendations
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                disabled
-                className="
-                  rounded-md
-                  border border-[#1B3428]
-                  p-1.5
-                  text-[#88948a]
-                  opacity-50
-                "
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  chevron_left
-                </span>
-              </button>
-
-              <button
-                className="
-                  flex h-8 w-8 items-center justify-center
-                  rounded-md
-                  border border-[#7cd9a6]/30
-                  bg-[#7cd9a6]/20
-                  text-xs font-semibold
-                  text-[#7cd9a6]
-                "
-              >
-                1
-              </button>
-
-              <button
-                className="
-                  flex h-8 w-8 items-center justify-center
-                  rounded-md
-                  text-xs font-semibold
-                  text-[#bec9bf]
-                  transition-colors
-                  hover:bg-[#2c3732]
-                "
-              >
-                2
-              </button>
-
-              <button
-                className="
-                  flex h-8 w-8 items-center justify-center
-                  rounded-md
-                  text-xs font-semibold
-                  text-[#bec9bf]
-                  transition-colors
-                  hover:bg-[#2c3732]
-                "
-              >
-                3
-              </button>
-
-              <span className="px-1 text-[#88948a]">...</span>
-
-              <button
-                className="
-                  rounded-md
-                  border border-[#1B3428]
-                  p-1.5
-                  text-[#bec9bf]
-                  transition-colors
-                  hover:bg-[#2c3732]
-                  hover:text-[#d9e5de]
-                "
-              >
-                <span className="material-symbols-outlined text-[18px]">
-                  chevron_right
-                </span>
-              </button>
-            </div>
           </div>
         </div>
       </div>
@@ -523,86 +411,6 @@ function RecommendationRow({
         {recommendation.updated}
       </td>
 
-      {/* Actions */}
-      <td className="px-6 py-3">
-        <div
-          className="
-            flex items-center justify-end gap-2
-            opacity-60
-            transition-opacity
-            group-hover:opacity-100
-          "
-        >
-          {/* Edit */}
-          <button
-            title="Edit"
-            className="
-              rounded-md p-1.5
-              text-[#bec9bf]
-              transition-colors
-              hover:bg-[#2c3732]/50
-              hover:text-[#7cd9a6]
-            "
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              edit
-            </span>
-          </button>
-
-          {/* Publish / Unpublish */}
-          <button
-            title={isPublished ? "Unpublish" : "Publish"}
-            className="
-              rounded-md p-1.5
-              text-[#bec9bf]
-              transition-colors
-              hover:bg-[#2c3732]/50
-              hover:text-[#6edc9c]
-            "
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              {isPublished ? "visibility_off" : "visibility"}
-            </span>
-          </button>
-
-          {/* Feature */}
-          <button
-            title="Feature"
-            className="
-              rounded-md p-1.5
-              text-[#bec9bf]
-              transition-colors
-              hover:bg-[#2c3732]/50
-              hover:text-[#7cd9a6]
-            "
-          >
-            <span
-              className="material-symbols-outlined text-[18px]"
-              style={{
-                fontVariationSettings: "'FILL' 1",
-              }}
-            >
-              push_pin
-            </span>
-          </button>
-
-          {/* Delete */}
-          <button
-            title="Delete"
-            className="
-              rounded-md p-1.5
-              text-[#bec9bf]
-              transition-colors
-              hover:bg-red-500/10
-              hover:text-[#ffb4ab]
-            "
-          >
-            <span className="material-symbols-outlined text-[18px]">
-              delete
-            </span>
-          </button>
-        </div>
-      </td>
     </tr>
   );
 }

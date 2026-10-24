@@ -1,0 +1,3034 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>TripPlanner · Feature expansion mock v3</title>
+<style>
+/* ============================================================
+   TOKENS — same palette as trip-planner-redesign.html
+   ============================================================ */
+:root{
+  --navy:#0C1B33;
+  --ink:#101828;
+  --body:#475467;
+  --muted:#667085;
+  --faint:#98A2B3;
+  --line:#E4E7EC;
+  --line-soft:#EEF0F3;
+  --bg:#F6F7F9;
+  --surface:#FFFFFF;
+  --surface-2:#FAFBFC;
+  --brand:#0E9384;
+  --brand-strong:#0B7A6E;
+  --brand-ink:#05463F;
+  --brand-50:#E7F7F4;
+  --brand-100:#CFF0EA;
+  --accent:#F79009;
+  --accent-50:#FEF3E2;
+  --danger:#D92D20;
+  --danger-50:#FEF3F2;
+  --sky:#2E90FA;
+  --sky-50:#EAF3FF;
+  --violet:#7A5AF8;
+  --violet-50:#F4F3FF;
+  --radius-lg:18px;
+  --radius:14px;
+  --radius-sm:10px;
+  --shadow-sm:0 1px 2px rgba(16,24,40,.05);
+  --shadow:0 4px 16px -4px rgba(16,24,40,.10), 0 1px 2px rgba(16,24,40,.04);
+  --shadow-lg:0 24px 60px -20px rgba(12,27,51,.30), 0 2px 6px rgba(12,27,51,.05);
+  --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+}
+[data-theme="dark"]{
+  --navy:#EAF2F1;
+  --ink:#E7EDF0;
+  --body:#AAB6BF;
+  --muted:#8C9AA5;
+  --faint:#6E7C88;
+  --line:#233039;
+  --line-soft:#1B262E;
+  --bg:#0B1419;
+  --surface:#111C23;
+  --surface-2:#0F1920;
+  --brand:#2ED3BC;
+  --brand-strong:#2ED3BC;
+  --brand-ink:#04211D;
+  --brand-50:#0F2F2C;
+  --brand-100:#14403B;
+  --accent:#FDB022;
+  --accent-50:#2B2113;
+  --danger:#FDA29B;
+  --danger-50:#2A1715;
+  --sky:#84CAFF;
+  --sky-50:#12212F;
+  --violet:#BDB4FE;
+  --violet-50:#1D1B33;
+  --shadow-sm:0 1px 2px rgba(0,0,0,.4);
+  --shadow:0 4px 18px -6px rgba(0,0,0,.6);
+  --shadow-lg:0 30px 70px -30px rgba(0,0,0,.8);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{
+  background:var(--bg);color:var(--body);font-family:var(--font);
+  font-size:14.5px;line-height:1.5;-webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,h4,p{margin:0}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+input,select,textarea{font:inherit;color:inherit;background:none;border:0;outline:none;width:100%}
+a{color:inherit;text-decoration:none}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+/* ============================================================
+   MOCK CHROME
+   ============================================================ */
+.mockbar{
+  position:sticky;top:0;z-index:90;display:flex;align-items:center;gap:12px;
+  padding:10px 16px;background:#0B1B33;color:#D7E3EA;font-size:12.5px;
+  border-bottom:1px solid rgba(255,255,255,.06);flex-wrap:wrap;
+}
+.mockbar__tag{
+  display:inline-flex;align-items:center;gap:7px;font-weight:700;letter-spacing:.04em;
+  text-transform:uppercase;font-size:10.5px;color:#0B1B33;background:#5EEAD4;
+  padding:4px 9px;border-radius:999px;
+}
+.mockbar__note{color:#93A4B0}
+.seg{display:flex;gap:2px;background:rgba(255,255,255,.06);padding:3px;border-radius:999px;flex-wrap:wrap}
+.seg button{padding:6px 12px;border-radius:999px;font-size:12.5px;font-weight:600;color:#B7C6D2}
+.seg button[aria-selected="true"]{background:#fff;color:#0B1B33}
+.seg button:hover{color:#fff}
+.seg button[aria-selected="true"]:hover{color:#0B1B33}
+.mockbar__right{margin-left:auto;display:flex;align-items:center;gap:8px}
+.icon-btn{
+  display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;
+  border-radius:9px;border:1px solid var(--line);background:var(--surface);color:var(--muted);
+}
+.icon-btn:hover{border-color:var(--brand);color:var(--brand)}
+.mockbar .icon-btn{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.16);color:#D7E3EA}
+.mockbar .icon-btn:hover{background:rgba(255,255,255,.16);border-color:rgba(255,255,255,.28)}
+
+/* ============================================================
+   SHARED PRIMITIVES
+   ============================================================ */
+.screen{display:none}
+.screen.is-active{display:block}
+.wrap{max-width:1320px;margin:0 auto;padding:0 24px}
+.section{padding:26px 0}
+.section__head{display:flex;align-items:flex-end;gap:14px;margin-bottom:14px}
+.section__head .h2{margin:0}
+.section__head .btn{margin-left:auto}
+
+.nav{
+  position:sticky;top:58px;z-index:60;display:flex;align-items:center;gap:22px;
+  padding:12px 24px;background:color-mix(in srgb,var(--surface) 88%,transparent);
+  backdrop-filter:blur(10px);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:9px;font-weight:750;color:var(--ink);font-size:15.5px;letter-spacing:-.01em}
+.brand__mark{
+  display:inline-flex;align-items:center;justify-content:center;width:30px;height:30px;border-radius:9px;
+  background:var(--brand);color:#fff;box-shadow:0 6px 14px -8px rgba(14,147,132,.9);
+}
+[data-theme="dark"] .brand__mark{color:#04211D}
+.nav__links{display:flex;gap:4px}
+.nav__link{padding:7px 11px;border-radius:9px;font-size:13.5px;font-weight:600;color:var(--muted)}
+.nav__link:hover{background:var(--surface-2);color:var(--ink)}
+.nav__link.is-active{background:var(--brand-50);color:var(--brand-strong)}
+[data-theme="dark"] .nav__link.is-active{color:var(--brand)}
+.nav__right{margin-left:auto;display:flex;align-items:center;gap:10px}
+
+.eyebrow{
+  display:inline-flex;align-items:center;gap:7px;font-size:11.5px;font-weight:700;
+  letter-spacing:.09em;text-transform:uppercase;color:var(--brand);
+}
+.h1{font-size:30px;line-height:1.15;font-weight:760;color:var(--ink);letter-spacing:-.025em}
+.h2{font-size:19px;line-height:1.25;font-weight:720;color:var(--ink);letter-spacing:-.015em}
+.h3{font-size:15.5px;line-height:1.3;font-weight:680;color:var(--ink)}
+.h4{font-size:13.5px;font-weight:700;color:var(--ink)}
+.sub{font-size:13.5px;color:var(--muted)}
+.tiny{font-size:11.5px;color:var(--muted);line-height:1.45}
+.label{display:block;font-size:11.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+.mono{font-family:var(--mono);font-size:12px;letter-spacing:-.01em}
+.divider{height:1px;background:var(--line-soft);margin:14px 0}
+.spacer{flex:1}
+.mt8{margin-top:8px}.mt12{margin-top:12px}.mt16{margin-top:16px}.mt20{margin-top:20px}.mt24{margin-top:24px}
+.flex{display:flex;align-items:center;gap:10px}
+.flex--top{align-items:flex-start}
+.wrap-flex{flex-wrap:wrap}
+.between{justify-content:space-between}
+
+.card{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+}
+.card--pad{padding:16px}
+.card--flat{box-shadow:none}
+.card__head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line-soft)}
+.card__head .h3{margin:0}
+.card__head .chip{margin-left:auto}
+.card__body{padding:16px}
+.card__foot{padding:12px 16px;border-top:1px solid var(--line-soft);display:flex;align-items:center;gap:10px}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;height:38px;
+  padding:0 15px;border-radius:10px;font-size:13px;font-weight:650;
+  border:1px solid var(--line);background:var(--surface);color:var(--ink);
+  transition:.15s;white-space:nowrap;
+}
+.btn:hover{border-color:var(--faint)}
+.btn--primary{
+  background:var(--brand);border-color:var(--brand);color:#fff;
+  box-shadow:0 6px 16px -8px rgba(14,147,132,.7);
+}
+[data-theme="dark"] .btn--primary{color:#04211D}
+.btn--primary:hover{background:var(--brand-strong);border-color:var(--brand-strong)}
+.btn--quiet{background:transparent;border-color:transparent;color:var(--muted)}
+.btn--quiet:hover{background:var(--surface-2);color:var(--ink)}
+.btn--danger{color:var(--danger);border-color:var(--line)}
+.btn--danger:hover{background:var(--danger-50);border-color:var(--danger)}
+.btn--sm{height:31px;padding:0 10px;font-size:12px;border-radius:8px;gap:6px}
+.btn--block{width:100%}
+.btn--ghost{background:var(--surface-2)}
+
+.chip{
+  display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px;border-radius:999px;
+  border:1px solid var(--line);background:var(--surface);font-size:12px;font-weight:600;color:var(--body);
+}
+.chip:hover{border-color:var(--brand);color:var(--brand)}
+.chip.is-on{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-strong)}
+[data-theme="dark"] .chip.is-on{color:var(--brand)}
+.chip--sm{height:24px;padding:0 8px;font-size:11px}
+
+.badge{
+  display:inline-flex;align-items:center;gap:4px;padding:2px 7px;border-radius:6px;
+  font-size:10.5px;font-weight:700;letter-spacing:.02em;
+  background:var(--surface-2);color:var(--muted);border:1px solid var(--line);
+}
+.badge--brand{background:var(--brand-50);color:var(--brand-strong);border-color:var(--brand-100)}
+[data-theme="dark"] .badge--brand{color:var(--brand)}
+.badge--warn{background:var(--accent-50);color:#B54708;border-color:transparent}
+[data-theme="dark"] .badge--warn{color:var(--accent)}
+.badge--danger{background:var(--danger-50);color:var(--danger);border-color:transparent}
+.badge--sky{background:var(--sky-50);color:#175CD3;border-color:transparent}
+[data-theme="dark"] .badge--sky{color:var(--sky)}
+.badge--violet{background:var(--violet-50);color:#5925DC;border-color:transparent}
+[data-theme="dark"] .badge--violet{color:var(--violet)}
+.badge--live{background:var(--danger);color:#fff;border-color:transparent}
+.badge--live .pulse{width:5px;height:5px;border-radius:50%;background:#fff;animation:blink 1.4s infinite}
+@keyframes blink{50%{opacity:.25}}
+
+.avatar{
+  display:inline-flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:50%;
+  background:var(--brand-50);color:var(--brand-strong);font-size:11.5px;font-weight:750;
+  border:2px solid var(--surface);flex:none;
+}
+[data-theme="dark"] .avatar{color:var(--brand)}
+.avatar--sm{width:24px;height:24px;font-size:9.5px;border-width:1.5px}
+.avatar--lg{width:40px;height:40px;font-size:13px}
+.avatar--sky{background:var(--sky-50);color:#175CD3}
+[data-theme="dark"] .avatar--sky{color:var(--sky)}
+.avatar--warn{background:var(--accent-50);color:#B54708}
+[data-theme="dark"] .avatar--warn{color:var(--accent)}
+.avatar--violet{background:var(--violet-50);color:#5925DC}
+[data-theme="dark"] .avatar--violet{color:var(--violet)}
+.avatars{display:flex}
+.avatars .avatar+.avatar{margin-left:-9px}
+
+.ico{width:18px;height:18px;stroke:currentColor;stroke-width:1.7;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:none}
+.ico--sm{width:14px;height:14px}
+.ico--lg{width:22px;height:22px}
+
+.field{display:block}
+.input{
+  display:flex;align-items:center;gap:8px;height:38px;padding:0 11px;border:1px solid var(--line);
+  border-radius:9px;background:var(--surface);font-size:13px;color:var(--ink);
+}
+.input:focus-within,.input:focus{border-color:var(--brand);box-shadow:0 0 0 3px var(--brand-50)}
+.input--lg{height:46px;border-radius:11px;font-size:14px}
+.input input::placeholder{color:var(--faint)}
+.textarea{
+  display:block;width:100%;min-height:74px;padding:10px 11px;border:1px solid var(--line);
+  border-radius:9px;background:var(--surface);font-size:13px;color:var(--ink);resize:vertical;
+}
+.textarea::placeholder{color:var(--faint)}
+
+/* layout helpers */
+.g2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.main-rail{display:grid;grid-template-columns:minmax(0,1fr) 336px;gap:18px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:14px}
+.stack--sm{gap:8px}
+
+/* progress / meters */
+.meter{height:8px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.meter__fill{height:100%;border-radius:999px;background:var(--brand)}
+.meter__fill--warn{background:var(--accent)}
+.meter__fill--danger{background:var(--danger)}
+.bar-row{display:grid;grid-template-columns:74px 1fr 52px;align-items:center;gap:10px;font-size:12px}
+.bar{height:6px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+.bar>i{display:block;height:100%;border-radius:999px;background:var(--brand)}
+
+/* separators & keys */
+.kv{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 0;border-bottom:1px dashed var(--line-soft);font-size:12.5px}
+.kv:last-child{border-bottom:0}
+.kv b{color:var(--ink);font-weight:650}
+
+/* ============================================================
+   SCREEN 1 — TEMPLATES / EXPLORE
+   ============================================================ */
+.explore-head{
+  padding:30px 0 18px;display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:28px;align-items:end;
+}
+.searchline{display:flex;gap:10px;margin-top:16px}
+.filterbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:12px 0 0}
+.filterbar .tiny{margin-left:auto}
+
+.tpl{
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden;
+  box-shadow:var(--shadow-sm);display:flex;flex-direction:column;transition:.18s;
+}
+.tpl:hover{transform:translateY(-2px);box-shadow:var(--shadow);border-color:var(--brand-100)}
+.tpl__cover{position:relative;height:118px;background:linear-gradient(135deg,#0B3B3A,#0E9384 60%,#7BD8CB)}
+.tpl__cover--2{background:linear-gradient(135deg,#13294B,#2E90FA 65%,#A9D4FF)}
+.tpl__cover--3{background:linear-gradient(135deg,#3B2A19,#F79009 70%,#FFE0B2)}
+.tpl__cover--4{background:linear-gradient(135deg,#1E2A21,#3F7D5A 60%,#B7E4C7)}
+.tpl__cover--5{background:linear-gradient(135deg,#2B1A3B,#7A5AF8 65%,#D9D2FF)}
+.tpl__cover--6{background:linear-gradient(135deg,#3B1C22,#D92D20 70%,#FFD3CE)}
+.tpl__cover svg{position:absolute;inset:0;width:100%;height:100%;opacity:.85}
+.tpl__cover .tpl__days{position:absolute;left:12px;top:12px}
+.tpl__cover .tpl__save{position:absolute;right:10px;top:10px;background:rgba(255,255,255,.9);border-color:transparent;color:#0B1B33}
+.tpl__body{padding:13px 15px 0}
+.tpl__meta{display:flex;align-items:center;gap:9px;font-size:11.5px;color:var(--muted);margin-top:4px}
+.tpl__meta .dot{width:3px;height:3px;border-radius:50%;background:var(--faint)}
+.tpl__foot{display:flex;align-items:center;gap:8px;padding:12px 15px 14px;margin-top:auto}
+.tpl__foot .tiny{margin-right:auto}
+
+/* ============================================================
+   SCREEN 2 — DAY OPTIMIZER
+   ============================================================ */
+.opt-head{display:flex;align-items:flex-start;gap:16px;padding:22px 0 6px}
+.backlink{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;color:var(--muted);font-weight:600}
+.backlink:hover{color:var(--brand)}
+
+.stoplist{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.stop{display:grid;grid-template-columns:34px minmax(0,1fr) auto;gap:12px;padding:12px 14px;align-items:flex-start;position:relative}
+.stop+.stop{border-top:1px solid var(--line-soft)}
+.stop__n{
+  width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  background:var(--surface-2);border:1px solid var(--line);font-size:11.5px;font-weight:750;color:var(--muted);
+}
+.stop--moved .stop__n{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-strong)}
+[data-theme="dark"] .stop--moved .stop__n{color:var(--brand)}
+.stop__name{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:650;color:var(--ink)}
+.stop__meta{display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--muted);margin-top:2px;flex-wrap:wrap}
+.stop__actions{display:flex;gap:4px}
+.stop__actions .icon-btn{width:26px;height:26px;border:0;background:transparent}
+.stop__actions .icon-btn:hover{background:var(--surface-2)}
+.leg{
+  display:flex;align-items:center;gap:8px;padding:0 14px 0 56px;height:26px;font-size:11px;
+  color:var(--faint);background:linear-gradient(var(--surface-2),var(--surface-2));
+  border-top:1px dashed var(--line-soft);border-bottom:1px dashed var(--line-soft);
+}
+.leg__dash{flex:1;border-top:1px dotted var(--line);height:1px}
+.leg .ico{color:var(--faint)}
+
+.diffcard{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.diffsum{display:flex;align-items:baseline;gap:8px;padding:14px 16px 0}
+.diffsum b{font-size:24px;font-weight:760;color:var(--brand-strong);letter-spacing:-.02em}
+[data-theme="dark"] .diffsum b{color:var(--brand)}
+.reason{display:flex;gap:9px;padding:9px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+.reason:last-child{border-bottom:0}
+.reason .ico{color:var(--brand);margin-top:1px}
+.beforeafter{display:grid;grid-template-columns:1fr auto 1fr;gap:10px;align-items:center;padding:12px 16px;background:var(--surface-2);border-top:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+.ba{text-align:center}
+.ba b{display:block;font-size:15px;color:var(--ink)}
+.ba .tiny{font-size:10px;text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+
+.mapsketch{background:linear-gradient(160deg,var(--brand-50),var(--surface-2) 70%);border:1px solid var(--line);border-radius:var(--radius-lg);overflow:hidden}
+.mapsketch svg{display:block;width:100%;height:100%}
+.route-line{stroke:var(--brand);stroke-width:2.4;fill:none;stroke-linecap:round}
+.route-ghost{stroke:var(--faint);stroke-width:1.6;fill:none;stroke-dasharray:4 5;opacity:.7}
+.map-pin{fill:var(--surface);stroke:var(--brand);stroke-width:2}
+.map-label{font:600 8.5px var(--font);fill:var(--body)}
+
+/* ============================================================
+   SCREEN 3 — TODAY / LIVE MODE
+   ============================================================ */
+.today-head{display:flex;align-items:flex-start;gap:16px;padding:24px 0 18px;flex-wrap:wrap}
+.weather{display:inline-flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:999px;background:var(--accent-50);color:#B54708;font-size:12px;font-weight:650}
+[data-theme="dark"] .weather{color:var(--accent)}
+
+.nextup{
+  position:relative;background:linear-gradient(140deg,#0B3B3A,#0C1B33 85%);color:#D7E3EA;
+  border-radius:var(--radius-lg);padding:18px;overflow:hidden;border:1px solid rgba(255,255,255,.08);
+}
+.nextup:after{
+  content:"";position:absolute;right:-70px;top:-80px;width:260px;height:260px;border-radius:50%;
+  background:radial-gradient(circle,rgba(94,234,212,.22),transparent 62%);
+}
+.nextup .eyebrow{color:#5EEAD4}
+.nextup h2{color:#fff;font-size:23px;letter-spacing:-.02em;margin-top:4px}
+.nextup .meta{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:#A9BBC6;margin-top:7px}
+.nextup .meta b{color:#EAF2F1;font-weight:650}
+.leave{display:flex;align-items:center;gap:9px;margin-top:14px;padding:9px 11px;border-radius:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);font-size:12.5px}
+.leave b{color:#5EEAD4}
+.nextup .actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+.nextup .btn{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.18);color:#EAF2F1}
+.nextup .btn--primary{background:#5EEAD4;border-color:#5EEAD4;color:#04211D}
+.nextup .btn:hover{background:rgba(255,255,255,.18)}
+.nextup .btn--primary:hover{background:#8CF0E2;border-color:#8CF0E2}
+
+.tl{position:relative}
+.tl__row{display:grid;grid-template-columns:52px 18px minmax(0,1fr);gap:10px;padding:9px 0}
+.tl__time{font-size:11.5px;color:var(--muted);text-align:right;padding-top:2px;font-variant-numeric:tabular-nums}
+.tl__dot{position:relative;display:flex;align-items:flex-start;justify-content:center}
+.tl__dot:before{content:"";position:absolute;top:12px;bottom:-22px;width:1.5px;background:var(--line)}
+.tl__row:last-child .tl__dot:before{display:none}
+.tl__dot i{width:9px;height:9px;border-radius:50%;background:var(--surface);border:2px solid var(--faint);margin-top:3px;z-index:1}
+.tl__row--done .tl__dot i{background:var(--brand);border-color:var(--brand)}
+.tl__row--now .tl__dot i{background:var(--accent);border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-50)}
+.tl__body{padding-bottom:4px}
+.tl__title{font-size:13px;font-weight:640;color:var(--ink);display:flex;align-items:center;gap:7px}
+.tl__row--done .tl__title{color:var(--muted);text-decoration:line-through;text-decoration-thickness:1px}
+.tl__meta{font-size:11px;color:var(--faint);margin-top:1px}
+
+.alert{display:flex;gap:10px;padding:11px 12px;border-radius:11px;border:1px solid var(--line);background:var(--surface);align-items:flex-start}
+.alert+.alert{margin-top:8px}
+.alert__ico{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex:none}
+.alert--warn .alert__ico{background:var(--accent-50);color:#B54708}
+.alert--info .alert__ico{background:var(--sky-50);color:#175CD3}
+.alert--danger .alert__ico{background:var(--danger-50);color:var(--danger)}
+.alert__text{font-size:12px;color:var(--body);line-height:1.4}
+.alert__text b{color:var(--ink);font-weight:650;display:block;font-size:12.5px}
+
+/* ============================================================
+   SCREEN 4 — GROUP
+   ============================================================ */
+.trip-bar{display:flex;align-items:center;gap:14px;padding:20px 0 16px;flex-wrap:wrap}
+.trip-bar .h1{font-size:24px}
+.member{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line-soft)}
+.member:last-child{border-bottom:0}
+.member__name{font-size:12.5px;font-weight:650;color:var(--ink)}
+.member__role{margin-left:auto;font-size:11px;color:var(--muted);border:1px solid var(--line);padding:3px 8px;border-radius:6px}
+.vote{display:flex;align-items:center;gap:6px}
+.vote button{display:inline-flex;align-items:center;gap:4px;height:26px;padding:0 8px;border-radius:7px;border:1px solid var(--line);font-size:11.5px;font-weight:650;color:var(--muted)}
+.vote button.is-on{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-strong)}
+[data-theme="dark"] .vote button.is-on{color:var(--brand)}
+.suggestion{padding:13px 15px;border-bottom:1px solid var(--line-soft)}
+.suggestion:last-child{border-bottom:0}
+.suggestion__top{display:flex;gap:10px;align-items:flex-start}
+.suggestion__title{font-size:13px;font-weight:660;color:var(--ink)}
+.suggestion__meta{font-size:11px;color:var(--muted);margin-top:2px}
+.suggestion__foot{display:flex;align-items:center;gap:14px;margin-top:9px}
+.suggestion--settled{background:var(--surface-2)}
+.poll{padding:14px 16px}
+.poll__opt{margin-top:10px}
+.poll__opt-top{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--ink);margin-bottom:5px}
+.poll__opt-top .tiny{margin-left:auto}
+.feed{display:flex;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+.feed:last-child{border-bottom:0}
+.feed b{color:var(--ink);font-weight:650}
+.feed .time{font-size:10.5px;color:var(--faint);margin-top:2px}
+.claim{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+.claim:last-child{border-bottom:0}
+.claim .badge{margin-left:auto}
+
+/* ============================================================
+   SCREEN 5 — MONEY
+   ============================================================ */
+.budget-strip{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:0;border:1px solid var(--line);border-radius:var(--radius-lg);background:var(--surface);overflow:hidden}
+.bud{padding:14px 16px;border-right:1px solid var(--line-soft)}
+.bud:last-child{border-right:0}
+.bud__k{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;font-weight:700;color:var(--muted)}
+.bud__v{font-size:20px;font-weight:740;color:var(--ink);letter-spacing:-.02em;margin-top:2px;font-variant-numeric:tabular-nums}
+.bud__v small{font-size:11.5px;color:var(--muted);font-weight:600}
+
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{
+  text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);
+  font-weight:700;padding:10px 14px;border-bottom:1px solid var(--line);background:var(--surface-2);
+}
+.tbl td{padding:11px 14px;border-bottom:1px solid var(--line-soft);font-size:12.5px;color:var(--body);vertical-align:middle}
+.tbl tr:last-child td{border-bottom:0}
+.tbl tr:hover td{background:var(--surface-2)}
+.tbl .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:650;color:var(--ink)}
+.cat{display:inline-flex;align-items:center;gap:6px;font-size:11.5px}
+.cat i{width:7px;height:7px;border-radius:2px;display:block}
+
+.balance{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px dashed var(--line-soft)}
+.balance:last-child{border-bottom:0}
+.balance__amt{margin-left:auto;font-size:12.5px;font-weight:700;font-variant-numeric:tabular-nums}
+.balance__amt.pos{color:var(--brand-strong)}
+[data-theme="dark"] .balance__amt.pos{color:var(--brand)}
+.balance__amt.neg{color:var(--danger)}
+.transfer{display:flex;align-items:center;gap:8px;padding:9px 0;font-size:12px;border-bottom:1px dashed var(--line-soft)}
+.transfer:last-child{border-bottom:0}
+.transfer b{color:var(--ink)}
+.donut{width:92px;height:92px;flex:none}
+.donut circle{fill:none;stroke-width:12}
+.legend{display:flex;flex-direction:column;gap:5px;font-size:11px}
+.legend span{display:flex;align-items:center;gap:6px}
+.legend i{width:8px;height:8px;border-radius:2px}
+
+/* ============================================================
+   SCREEN 6 — VAULT
+   ============================================================ */
+.banner{
+  display:flex;gap:11px;align-items:flex-start;padding:13px 15px;border-radius:var(--radius);
+  background:var(--accent-50);border:1px solid transparent;color:#B54708;
+}
+[data-theme="dark"] .banner{color:var(--accent)}
+.banner b{display:block;font-size:13px;color:var(--ink);margin-bottom:2px}
+.banner .btn{margin-left:auto;flex:none}
+.doc{display:grid;grid-template-columns:38px minmax(0,1fr) auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--line-soft)}
+.doc:last-child{border-bottom:0}
+.doc:hover{background:var(--surface-2)}
+.doc__ico{width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1px solid var(--line);color:var(--muted)}
+.doc__ico--brand{background:var(--brand-50);border-color:var(--brand-100);color:var(--brand-strong)}
+[data-theme="dark"] .doc__ico--brand{color:var(--brand)}
+.doc__title{font-size:13px;font-weight:650;color:var(--ink)}
+.doc__meta{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-size:11px;color:var(--muted);margin-top:2px}
+.doc__right{display:flex;align-items:center;gap:8px}
+.drop{
+  border:1.5px dashed var(--line);border-radius:var(--radius);padding:20px;text-align:center;
+  background:var(--surface-2);color:var(--muted);font-size:12px;
+}
+.drop:hover{border-color:var(--brand);color:var(--brand);background:var(--brand-50)}
+.drop .ico{width:22px;height:22px;margin-bottom:6px}
+.toggle{
+  position:relative;width:34px;height:20px;border-radius:999px;background:var(--line);flex:none;transition:.15s;
+}
+.toggle:after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);box-shadow:var(--shadow-sm);transition:.15s}
+.toggle.is-on{background:var(--brand)}
+.toggle.is-on:after{left:16px}
+
+/* ============================================================
+   SCREEN 7 — MEMORIES
+   ============================================================ */
+.cover{
+  border-radius:var(--radius-lg);overflow:hidden;border:1px solid var(--line);position:relative;
+  background:linear-gradient(140deg,#0B3B3A,#12435C 55%,#2E90FA);color:#EAF2F1;min-height:168px;
+}
+.cover svg{position:absolute;inset:0;width:100%;height:100%;opacity:.5}
+.cover__txt{position:relative;padding:22px}
+.cover h2{color:#fff;font-size:26px;letter-spacing:-.025em}
+.cover .eyebrow{color:#5EEAD4}
+.statrow{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-top:1px solid rgba(255,255,255,.14);margin-top:18px;padding-top:12px;gap:10px}
+.statrow div b{display:block;font-size:17px;font-weight:740;color:#fff;font-variant-numeric:tabular-nums}
+.statrow div span{font-size:10.5px;text-transform:uppercase;letter-spacing:.06em;color:#9DB0BC;font-weight:700}
+.shots{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.shot{
+  aspect-ratio:4/3;border-radius:10px;position:relative;overflow:hidden;border:1px solid var(--line);
+  background:linear-gradient(135deg,#0E9384,#0C1B33);
+}
+.shot--2{background:linear-gradient(135deg,#F79009,#7A2E0E)}
+.shot--3{background:linear-gradient(135deg,#2E90FA,#0C1B33)}
+.shot--4{background:linear-gradient(135deg,#7A5AF8,#2B1A3B)}
+.shot--5{background:linear-gradient(135deg,#0E9384,#F79009)}
+.shot--6{background:linear-gradient(135deg,#3F7D5A,#0C1B33)}
+.shot span{position:absolute;left:6px;bottom:5px;font-size:9px;color:#fff;opacity:.85;font-weight:600}
+.quote{border-left:2px solid var(--brand);padding-left:11px;font-size:12.5px;color:var(--body);font-style:italic}
+.daychip{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px dashed var(--line-soft);font-size:12px}
+.daychip:last-child{border-bottom:0}
+.daychip b{color:var(--ink);font-weight:650}
+.daychip .thumb{width:34px;height:26px;border-radius:5px;background:linear-gradient(135deg,#0E9384,#0C1B33);flex:none}
+
+/* ============================================================
+   SCREEN 8 — NOTES
+   ============================================================ */
+.notes-cols{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px;align-items:start}
+.note-card{padding:18px}
+.note-card__head{display:flex;align-items:center;gap:9px;margin-bottom:12px}
+.feat{display:flex;gap:11px;padding:11px 0;border-bottom:1px dashed var(--line-soft)}
+.feat:last-child{border-bottom:0}
+.feat__n{
+  width:22px;height:22px;border-radius:6px;background:var(--surface-2);border:1px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:10.5px;font-weight:750;color:var(--muted);flex:none;
+}
+.feat__title{font-size:12.8px;font-weight:660;color:var(--ink)}
+.feat__body{font-size:11.8px;color:var(--body);margin-top:2px;line-height:1.45}
+.feat__tags{display:flex;gap:5px;margin-top:6px;flex-wrap:wrap}
+
+@media (max-width:1080px){
+  .explore-head,.main-rail,.notes-cols{grid-template-columns:minmax(0,1fr)}
+  .budget-strip{grid-template-columns:repeat(2,1fr)}
+  .bud:nth-child(2){border-right:0}
+  .g3{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width:760px){
+  .g2,.g3{grid-template-columns:minmax(0,1fr)}
+  .nav__links{display:none}
+  .h1{font-size:24px}
+  .statrow{grid-template-columns:repeat(3,1fr)}
+  .tbl th:nth-child(3),.tbl td:nth-child(3){display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="mockbar">
+  <span class="mockbar__tag">Mock v3</span>
+  <span class="mockbar__note">Next tier of features — static proposal</span>
+  <div class="seg" role="tablist" aria-label="Screens">
+    <button role="tab" aria-selected="true" data-screen-btn="explore">Explore templates</button>
+    <button role="tab" aria-selected="false" data-screen-btn="optimize">Optimize day</button>
+    <button role="tab" aria-selected="false" data-screen-btn="today">Today</button>
+    <button role="tab" aria-selected="false" data-screen-btn="group">Group</button>
+    <button role="tab" aria-selected="false" data-screen-btn="money">Money</button>
+    <button role="tab" aria-selected="false" data-screen-btn="vault">Vault</button>
+    <button role="tab" aria-selected="false" data-screen-btn="memories">Memories</button>
+    <button role="tab" aria-selected="false" data-screen-btn="notes">Notes</button>
+  </div>
+  <div class="mockbar__right">
+    <button class="icon-btn" title="Workspace mock (v1)" onclick="location.href='trip-planner-redesign.html'">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+    </button>
+    <button class="icon-btn" id="themeBtn" title="Toggle theme" aria-label="Toggle theme">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M21 12.8A8.5 8.5 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8Z"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 1 — EXPLORE TEMPLATES
+     ============================================================ -->
+<div class="screen is-active" data-screen="explore">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link" href="#">My trips</a>
+      <a class="nav__link is-active" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <button class="btn btn--quiet btn--sm">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        Search
+      </button>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <header class="explore-head">
+      <div>
+        <span class="eyebrow">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m12 3 2.2 5.8L20 11l-5.8 2.2L12 19l-2.2-5.8L4 11l5.8-2.2z"/></svg>
+          Explore
+        </span>
+        <h1 class="h1" style="margin-top:8px">Start from a shape,<br>not a blank page.</h1>
+        <p class="sub" style="margin-top:8px;max-width:62ch">
+          Curated routes you can duplicate and edit. Every template is a real itinerary with stops,
+          walking distances and opening hours — not a listicle.
+        </p>
+        <div class="searchline">
+          <label class="input input--lg" style="flex:1">
+            <svg class="ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input placeholder="Search templates, cities or a mood — “slow food in Lisbon”" aria-label="Search templates" />
+          </label>
+          <button class="btn btn--primary" style="height:46px;padding:0 20px">Find a route</button>
+        </div>
+      </div>
+
+      <aside class="card card--pad">
+        <div class="flex between" style="margin-bottom:6px">
+          <span class="label" style="margin:0">Your travel profile</span>
+          <span class="badge badge--brand">From 3 trips</span>
+        </div>
+        <p class="tiny" style="margin-bottom:10px">Templates are ranked by these. Adjust any time — it only affects ordering.</p>
+        <div class="flex wrap-flex" style="gap:6px">
+          <span class="chip chip--sm is-on">Food &amp; markets</span>
+          <span class="chip chip--sm is-on">Ancient history</span>
+          <span class="chip chip--sm is-on">Walkable cities</span>
+          <span class="chip chip--sm">Hiking</span>
+          <span class="chip chip--sm">Nightlife</span>
+          <span class="chip chip--sm">With kids</span>
+        </div>
+        <div class="divider"></div>
+        <div class="kv"><span>Pace</span><b>Balanced · 3–4 stops a day</b></div>
+        <div class="kv"><span>Budget band</span><b>€150–300 per person</b></div>
+        <div class="kv"><span>Usual party</span><b>2 adults</b></div>
+      </aside>
+    </header>
+
+    <div class="filterbar">
+      <button class="chip is-on">All templates</button>
+      <button class="chip">Weekend</button>
+      <button class="chip">Food &amp; drink</button>
+      <button class="chip">Budget</button>
+      <button class="chip">Outdoors</button>
+      <button class="chip">Culture</button>
+      <button class="chip">Slow travel</button>
+      <button class="chip">With kids</button>
+      <span class="tiny">28 templates · updated weekly</span>
+    </div>
+
+    <section class="section" style="padding-top:16px">
+      <div class="g3">
+
+        <article class="tpl">
+          <div class="tpl__cover tpl__cover--2">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="28,92 88,64 128,78 188,38 236,54 268,24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="28" cy="92" r="4" fill="#fff"/><circle cx="128" cy="78" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="188" cy="38" r="3" fill="#fff" opacity=".8"/><circle cx="268" cy="24" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">3 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">Athens in three acts</h3>
+            <div class="tpl__meta"><span>11 stops</span><span class="dot"></span><span>€240 pp</span><span class="dot"></span><span>Ancient + food</span></div>
+            <p class="tiny" style="margin-top:7px">Acropolis before the heat, Plaka at lunch, the coast on day three.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">Editor's pick</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+        <article class="tpl">
+          <div class="tpl__cover tpl__cover--3">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="24,84 74,70 118,82 168,44 214,58 276,32" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="24" cy="84" r="4" fill="#fff"/><circle cx="118" cy="82" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="214" cy="58" r="3" fill="#fff" opacity=".8"/><circle cx="276" cy="32" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">2 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">48 hours in Lisbon</h3>
+            <div class="tpl__meta"><span>7 stops</span><span class="dot"></span><span>€180 pp</span><span class="dot"></span><span>Hills + trams</span></div>
+            <p class="tiny" style="margin-top:7px">Alfama at golden hour, two miradouros, one very long lunch.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">1.2k saves</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+        <article class="tpl">
+          <div class="tpl__cover tpl__cover--4">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="30,96 78,66 126,74 176,50 224,60 272,26" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round" stroke-dasharray="5 4"/>
+              <circle cx="30" cy="96" r="4" fill="#fff"/><circle cx="126" cy="74" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="224" cy="60" r="3" fill="#fff" opacity=".8"/><circle cx="272" cy="26" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">4 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">Dolomites hut loop</h3>
+            <div class="tpl__meta"><span>9 stops</span><span class="dot"></span><span>€420 pp</span><span class="dot"></span><span>Hiking</span></div>
+            <p class="tiny" style="margin-top:7px">Two huts, one cable car, no car needed. Grade: moderate.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">Seasonal · Jun–Sep</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+        <article class="tpl">
+          <div class="tpl__cover tpl__cover--5">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="26,88 82,74 130,86 184,56 228,66 274,30" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="26" cy="88" r="4" fill="#fff"/><circle cx="130" cy="86" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="228" cy="66" r="3" fill="#fff" opacity=".8"/><circle cx="274" cy="30" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">7 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">Kyoto, slowly</h3>
+            <div class="tpl__meta"><span>14 stops</span><span class="dot"></span><span>€780 pp</span><span class="dot"></span><span>Slow travel</span></div>
+            <p class="tiny" style="margin-top:7px">One district per day. Temples at 7am, markets at 10, tea at 4.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">Editor's pick</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+        <article class="tpl">
+          <div class="tpl__cover">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="24,80 70,66 116,74 162,42 208,52 278,28" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="24" cy="80" r="4" fill="#fff"/><circle cx="116" cy="74" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="208" cy="52" r="3" fill="#fff" opacity=".8"/><circle cx="278" cy="28" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">3 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">Rome on a shoestring</h3>
+            <div class="tpl__meta"><span>10 stops</span><span class="dot"></span><span>€150 pp</span><span class="dot"></span><span>Budget</span></div>
+            <p class="tiny" style="margin-top:7px">Free-entry Sundays, fountain water, and the good €6 pizza.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">Under €60/day</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+        <article class="tpl">
+          <div class="tpl__cover tpl__cover--6">
+            <svg viewBox="0 0 300 118" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="32,90 84,58 132,72 180,46 226,62 270,34" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2" stroke-linecap="round"/>
+              <circle cx="32" cy="90" r="4" fill="#fff"/><circle cx="132" cy="72" r="3" fill="#fff" opacity=".8"/>
+              <circle cx="226" cy="62" r="3" fill="#fff" opacity=".8"/><circle cx="270" cy="34" r="4" fill="#fff"/>
+            </svg>
+            <span class="badge tpl__days" style="background:rgba(255,255,255,.92);color:#0B1B33">4 days</span>
+            <button class="icon-btn tpl__save" aria-label="Save template">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 20s-7-4.4-7-9.2A3.8 3.8 0 0 1 12 8a3.8 3.8 0 0 1 7 2.8C19 15.6 12 20 12 20Z"/></svg>
+            </button>
+          </div>
+          <div class="tpl__body">
+            <h3 class="h3">Istanbul, two shores</h3>
+            <div class="tpl__meta"><span>12 stops</span><span class="dot"></span><span>€310 pp</span><span class="dot"></span><span>Food + ferries</span></div>
+            <p class="tiny" style="margin-top:7px">Sultanahmet early, Kadıköy late, and the ferry in between.</p>
+          </div>
+          <div class="tpl__foot">
+            <span class="tiny">New this week</span>
+            <button class="btn btn--sm">Preview</button>
+            <button class="btn btn--sm btn--primary">Use template</button>
+          </div>
+        </article>
+
+      </div>
+    </section>
+
+    <section class="section" style="padding-top:0;padding-bottom:52px">
+      <div class="g2">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Trending near your saved trips</h2>
+            <span class="badge badge--brand">Ranked by saves</span>
+          </div>
+          <div class="card__body" style="padding-top:4px;padding-bottom:4px">
+            <div class="kv" style="padding:12px 0">
+              <div>
+                <div class="h4">Athens · one perfect day</div>
+                <div class="tiny">Acropolis, Plaka, Anafiotika · 5 stops · 6 km</div>
+              </div>
+              <div style="text-align:right">
+                <div class="badge badge--brand">+18% saves</div>
+                <div class="tiny" style="margin-top:4px">2h ago</div>
+              </div>
+            </div>
+            <div class="kv" style="padding:12px 0">
+              <div>
+                <div class="h4">Lisbon · miradouro crawl</div>
+                <div class="tiny">Alfama to Graça · 6 stops · 4.1 km</div>
+              </div>
+              <div style="text-align:right">
+                <div class="badge badge--brand">+11% saves</div>
+                <div class="tiny" style="margin-top:4px">Today</div>
+              </div>
+            </div>
+            <div class="kv" style="padding:12px 0">
+              <div>
+                <div class="h4">Kyoto · temple mornings</div>
+                <div class="tiny">Higashiyama · 4 stops · 3.4 km</div>
+              </div>
+              <div style="text-align:right">
+                <div class="badge badge--neutral">+6% saves</div>
+                <div class="tiny" style="margin-top:4px">Yesterday</div>
+              </div>
+            </div>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Based on the cities in your saved trips. No profile tracking.</span>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">See all</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Your remixes</h2>
+            <span class="chip chip--sm">2 drafts</span>
+          </div>
+          <div class="card__body stack stack--sm">
+            <div class="flex flex--top" style="gap:12px">
+              <div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#F79009,#7A2E0E);flex:none"></div>
+              <div style="flex:1;min-width:0">
+                <div class="flex between"><span class="h4">Lisbon, but slower</span><span class="badge badge--warn">Draft</span></div>
+                <div class="tiny">From “48 hours in Lisbon” · 5 stops kept · 2 removed</div>
+                <div class="meter" style="margin-top:7px"><div class="meter__fill" style="width:64%"></div></div>
+                <div class="tiny" style="margin-top:3px">Day 2 of 3 planned · edited 2 days ago</div>
+              </div>
+            </div>
+            <div class="flex flex--top" style="gap:12px">
+              <div style="width:56px;height:56px;border-radius:10px;background:linear-gradient(135deg,#0E9384,#0C1B33);flex:none"></div>
+              <div style="flex:1;min-width:0">
+                <div class="flex between"><span class="h4">Athens with the kids</span><span class="badge badge--warn">Draft</span></div>
+                <div class="tiny">From “Athens in three acts” · stops shortened to 90 min</div>
+                <div class="meter" style="margin-top:7px"><div class="meter__fill" style="width:28%"></div></div>
+                <div class="tiny" style="margin-top:3px">Day 1 of 4 planned · edited last week</div>
+              </div>
+            </div>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Duplicating a template never changes the original.</span>
+            <button class="btn btn--sm" style="margin-left:auto">Resume draft</button>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="card card--pad" style="margin-top:18px;display:flex;gap:12px;align-items:flex-start">
+        <svg class="ico" style="color:var(--brand);margin-top:2px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+        <p class="tiny" style="color:var(--body);max-width:82ch">
+          <b style="color:var(--ink)">Templates are seeds, not scripts.</b> Using one copies its stops (with coordinates, durations
+          and opening hours) into a new trip you own. The template itself stays read-only, so your edits can never
+          break it for the next person.
+        </p>
+      </div>
+    </section>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 2 — DAY OPTIMIZER
+     ============================================================ -->
+<div class="screen" data-screen="optimize">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <div class="avatars">
+        <div class="avatar avatar--sm">DR</div>
+        <div class="avatar avatar--sm avatar--sky">MK</div>
+        <div class="avatar avatar--sm avatar--warn">SP</div>
+      </div>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="opt-head">
+      <div style="flex:1;min-width:0">
+        <a class="backlink" href="#">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+          Athens · 4 days
+        </a>
+        <h1 class="h1" style="margin-top:6px">Day 2 · Acropolis &amp; Plaka</h1>
+        <p class="sub">5 stops · 6.2 km planned · 09:00–19:30 · 2 travellers</p>
+      </div>
+      <div class="flex" style="flex-wrap:wrap">
+        <button class="btn btn--quiet btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg>
+          Undo
+        </button>
+        <button class="btn btn--sm">Discard</button>
+        <button class="btn btn--primary btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+          Apply new order
+        </button>
+      </div>
+    </div>
+
+    <div class="card card--pad" style="margin-bottom:18px">
+      <div class="flex between wrap-flex" style="margin-bottom:10px">
+        <div class="flex" style="gap:8px;flex-wrap:wrap">
+          <span class="label" style="margin:0;align-self:center">Optimize for</span>
+          <button class="chip is-on">Opening hours</button>
+          <button class="chip is-on">Shortest walk</button>
+          <button class="chip">Fewest tickets</button>
+          <button class="chip">Relaxed pace</button>
+          <button class="chip">Kid-friendly</button>
+        </div>
+        <span class="tiny">Recomputed in 0.4s · no bookings changed</span>
+      </div>
+      <div class="flex" style="gap:14px">
+        <span class="tiny" style="width:96px;flex:none">Walking budget</span>
+        <div style="flex:1;position:relative;height:20px">
+          <div class="meter" style="position:absolute;top:6px;left:0;right:0">
+            <div class="meter__fill" style="width:58%"></div>
+          </div>
+          <div style="position:absolute;left:57%;top:2px;width:16px;height:16px;border-radius:50%;background:var(--surface);border:2px solid var(--brand);box-shadow:var(--shadow-sm)"></div>
+        </div>
+        <span class="tiny mono" style="width:56px;text-align:right">5.4 km</span>
+      </div>
+    </div>
+
+    <div class="main-rail" style="padding-bottom:52px">
+
+      <div class="stack">
+        <div class="flex between">
+          <h2 class="h2">Proposed order</h2>
+          <span class="badge badge--brand">3 stops moved</span>
+        </div>
+
+        <div class="stoplist">
+
+          <div class="stop stop--moved">
+            <span class="stop__n">1</span>
+            <div>
+              <div class="stop__name">
+                Acropolis Museum
+                <span class="badge badge--brand">was #3</span>
+              </div>
+              <div class="stop__meta">
+                <span>09:00</span><span>·</span><span>2h</span><span>·</span>
+                <span style="color:var(--brand-strong)">opens 09:00 · no queue before 09:30</span>
+              </div>
+            </div>
+            <div class="stop__actions">
+              <button class="icon-btn" aria-label="Drag to reorder">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+              </button>
+              <button class="icon-btn" aria-label="More">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="leg">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M13 5a2 2 0 1 0-3.6 1.2L4 12v5h5l5.8-5.4A2 2 0 0 0 13 5Z"/><path d="M6 17v3"/></svg>
+            <span>12 min walk · 850 m · mostly flat</span>
+            <span class="leg__dash"></span>
+            <span class="badge badge--brand">−4 min</span>
+          </div>
+
+          <div class="stop stop--moved">
+            <span class="stop__n">2</span>
+            <div>
+              <div class="stop__name">
+                Acropolis &amp; Parthenon
+                <span class="badge badge--warn">closes 15:00 today</span>
+              </div>
+              <div class="stop__meta">
+                <span>11:20</span><span>·</span><span>1h 45m</span><span>·</span>
+                <span>timed entry 11:00–11:30 · booked</span>
+              </div>
+            </div>
+            <div class="stop__actions">
+              <button class="icon-btn" aria-label="Drag to reorder">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+              </button>
+              <button class="icon-btn" aria-label="More">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="leg">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M13 5a2 2 0 1 0-3.6 1.2L4 12v5h5l5.8-5.4A2 2 0 0 0 13 5Z"/><path d="M6 17v3"/></svg>
+            <span>18 min walk · 1.3 km · downhill steps</span>
+            <span class="leg__dash"></span>
+            <span class="badge badge--neutral">same</span>
+          </div>
+
+          <div class="stop stop--moved">
+            <span class="stop__n">3</span>
+            <div>
+              <div class="stop__name">
+                Taverna Tou Psirri · lunch
+                <span class="badge badge--brand">was 15:10</span>
+              </div>
+              <div class="stop__meta">
+                <span>13:30</span><span>·</span><span>1h</span><span>·</span>
+                <span>table for 2 confirmed · €38 est.</span>
+              </div>
+            </div>
+            <div class="stop__actions">
+              <button class="icon-btn" aria-label="Drag to reorder">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+              </button>
+              <button class="icon-btn" aria-label="More">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="leg">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M13 5a2 2 0 1 0-3.6 1.2L4 12v5h5l5.8-5.4A2 2 0 0 0 13 5Z"/><path d="M6 17v3"/></svg>
+            <span>9 min walk · 600 m</span>
+            <span class="leg__dash"></span>
+            <span class="badge badge--brand">−6 min</span>
+          </div>
+
+          <div class="stop">
+            <span class="stop__n">4</span>
+            <div>
+              <div class="stop__name">Ancient Agora</div>
+              <div class="stop__meta">
+                <span>15:00</span><span>·</span><span>1h 30m</span><span>·</span>
+                <span>last entry 16:40 · included in combo ticket</span>
+              </div>
+            </div>
+            <div class="stop__actions">
+              <button class="icon-btn" aria-label="Drag to reorder">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+              </button>
+              <button class="icon-btn" aria-label="More">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="leg">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><rect x="6" y="4" width="12" height="13" rx="3"/><path d="M6 11h12M9 20l2-3M15 20l-2-3"/></svg>
+            <span>22 min · Metro M2, 3 stops · €1.20</span>
+            <span class="leg__dash"></span>
+            <span class="badge badge--brand">−24 min</span>
+          </div>
+
+          <div class="stop">
+            <span class="stop__n">5</span>
+            <div>
+              <div class="stop__name">
+                Lycabettus Hill
+                <span class="badge badge--sky">sunset 19:42</span>
+              </div>
+              <div class="stop__meta">
+                <span>17:10</span><span>·</span><span>1h 15m</span><span>·</span>
+                <span>funicular €10 return · cash or card</span>
+              </div>
+            </div>
+            <div class="stop__actions">
+              <button class="icon-btn" aria-label="Drag to reorder">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M8 6h.01M8 12h.01M8 18h.01M16 6h.01M16 12h.01M16 18h.01"/></svg>
+              </button>
+              <button class="icon-btn" aria-label="More">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <div class="card card--flat card--pad" style="background:var(--surface-2);display:flex;gap:10px;align-items:flex-start">
+          <svg class="ico" style="color:var(--brand);margin-top:1px" viewBox="0 0 24 24"><path d="M12 3v2m0 14v2M3 12h2m14 0h2M5.6 5.6l1.4 1.4m10 10 1.4 1.4m0-12.8-1.4 1.4m-10 10-1.4 1.4"/><circle cx="12" cy="12" r="4"/></svg>
+          <p class="tiny" style="color:var(--body)">
+            <b style="color:var(--ink)">Nothing is booked for you.</b> Optimizing only reorders the day and updates travel legs.
+            If you have a timed ticket or a table, that stop is pinned and shown with a lock.
+            <a href="#" style="color:var(--brand-strong);font-weight:600">Pin a stop →</a>
+          </p>
+        </div>
+      </div>
+
+      <aside class="stack">
+
+        <div class="diffcard">
+          <div class="card__head">
+            <h2 class="h3">What changes</h2>
+            <span class="badge badge--brand">Preview</span>
+          </div>
+          <div class="diffsum">
+            <b>34 min</b>
+            <span class="tiny">less walking, 1 closure avoided, sunset protected</span>
+          </div>
+          <div class="card__body" style="padding-top:12px">
+            <div class="bar-row" style="margin-bottom:10px">
+              <span class="tiny">Walking</span>
+              <div class="bar"><i style="width:78%"></i></div>
+              <span class="tiny mono" style="text-align:right">6.2 km</span>
+            </div>
+            <div class="bar-row" style="margin-bottom:10px">
+              <span class="tiny">Waiting</span>
+              <div class="bar"><i style="width:32%;background:var(--accent)"></i></div>
+              <span class="tiny mono" style="text-align:right">58 min</span>
+            </div>
+            <div class="bar-row">
+              <span class="tiny">Backtrack</span>
+              <div class="bar"><i style="width:24%;background:var(--violet)"></i></div>
+              <span class="tiny mono" style="text-align:right">1.4 km</span>
+            </div>
+
+            <div class="beforeafter" style="margin:14px -16px 0;border-bottom:0">
+              <div class="ba"><span class="tiny">Now</span><b>6.2 km</b><span class="tiny">58 min waiting</span></div>
+              <svg class="ico" style="color:var(--faint)" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+              <div class="ba"><span class="tiny">Proposed</span><b style="color:var(--brand-strong)">5.4 km</b><span class="tiny">24 min waiting</span></div>
+            </div>
+
+            <div class="divider"></div>
+            <div class="reason">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              <span><b style="color:var(--ink)">Museum moved first.</b> Opens at 09:00 and stays quiet for the first half hour — you skip the 11:00 coach groups.</span>
+            </div>
+            <div class="reason">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01"/><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg>
+              <span><b style="color:var(--ink)">Holiday closure.</b> The Acropolis shuts at 15:00 on the 24th. In the old order you arrived at 15:40.</span>
+            </div>
+            <div class="reason">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3v2M4.9 6.9l1.4 1.4M2 14h3m14 0h3m-2.3-7.1-1.4 1.4"/><path d="M7 18h10"/><path d="M8 21h8"/></svg>
+              <span><b style="color:var(--ink)">Sunset at 19:42.</b> Lycabettus now has 90 minutes of light instead of 40.</span>
+            </div>
+          </div>
+          <div class="card__foot">
+            <button class="btn btn--sm btn--block">Apply new order</button>
+          </div>
+        </div>
+
+        <div class="mapsketch">
+          <svg viewBox="0 0 336 190" aria-label="Map preview of the old dashed route and the proposed solid route">
+            <rect width="336" height="190" fill="transparent"/>
+            <g stroke="var(--line)" stroke-width="1">
+              <path d="M0 40h336M0 80h336M0 120h336M0 160h336"/>
+              <path d="M40 0v190M110 0v190M180 0v190M250 0v190M310 0v190"/>
+            </g>
+            <path d="M36 154 84 96 120 142 176 96 236 132 292 62" fill="none" stroke="var(--line)" stroke-width="10" stroke-linejoin="round" opacity=".55"/>
+            <path class="route-ghost" d="M36 154 120 142 176 96 292 62 236 132"/>
+            <path class="route-line" d="M36 154 84 96 120 142 176 96 236 132 292 62"/>
+            <g>
+              <circle class="map-pin" cx="36" cy="154" r="5"/>
+              <circle class="map-pin" cx="84" cy="96" r="5"/>
+              <circle class="map-pin" cx="120" cy="142" r="5"/>
+              <circle class="map-pin" cx="176" cy="96" r="5"/>
+              <circle class="map-pin" cx="236" cy="132" r="5"/>
+              <circle class="map-pin" cx="292" cy="62" r="5"/>
+            </g>
+            <text class="map-label" x="44" y="168">Plaka</text>
+            <text class="map-label" x="186" y="88">Agora</text>
+            <text class="map-label" x="256" y="54">Lycabettus</text>
+            <g transform="translate(210,160)">
+              <line x1="0" y1="0" x2="26" y2="0" stroke="var(--brand)" stroke-width="2.4"/>
+              <text class="map-label" x="32" y="3">proposed</text>
+              <line x1="0" y1="12" x2="26" y2="12" stroke="var(--faint)" stroke-width="1.6" stroke-dasharray="4 4"/>
+              <text class="map-label" x="32" y="15">current</text>
+            </g>
+          </svg>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Held in place</h2>
+            <span class="chip chip--sm">3 items</span>
+          </div>
+          <div class="card__body stack stack--sm">
+            <div class="flex" style="gap:9px">
+              <svg class="ico ico--sm" style="color:var(--muted)" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <div style="flex:1">
+                <div class="h4">Acropolis entry · 11:00</div>
+                <div class="tiny">Timed ticket, non-refundable</div>
+              </div>
+            </div>
+            <div class="flex" style="gap:9px">
+              <svg class="ico ico--sm" style="color:var(--muted)" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <div style="flex:1">
+                <div class="h4">Lunch table · 13:30</div>
+                <div class="tiny">Restaurant does not hold after 13:45</div>
+              </div>
+            </div>
+            <div class="flex" style="gap:9px">
+              <svg class="ico ico--sm" style="color:var(--muted)" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+              <div style="flex:1">
+                <div class="h4">Evening · 20:30 dinner</div>
+                <div class="tiny">Outside this day — untouched</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</div>
+<!-- ============================================================
+     SCREEN 3 — TODAY / LIVE MODE
+     ============================================================ -->
+<div class="screen" data-screen="today">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <span class="badge badge--live"><span class="pulse"></span>Live</span>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="today-head">
+      <div style="flex:1;min-width:0">
+        <a class="backlink" href="#">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+          Athens · 4 days
+        </a>
+        <h1 class="h1" style="margin-top:6px">Today · Friday 24 Oct</h1>
+        <p class="sub">Day 2 of 4 · 5 stops · finishes around 19:30</p>
+      </div>
+      <div class="flex" style="gap:8px;flex-wrap:wrap">
+        <span class="weather">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M5 5l1.4 1.4m11.2 11.2L19 19M19 5l-1.4 1.4M6.4 17.6 5 19"/></svg>
+          21° · sunny until 16:00
+        </span>
+        <button class="btn btn--sm">Day plan</button>
+        <button class="btn btn--sm btn--primary">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          Navigate
+        </button>
+      </div>
+    </div>
+
+    <div class="main-rail" style="padding-bottom:52px">
+
+      <div class="stack">
+
+        <div class="nextup">
+          <span class="eyebrow">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+            Next up · in 12 min
+          </span>
+          <h2>Acropolis Museum</h2>
+          <div class="meta">
+            <span><b>09:00–10:45</b></span>
+            <span><b>650 m</b> walk</span>
+            <span>Tickets <b>in wallet</b></span>
+            <span>Entry <b>gate B</b></span>
+          </div>
+          <div class="leave">
+            <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M13 5a2 2 0 1 0-3.6 1.2L4 12v5h5l5.8-5.4A2 2 0 0 0 13 5Z"/><path d="M6 17v3"/></svg>
+            Leave by <b>09:48</b> — 8 min walk, mostly shaded
+          </div>
+          <div class="actions">
+            <button class="btn btn--primary">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m3 11 19-8-8 19-2-9-9-2Z"/></svg>
+              Directions
+            </button>
+            <button class="btn">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+              Check in
+            </button>
+            <button class="btn">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              Running late
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Today's plan</h2>
+            <span class="chip chip--sm">2 of 5 done</span>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">Edit day</button>
+          </div>
+          <div class="card__body" style="padding-top:6px;padding-bottom:8px">
+            <div class="tl">
+
+              <div class="tl__row tl__row--done">
+                <span class="tl__time">08:10</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">Breakfast · hotel terrace</div>
+                  <div class="tl__meta">Included · 40 min · checked in 08:52</div>
+                </div>
+              </div>
+
+              <div class="tl__row tl__row--now">
+                <span class="tl__time">09:00</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">
+                    Acropolis Museum
+                    <span class="badge badge--brand">now</span>
+                  </div>
+                  <div class="tl__meta">2h · €12 pp · 650 m from hotel · ticket #A-2291</div>
+                </div>
+              </div>
+
+              <div class="tl__row">
+                <span class="tl__time">11:20</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">
+                    Acropolis &amp; Parthenon
+                    <span class="badge badge--warn">closes 15:00</span>
+                  </div>
+                  <div class="tl__meta">1h 45m · timed entry 11:00–11:30 · 12 min walk uphill</div>
+                </div>
+              </div>
+
+              <div class="tl__row">
+                <span class="tl__time">13:30</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">
+                    Taverna Tou Psirri · lunch
+                    <span class="badge badge--brand">table for 2</span>
+                  </div>
+                  <div class="tl__meta">1h · €38 estimated · 18 min walk downhill</div>
+                </div>
+              </div>
+
+              <div class="tl__row">
+                <span class="tl__time">15:00</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">Ancient Agora</div>
+                  <div class="tl__meta">1h 30m · combo ticket · last entry 16:40</div>
+                </div>
+              </div>
+
+              <div class="tl__row">
+                <span class="tl__time">17:10</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">
+                    Lycabettus Hill
+                    <span class="badge badge--sky">sunset 19:42</span>
+                  </div>
+                  <div class="tl__meta">1h 15m · Metro M2 + funicular · 22 min</div>
+                </div>
+              </div>
+
+              <div class="tl__row">
+                <span class="tl__time">20:30</span>
+                <span class="tl__dot"><i></i></span>
+                <div class="tl__body">
+                  <div class="tl__title">
+                    Dinner · roof garden
+                    <span class="badge badge--neutral">4 people</span>
+                  </div>
+                  <div class="tl__meta">Confirmed · approx. €34 pp · 4 min walk from hotel</div>
+                </div>
+              </div>
+
+            </div>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Times update automatically as you check stops off.</span>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">Share today</button>
+          </div>
+        </div>
+
+      </div>
+
+      <aside class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Watch-outs</h2>
+            <span class="badge badge--warn">3</span>
+          </div>
+          <div class="card__body" style="padding-top:12px">
+            <div class="alert alert--warn">
+              <span class="alert__ico">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M6 16a4 4 0 0 1 .6-8 5.5 5.5 0 0 1 10.6 1.4A3.5 3.5 0 0 1 17.5 16H6Z"/><path d="M8 19l-.5 2M12 19l-.5 2M16 19l-.5 2"/></svg>
+              </span>
+              <div class="alert__text">
+                <b>Rain from 16:00</b>
+                80% chance, 4 mm. Lycabettus will be in cloud — the rooftop alternative is indoor.
+                <a href="#" style="color:var(--brand-strong);font-weight:650">Swap the stop →</a>
+              </div>
+            </div>
+            <div class="alert alert--danger">
+              <span class="alert__ico">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+              </span>
+              <div class="alert__text">
+                <b>Timed entry in 1h 28m</b>
+                Acropolis gate closes at 11:30. You are 12 min from the museum exit.
+              </div>
+            </div>
+            <div class="alert alert--info">
+              <span class="alert__ico">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.7A8 8 0 1 1 21 12Z"/></svg>
+              </span>
+              <div class="alert__text">
+                <b>Maya · 8 min ago</b>
+                “Museum queue is short at gate B, come now.” 
+                <a href="#" style="color:var(--brand-strong);font-weight:650">Reply</a>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">With you</h2>
+            <span class="chip chip--sm">3 sharing</span>
+          </div>
+          <div class="card__body">
+            <div class="flex" style="gap:10px">
+              <div class="avatars">
+                <div class="avatar avatar--sky">MK</div>
+                <div class="avatar avatar--warn">SP</div>
+                <div class="avatar avatar--violet">AR</div>
+              </div>
+              <div style="flex:1">
+                <div class="h4">Live location on</div>
+                <div class="tiny">Until 22:00 · only this trip's members</div>
+              </div>
+              <button class="toggle is-on" data-toggle aria-label="Toggle live location"></button>
+            </div>
+            <div class="divider"></div>
+            <div class="flex between">
+              <div>
+                <div class="h4">Maya is 0.4 km away</div>
+                <div class="tiny">Last seen just now · heading to gate B</div>
+              </div>
+              <button class="btn btn--sm">Message</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card--pad">
+          <div class="flex between" style="margin-bottom:4px">
+            <span class="label" style="margin:0">Offline pack</span>
+            <span class="badge badge--brand">Up to date</span>
+          </div>
+          <p class="tiny">Maps, tickets and today's plan are cached. Works without signal — useful in the metro and on the hill.</p>
+          <div class="flex between" style="margin-top:10px">
+            <span class="tiny mono">38 MB · saved 11:40</span>
+            <button class="btn btn--sm btn--ghost">Manage</button>
+          </div>
+        </div>
+
+        <div class="card card--pad" style="display:flex;gap:10px;align-items:center">
+          <div style="width:38px;height:38px;border-radius:10px;background:var(--brand-50);display:flex;align-items:center;justify-content:center;color:var(--brand-strong)">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v3m0 12v3M3 12h3m12 0h3"/><circle cx="12" cy="12" r="3.5"/></svg>
+          </div>
+          <div style="flex:1">
+            <div class="h4">Next ticket window</div>
+            <div class="tiny">Acropolis · 11:00–11:30 · 1h 28m left</div>
+          </div>
+          <button class="btn btn--sm">Open</button>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 4 — GROUP / COLLABORATION
+     ============================================================ -->
+<div class="screen" data-screen="group">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <button class="btn btn--quiet btn--sm">Notifications</button>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="trip-bar">
+      <a class="backlink" href="#" style="align-self:center">
+        <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+      </a>
+      <div>
+        <div class="flex" style="gap:9px">
+          <h1 class="h1">Athens &amp; the Saronic Gulf</h1>
+          <span class="badge badge--brand">Shared</span>
+        </div>
+        <div class="sub" style="margin-top:4px">24–27 Oct · 4 travellers · owner: you</div>
+      </div>
+      <div class="avatars" style="margin-left:6px">
+        <div class="avatar">DR</div>
+        <div class="avatar avatar--sky">MK</div>
+        <div class="avatar avatar--warn">SP</div>
+        <div class="avatar avatar--violet">AR</div>
+        <div class="avatar avatar--sm" style="background:var(--surface-2);color:var(--muted);border-style:dashed">+1</div>
+      </div>
+      <div class="flex" style="margin-left:auto">
+        <button class="btn btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1"/><path d="M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1"/></svg>
+          Copy link
+        </button>
+        <button class="btn btn--sm btn--primary">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Invite
+        </button>
+      </div>
+    </div>
+
+    <div class="g3" style="padding-bottom:52px;align-items:start">
+
+      <div class="card">
+        <div class="card__head">
+          <h2 class="h3">Suggestions</h2>
+          <span class="badge badge--warn">3 open</span>
+        </div>
+
+        <div class="suggestion">
+          <div class="suggestion__top">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--accent-50);display:flex;align-items:center;justify-content:center;color:#B54708;flex:none">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M5 3v18l7-4 7 4V3z"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="suggestion__title">Sunset at Philopappos Hill</div>
+              <div class="suggestion__meta">Maya · added 2h ago · 1.2 km from day 2's route</div>
+            </div>
+          </div>
+          <div class="suggestion__foot">
+            <div class="vote">
+              <button class="is-on">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg>
+                3
+              </button>
+              <button>
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg>
+                0
+              </button>
+            </div>
+            <button class="btn btn--sm" style="margin-left:auto">Add to Day 2</button>
+            <button class="icon-btn" aria-label="More" style="width:28px;height:28px">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>
+            </button>
+          </div>
+        </div>
+
+        <div class="suggestion">
+          <div class="suggestion__top">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--sky-50);display:flex;align-items:center;justify-content:center;color:#175CD3;flex:none">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M4 18h16M6 18V9m4 9V9m4 9V9m4 9V9M3 9l9-6 9 6"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="suggestion__title">Day trip to Aegina</div>
+              <div class="suggestion__meta">Sam · added yesterday · replaces day 4 morning</div>
+            </div>
+          </div>
+          <div class="suggestion__foot">
+            <div class="vote">
+              <button>
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg>
+                2
+              </button>
+              <button>
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg>
+                1
+              </button>
+            </div>
+            <button class="btn btn--sm" style="margin-left:auto">Add to Day 4</button>
+          </div>
+        </div>
+
+        <div class="suggestion">
+          <div class="suggestion__top">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--violet-50);display:flex;align-items:center;justify-content:center;color:#5925DC;flex:none">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M4 20h16M7 20V9h10v11M9 9V5h6v4"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="suggestion__title">Benaki Museum (air-conditioned)</div>
+              <div class="suggestion__meta">Ana · added 40 min ago · rain backup for Friday</div>
+            </div>
+          </div>
+          <div class="suggestion__foot">
+            <div class="vote">
+              <button>
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 14 6-6 6 6"/></svg>
+                1
+              </button>
+              <button>
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m6 10 6 6 6-6"/></svg>
+                0
+              </button>
+            </div>
+            <button class="btn btn--sm" style="margin-left:auto">Add as backup</button>
+          </div>
+        </div>
+
+        <div class="suggestion suggestion--settled">
+          <div class="suggestion__top">
+            <div style="width:34px;height:34px;border-radius:9px;background:var(--surface-2);border:1px solid var(--line);display:flex;align-items:center;justify-content:center;color:var(--muted);flex:none">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7"/></svg>
+            </div>
+            <div style="flex:1;min-width:0">
+              <div class="suggestion__title" style="color:var(--muted)">Cape Sounion at sunset</div>
+              <div class="suggestion__meta">Added to Day 3 · 2h drive each way, voted down</div>
+            </div>
+            <span class="badge">Settled</span>
+          </div>
+        </div>
+
+        <div class="card__foot">
+          <button class="btn btn--sm btn--block">Suggest a place</button>
+        </div>
+      </div>
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Decisions</h2>
+            <span class="badge badge--sky">Closes in 6h</span>
+          </div>
+          <div class="poll">
+            <div class="flex between">
+              <span class="h4">Dinner on Friday?</span>
+              <span class="tiny">3 of 4 voted</span>
+            </div>
+
+            <div class="poll__opt">
+              <div class="poll__opt-top">
+                <span>Roof garden taverna</span>
+                <span class="tiny">62%</span>
+              </div>
+              <div class="meter"><div class="meter__fill" style="width:62%"></div></div>
+            </div>
+
+            <div class="poll__opt">
+              <div class="poll__opt-top">
+                <span>Seafood in Piraeus</span>
+                <span class="tiny">25%</span>
+              </div>
+              <div class="meter"><div class="meter__fill" style="width:25%;background:var(--sky)"></div></div>
+            </div>
+
+            <div class="poll__opt">
+              <div class="poll__opt-top">
+                <span>Stay in and cook</span>
+                <span class="tiny">13%</span>
+              </div>
+              <div class="meter"><div class="meter__fill" style="width:13%;background:var(--violet)"></div></div>
+            </div>
+
+            <div class="flex between" style="margin-top:14px">
+              <div class="avatars">
+                <div class="avatar avatar--sm">DR</div>
+                <div class="avatar avatar--sm avatar--sky">MK</div>
+                <div class="avatar avatar--sm avatar--warn">SP</div>
+              </div>
+              <button class="btn btn--sm btn--ghost">Change my vote</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Activity</h2>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">All</button>
+          </div>
+          <div class="card__body" style="padding-top:4px;padding-bottom:6px">
+            <div class="feed">
+              <div class="avatar avatar--sm avatar--violet">AR</div>
+              <div style="flex:1">
+                <div><b>Ana</b> joined the trip as a viewer</div>
+                <div class="time">20 min ago</div>
+              </div>
+            </div>
+            <div class="feed">
+              <div class="avatar avatar--sm avatar--sky">MK</div>
+              <div style="flex:1">
+                <div><b>Maya</b> suggested <b>Philopappos Hill</b> for day 2</div>
+                <div class="time">2h ago</div>
+              </div>
+            </div>
+            <div class="feed">
+              <div class="avatar avatar--sm avatar--warn">SP</div>
+              <div style="flex:1">
+                <div><b>Sam</b> paid <b>€48.00</b> for the Acropolis tickets</div>
+                <div class="time">Yesterday, 18:04</div>
+              </div>
+            </div>
+            <div class="feed">
+              <div class="avatar avatar--sm">DR</div>
+              <div style="flex:1">
+                <div><b>You</b> moved lunch to 13:30 and updated the day</div>
+                <div class="time">Yesterday, 12:11</div>
+              </div>
+            </div>
+            <div class="feed">
+              <div class="avatar avatar--sm avatar--sky">MK</div>
+              <div style="flex:1">
+                <div><b>Maya</b> voted for <b>Roof garden taverna</b></div>
+                <div class="time">2 days ago</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Who's here</h2>
+            <span class="chip chip--sm">4</span>
+          </div>
+          <div class="card__body" style="padding-top:2px;padding-bottom:4px">
+            <div class="member">
+              <div class="avatar">DR</div>
+              <div>
+                <div class="member__name">You</div>
+                <div class="tiny">Owner · can delete the trip</div>
+              </div>
+              <span class="member__role">Owner</span>
+            </div>
+            <div class="member">
+              <div class="avatar avatar--sky">MK</div>
+              <div>
+                <div class="member__name">Maya K.</div>
+                <div class="tiny">Can edit stops, not settings</div>
+              </div>
+              <span class="member__role">Editor</span>
+            </div>
+            <div class="member">
+              <div class="avatar avatar--warn">SP</div>
+              <div>
+                <div class="member__name">Sam P.</div>
+                <div class="tiny">Can edit stops, not settings</div>
+              </div>
+              <span class="member__role">Editor</span>
+            </div>
+            <div class="member">
+              <div class="avatar avatar--violet">AR</div>
+              <div>
+                <div class="member__name">Ana R.</div>
+                <div class="tiny"> Read-only · invite pending</div>
+              </div>
+              <span class="member__role">Viewer</span>
+            </div>
+          </div>
+          <div class="card__foot">
+            <button class="btn btn--sm btn--block">Invite by email or link</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Who's booking what</h2>
+          </div>
+          <div class="card__body" style="padding-top:4px;padding-bottom:6px">
+            <div class="claim">
+              <div class="avatar avatar--sm avatar--warn">SP</div>
+              <span>Acropolis tickets</span>
+              <span class="badge badge--brand">Done</span>
+            </div>
+            <div class="claim">
+              <div class="avatar avatar--sm">DR</div>
+              <span>Friday dinner</span>
+              <span class="badge badge--warn">Open</span>
+            </div>
+            <div class="claim">
+              <div class="avatar avatar--sm avatar--sky">MK</div>
+              <span>Museum tickets</span>
+              <span class="badge badge--warn">Open</span>
+            </div>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Claiming is a note to the group — nothing is charged.</span>
+          </div>
+        </div>
+
+        <div class="card card--pad" style="background:var(--surface-2)">
+          <div class="flex" style="gap:9px;align-items:flex-start">
+            <svg class="ico ico--sm" style="color:var(--brand);margin-top:1px" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <p class="tiny" style="color:var(--body)">
+              <b style="color:var(--ink)">Link sharing is revocable.</b> Anyone with the link can read the itinerary;
+              only invited people can edit. The link expires after 30 days.
+            </p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+<!-- ============================================================
+     SCREEN 5 — MONEY / SPLIT
+     ============================================================ -->
+<div class="screen" data-screen="money">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <div class="avatars">
+        <div class="avatar avatar--sm">DR</div>
+        <div class="avatar avatar--sm avatar--sky">MK</div>
+        <div class="avatar avatar--sm avatar--warn">SP</div>
+        <div class="avatar avatar--sm avatar--violet">AR</div>
+      </div>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="today-head">
+      <div style="flex:1;min-width:0">
+        <a class="backlink" href="#">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+          Athens &amp; the Saronic Gulf
+        </a>
+        <h1 class="h1" style="margin-top:6px">Money</h1>
+        <p class="sub">4 travellers · 9 expenses · everything in EUR</p>
+      </div>
+      <div class="flex" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 19h16"/></svg>
+          Export CSV
+        </button>
+        <button class="btn btn--sm btn--primary">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Add expense
+        </button>
+      </div>
+    </div>
+
+    <div class="budget-strip" style="margin-bottom:18px">
+      <div class="bud">
+        <div class="bud__k">Trip budget</div>
+        <div class="bud__v">€1,800</div>
+      </div>
+      <div class="bud">
+        <div class="bud__k">Spent</div>
+        <div class="bud__v">€1,134 <small>63%</small></div>
+        <div class="meter" style="margin-top:7px"><div class="meter__fill" style="width:63%"></div></div>
+      </div>
+      <div class="bud">
+        <div class="bud__k">Left</div>
+        <div class="bud__v" style="color:var(--brand-strong)">€666</div>
+        <div class="tiny" style="margin-top:3px">€166/day for 4 days</div>
+      </div>
+      <div class="bud">
+        <div class="bud__k">Per person</div>
+        <div class="bud__v">€450 <small>budget</small></div>
+        <div class="tiny" style="margin-top:3px">€283.50 spent so far</div>
+      </div>
+    </div>
+
+    <div class="main-rail" style="padding-bottom:52px">
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Expenses</h2>
+            <div class="flex" style="gap:4px;margin-left:8px;flex-wrap:wrap">
+              <button class="chip chip--sm is-on">All 9</button>
+              <button class="chip chip--sm">Stays</button>
+              <button class="chip chip--sm">Food</button>
+              <button class="chip chip--sm">Transport</button>
+              <button class="chip chip--sm">Activities</button>
+            </div>
+          </div>
+
+          <div style="overflow-x:auto">
+            <table class="tbl">
+              <thead>
+                <tr>
+                  <th style="width:64px">Date</th>
+                  <th>Expense</th>
+                  <th style="width:130px">Paid by</th>
+                  <th style="width:110px">Category</th>
+                  <th style="width:96px">Split</th>
+                  <th style="width:96px;text-align:right">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td class="tiny">22 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Hotel Electra Palace · 3 nights</div>
+                    <div class="tiny">Booking HT-88213 · includes breakfast</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm">DR</span><span>You</span></div></td>
+                  <td><span class="cat"><i style="background:var(--brand)"></i>Stays</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€640.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">23 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Acropolis combo tickets</div>
+                    <div class="tiny">4 entries · 24 Oct 11:00</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm avatar--warn">SP</span><span>Sam</span></div></td>
+                  <td><span class="cat"><i style="background:var(--violet)"></i>Activities</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€48.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">23 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Acropolis Museum entry</div>
+                    <div class="tiny">2 tickets · 24 Oct 09:00</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm">DR</span><span>You</span></div></td>
+                  <td><span class="cat"><i style="background:var(--violet)"></i>Activities</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                  </div></td>
+                  <td class="num">€24.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">23 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Dinner · rooftop taverna</div>
+                    <div class="tiny">Split 4 ways · card</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm avatar--sky">MK</span><span>Maya</span></div></td>
+                  <td><span class="cat"><i style="background:var(--accent)"></i>Food</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€136.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">24 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Metro &amp; funicular top-ups</div>
+                    <div class="tiny">4 × 5-ride tickets</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm">DR</span><span>You</span></div></td>
+                  <td><span class="cat"><i style="background:var(--sky)"></i>Transport</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€28.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">24 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Ferry · Piraeus → Aegina</div>
+                    <div class="tiny">4 returns · 25 Oct 09:00</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm avatar--warn">SP</span><span>Sam</span></div></td>
+                  <td><span class="cat"><i style="background:var(--sky)"></i>Transport</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€112.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">24 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Groceries &amp; water</div>
+                    <div class="tiny">Shared apartment</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm avatar--violet">AR</span><span>Ana</span></div></td>
+                  <td><span class="cat"><i style="background:var(--accent)"></i>Food</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€64.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">24 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Taverna lunch</div>
+                    <div class="tiny">2 people · cash</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm">DR</span><span>You</span></div></td>
+                  <td><span class="cat"><i style="background:var(--accent)"></i>Food</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                  </div></td>
+                  <td class="num">€38.00</td>
+                </tr>
+                <tr>
+                  <td class="tiny">25 Oct</td>
+                  <td>
+                    <div style="font-weight:650;color:var(--ink)">Airport transfer</div>
+                    <div class="tiny">Van for 4 + luggage</div>
+                  </td>
+                  <td><div class="flex" style="gap:6px"><span class="avatar avatar--sm avatar--sky">MK</span><span>Maya</span></div></td>
+                  <td><span class="cat"><i style="background:var(--sky)"></i>Transport</span></td>
+                  <td><div class="avatars">
+                    <div class="avatar avatar--sm">DR</div><div class="avatar avatar--sm avatar--sky">MK</div>
+                    <div class="avatar avatar--sm avatar--warn">SP</div><div class="avatar avatar--sm avatar--violet">AR</div>
+                  </div></td>
+                  <td class="num">€44.00</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Total €1,134.00 · all splits are editable per expense</span>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">Add expense</button>
+          </div>
+        </div>
+
+        <div class="card card--pad">
+          <div class="flex between" style="margin-bottom:10px">
+            <div class="h3">Quick add</div>
+            <span class="tiny">Splits equally by default</span>
+          </div>
+          <div style="display:grid;grid-template-columns:minmax(0,1.6fr) 110px 130px auto;gap:8px;align-items:end">
+            <label class="field">
+              <span class="label">What</span>
+              <span class="input"><input placeholder="e.g. Sunset boat tour" /></span>
+            </label>
+            <label class="field">
+              <span class="label">Amount</span>
+              <span class="input"><span style="color:var(--faint)">€</span><input placeholder="0.00" inputmode="decimal" /></span>
+            </label>
+            <label class="field">
+              <span class="label">Paid by</span>
+              <span class="input">
+                <span class="avatar avatar--sm">DR</span>
+                <span style="flex:1">You</span>
+                <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg>
+              </span>
+            </label>
+            <button class="btn btn--primary" style="height:38px">Add</button>
+          </div>
+          <div class="flex" style="gap:6px;margin-top:10px;flex-wrap:wrap">
+            <span class="tiny" style="align-self:center">Split between</span>
+            <span class="chip chip--sm is-on"><span class="avatar avatar--sm" style="width:16px;height:16px;font-size:8px">DR</span>You</span>
+            <span class="chip chip--sm is-on"><span class="avatar avatar--sm avatar--sky" style="width:16px;height:16px;font-size:8px">MK</span>Maya</span>
+            <span class="chip chip--sm is-on"><span class="avatar avatar--sm avatar--warn" style="width:16px;height:16px;font-size:8px">SP</span>Sam</span>
+            <span class="chip chip--sm"><span class="avatar avatar--sm avatar--violet" style="width:16px;height:16px;font-size:8px">AR</span>Ana</span>
+          </div>
+        </div>
+
+      </div>
+
+      <aside class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Who owes whom</h2>
+            <span class="badge badge--brand">Balanced</span>
+          </div>
+          <div class="card__body" style="padding-top:4px;padding-bottom:6px">
+            <div class="balance">
+              <span class="avatar avatar--sm">DR</span>
+              <div>
+                <div class="h4">You</div>
+                <div class="tiny">Paid €730 · share €299</div>
+              </div>
+              <span class="balance__amt pos">+€431.00</span>
+            </div>
+            <div class="balance">
+              <span class="avatar avatar--sm avatar--sky">MK</span>
+              <div>
+                <div class="h4">Maya</div>
+                <div class="tiny">Paid €180 · share €299</div>
+              </div>
+              <span class="balance__amt neg">−€119.00</span>
+            </div>
+            <div class="balance">
+              <span class="avatar avatar--sm avatar--warn">SP</span>
+              <div>
+                <div class="h4">Sam</div>
+                <div class="tiny">Paid €160 · share €268</div>
+              </div>
+              <span class="balance__amt neg">−€108.00</span>
+            </div>
+            <div class="balance">
+              <span class="avatar avatar--sm avatar--violet">AR</span>
+              <div>
+                <div class="h4">Ana</div>
+                <div class="tiny">Paid €64 · share €268</div>
+              </div>
+              <span class="balance__amt neg">−€204.00</span>
+            </div>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">Sums to zero — every euro is attributed.</span>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Settle up</h2>
+            <span class="badge badge--neutral">3 payments</span>
+          </div>
+          <div class="card__body">
+            <p class="tiny" style="margin-bottom:8px">Fewest transfers — nobody pays more than once.</p>
+            <div class="transfer">
+              <span class="avatar avatar--sm avatar--violet">AR</span>
+              <span>Ana</span>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+              <b>You</b>
+              <span style="margin-left:auto;font-weight:700;color:var(--ink)">€204.00</span>
+            </div>
+            <div class="transfer">
+              <span class="avatar avatar--sm avatar--sky">MK</span>
+              <span>Maya</span>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+              <b>You</b>
+              <span style="margin-left:auto;font-weight:700;color:var(--ink)">€119.00</span>
+            </div>
+            <div class="transfer">
+              <span class="avatar avatar--sm avatar--warn">SP</span>
+              <span>Sam</span>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="M4 12h16m-6-6 6 6-6 6"/></svg>
+              <b>You</b>
+              <span style="margin-left:auto;font-weight:700;color:var(--ink)">€108.00</span>
+            </div>
+
+            <div class="divider"></div>
+            <label class="flex" style="gap:8px;font-size:12px;color:var(--body)">
+              <input type="radio" name="settle" checked style="width:14px;height:14px;accent-color:var(--brand)" />
+              Record as paid outside the app (cash, bank transfer)
+            </label>
+            <label class="flex" style="gap:8px;font-size:12px;color:var(--body);margin-top:6px">
+              <input type="radio" name="settle" style="width:14px;height:14px;accent-color:var(--brand)" />
+              Send payment requests
+            </label>
+
+            <button class="btn btn--primary btn--block mt12">Mark 3 payments as settled</button>
+            <button class="btn btn--block btn--quiet mt8">Remind everyone</button>
+          </div>
+          <div class="card__foot">
+            <span class="tiny">TripPlanner never moves money — it only does the maths.</span>
+          </div>
+        </div>
+
+        <div class="card card--pad">
+          <div class="h3" style="margin-bottom:10px">Where it goes</div>
+          <div class="flex" style="gap:16px">
+            <svg class="donut" viewBox="0 0 42 42" aria-label="Spending split by category">
+              <circle cx="21" cy="21" r="15.9" stroke="var(--line-soft)"/>
+              <circle cx="21" cy="21" r="15.9" stroke="var(--brand)" stroke-dasharray="56 44" stroke-dashoffset="25"/>
+              <circle cx="21" cy="21" r="15.9" stroke="var(--accent)" stroke-dasharray="21 79" stroke-dashoffset="-31"/>
+              <circle cx="21" cy="21" r="15.9" stroke="var(--sky)" stroke-dasharray="16 84" stroke-dashoffset="-52"/>
+              <circle cx="21" cy="21" r="15.9" stroke="var(--violet)" stroke-dasharray="7 93" stroke-dashoffset="-68"/>
+            </svg>
+            <div class="legend" style="flex:1">
+              <span><i style="background:var(--brand)"></i>Stays · €640</span>
+              <span><i style="background:var(--accent)"></i>Food · €238</span>
+              <span><i style="background:var(--sky)"></i>Transport · €184</span>
+              <span><i style="background:var(--violet)"></i>Activities · €72</span>
+            </div>
+          </div>
+          <div class="divider"></div>
+          <div class="kv"><span>Daily average</span><b>€283.50</b></div>
+          <div class="kv"><span>Projected total</span><b>€1,134 + 3 days</b></div>
+          <div class="kv"><span>Over budget?</span><b style="color:var(--brand-strong)">No — €666 left</b></div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 6 — VAULT / DOCUMENTS
+     ============================================================ -->
+<div class="screen" data-screen="vault">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <span class="badge badge--brand">Offline ready</span>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="today-head">
+      <div style="flex:1;min-width:0">
+        <a class="backlink" href="#">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+          Athens &amp; the Saronic Gulf
+        </a>
+        <h1 class="h1" style="margin-top:6px">Travel vault</h1>
+        <p class="sub">Tickets, bookings and confirmations — one place, available offline.</p>
+      </div>
+      <div class="flex" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 19h16"/></svg>
+          Download all
+        </button>
+        <button class="btn btn--sm btn--primary">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+          Upload
+        </button>
+      </div>
+    </div>
+
+    <div class="banner" style="margin-bottom:16px">
+      <svg class="ico" style="margin-top:2px" viewBox="0 0 24 24"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/></svg>
+      <div style="flex:1">
+        <b>Passport expires 12 Mar 2027 — under 6 months away</b>
+        Fine for this trip (Greece asks for 3 months beyond return), but some airlines refuse boarding under 6 months.
+        Start the renewal before you book the next one.
+      </div>
+      <button class="btn btn--sm">Set reminder</button>
+    </div>
+
+    <div class="main-rail" style="padding-bottom:52px">
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">All documents</h2>
+            <div class="flex" style="gap:4px;margin-left:8px;flex-wrap:wrap">
+              <button class="chip chip--sm is-on">All 8</button>
+              <button class="chip chip--sm">Flights</button>
+              <button class="chip chip--sm">Stay</button>
+              <button class="chip chip--sm">Transport</button>
+              <button class="chip chip--sm">Tickets</button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico doc__ico--brand">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M2 16 22 8v3l-6 2v3l-2 1v-3l-6 2v3l-2 1v-3L2 19z"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Flight A3 601 · LHR → ATH</div>
+              <div class="doc__meta"><span>24 Oct · 07:10</span><span>·</span><span class="mono">X7K2QP</span><span>·</span><span>Seat 14A</span><span>·</span><span class="badge badge--brand">Checked in</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 4</span>
+              <button class="icon-btn" aria-label="Open boarding pass">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico doc__ico--brand">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M2 16 22 8v3l-6 2v3l-2 1v-3l-6 2v3l-2 1v-3L2 19z"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Flight A3 604 · ATH → LHR</div>
+              <div class="doc__meta"><span>27 Oct · 18:35</span><span>·</span><span class="mono">X7K2QR</span><span>·</span><span>Seat 12C</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 4</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M3 21V7l9-4 9 4v14M3 21h18M9 21v-6h6v6"/><path d="M7 11h2m6 0h2M7 8h2m6 0h2"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Hotel Electra Palace · 3 nights</div>
+              <div class="doc__meta"><span>22–25 Oct</span><span>·</span><span class="mono">HT-88213</span><span>·</span><span>Breakfast included</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 4</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M3 17c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 12c2-2 4-2 6 0s4 2 6 0 4-2 6 0M6 7h12"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Ferry · Piraeus → Aegina · 4 returns</div>
+              <div class="doc__meta"><span>25 Oct · 09:00</span><span>·</span><span>Return 18:30</span><span>·</span><span class="mono">FER-2210</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 4</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Acropolis timed entry · 2 tickets</div>
+              <div class="doc__meta"><span>24 Oct · 11:00–11:30</span><span>·</span><span class="mono">A-2291</span><span>·</span><span>QR available offline</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 2</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h4"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Acropolis Museum entry · 2 tickets</div>
+              <div class="doc__meta"><span>24 Oct · 09:00</span><span>·</span><span class="mono">M-1188</span><span>·</span><span>€24.00</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 2</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.2 8 9 4.6-.8 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Travel insurance · policy TI-4471</div>
+              <div class="doc__meta"><span>Covers 4 travellers</span><span>·</span><span>Medical €100k</span><span>·</span><span>Valid to 31 Dec</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Shared · 4</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="doc">
+            <div class="doc__ico">
+              <svg class="ico ico--sm" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2"/><circle cx="12" cy="10" r="2.5"/><path d="M8 18c.8-2 2.2-3 4-3s3.2 1 4 3"/></svg>
+            </div>
+            <div>
+              <div class="doc__title">Passport scan · expires 12 Mar 2027</div>
+              <div class="doc__meta"><span>Private (only you)</span><span>·</span><span class="badge badge--warn">Renewal window</span></div>
+            </div>
+            <div class="doc__right">
+              <span class="badge">Private</span>
+              <button class="icon-btn" aria-label="Open">
+                <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M14 3h7v7M21 3l-9 9M5 5h6v14h8"/></svg>
+              </button>
+            </div>
+          </div>
+
+          <div class="card__foot">
+            <span class="tiny">Files are stored per trip, not in your camera roll. Revoking trip access revokes the file.</span>
+          </div>
+        </div>
+
+      </div>
+
+      <aside class="stack">
+
+        <div class="card card--pad">
+          <div class="drop">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M12 16V4m-4 4 4-4 4 4"/><path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/></svg>
+            <div><b style="color:var(--ink)">Drop a PDF or photo</b></div>
+            <div class="tiny" style="margin-top:3px">Confirmation emails can be forwarded to trips@… and are filed automatically</div>
+          </div>
+          <div class="tiny" style="margin-top:10px">Max 15 MB per file · PDF, PNG, JPG · scans stay private unless you share them.</div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Offline pack</h2>
+            <span class="badge badge--brand">Ready</span>
+          </div>
+          <div class="card__body">
+            <div class="flex between" style="margin-bottom:6px">
+              <span class="tiny">38.4 MB · includes all 8 documents</span>
+              <span class="tiny mono">100%</span>
+            </div>
+            <div class="meter"><div class="meter__fill" style="width:100%"></div></div>
+
+            <div class="divider"></div>
+            <div class="flex between" style="padding:6px 0">
+              <span style="font-size:12.5px;color:var(--body)">Maps &amp; route</span>
+              <button class="toggle is-on" data-toggle aria-label="Include maps"></button>
+            </div>
+            <div class="flex between" style="padding:6px 0">
+              <span style="font-size:12.5px;color:var(--body)">Tickets &amp; QR codes</span>
+              <button class="toggle is-on" data-toggle aria-label="Include tickets"></button>
+            </div>
+            <div class="flex between" style="padding:6px 0">
+              <span style="font-size:12.5px;color:var(--body)">Bookings &amp; insurance</span>
+              <button class="toggle is-on" data-toggle aria-label="Include documents"></button>
+            </div>
+            <div class="flex between" style="padding:6px 0">
+              <span style="font-size:12.5px;color:var(--body)">Photos from the journal</span>
+              <button class="toggle" data-toggle aria-label="Include photos"></button>
+            </div>
+
+            <button class="btn btn--block mt12">Refresh pack</button>
+            <p class="tiny" style="margin-top:8px">Last refreshed 11:40 · refresh before you leave Wi-Fi.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Expiring soon</h2>
+            <span class="badge badge--warn">1</span>
+          </div>
+          <div class="card__body stack stack--sm">
+            <div class="flex" style="gap:9px;align-items:flex-start">
+              <svg class="ico ico--sm" style="color:#B54708;margin-top:1px" viewBox="0 0 24 24"><path d="M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/></svg>
+              <div>
+                <div class="h4">Passport · 12 Mar 2027</div>
+                <div class="tiny">5 months left. Renewal takes 6–8 weeks in the UK.</div>
+              </div>
+            </div>
+            <div class="flex" style="gap:9px;align-items:flex-start">
+              <svg class="ico ico--sm" style="color:var(--muted);margin-top:1px" viewBox="0 0 24 24"><path d="M12 3 4 6v6c0 5 3.4 8.2 8 9 4.6-.8 8-4 8-9V6l-8-3Z"/><path d="m9 12 2 2 4-4"/></svg>
+              <div>
+                <div class="h4">Insurance · 31 Dec 2026</div>
+                <div class="tiny">Covers this trip. Add the policy number to your phone's medical ID.</div>
+              </div>
+            </div>
+            <div class="flex" style="gap:9px;align-items:flex-start">
+              <svg class="ico ico--sm" style="color:var(--muted);margin-top:1px" viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18"/></svg>
+              <div>
+                <div class="h4">Aegina ferry · 25 Oct</div>
+                <div class="tiny">Check-in closes 20 min before departure. Port gate E7.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </aside>
+    </div>
+  </div>
+</div>
+<!-- ============================================================
+     SCREEN 7 — MEMORIES / JOURNAL
+     ============================================================ -->
+<div class="screen" data-screen="memories">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link" href="#">Plan</a>
+      <a class="nav__link is-active" href="#">My trips</a>
+      <a class="nav__link" href="#">Explore</a>
+    </div>
+    <div class="nav__right">
+      <span class="badge badge--neutral">Past trip</span>
+      <div class="avatar">DR</div>
+    </div>
+  </nav>
+
+  <div class="wrap">
+
+    <div class="today-head">
+      <div style="flex:1;min-width:0">
+        <a class="backlink" href="#">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M15 6 9 12l6 6"/></svg>
+          My trips
+        </a>
+        <h1 class="h1" style="margin-top:6px">Trip memories</h1>
+        <p class="sub">Everything you saved along the way, assembled automatically.</p>
+      </div>
+      <div class="flex" style="gap:8px;flex-wrap:wrap">
+        <button class="btn btn--sm">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 3v12m-4-4 4 4 4-4M4 19h16"/></svg>
+          Export PDF
+        </button>
+        <button class="btn btn--sm btn--primary">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4"/></svg>
+          Share story
+        </button>
+      </div>
+    </div>
+
+    <div class="cover" style="margin-bottom:18px">
+      <svg viewBox="0 0 1200 170" preserveAspectRatio="none" aria-hidden="true">
+        <path d="M-20 150 C 140 120, 200 40, 360 60 S 620 150, 760 96 S 1020 30, 1220 70" fill="none" stroke="rgba(255,255,255,.55)" stroke-width="2"/>
+        <path d="M-20 120 C 180 170, 300 60, 470 110 S 720 30, 880 120 S 1080 90, 1220 30" fill="none" stroke="rgba(255,255,255,.22)" stroke-width="1.5"/>
+        <circle cx="360" cy="60" r="4" fill="#fff"/><circle cx="760" cy="96" r="4" fill="#fff"/>
+        <circle cx="880" cy="120" r="3" fill="#fff" opacity=".8"/>
+      </svg>
+      <div class="cover__txt">
+        <span class="eyebrow">
+          <svg class="ico ico--sm" viewBox="0 0 24 24"><path d="M12 21s7-6.1 7-11a7 7 0 1 0-14 0c0 4.9 7 11 7 11Z"/><circle cx="12" cy="10" r="2.5"/></svg>
+          Athens, Aegina &amp; Sounion
+        </span>
+        <h2>Athens &amp; the Saronic Gulf</h2>
+        <div class="tiny" style="color:#B9C9D2;margin-top:4px">24–27 October 2026 · 4 days · 4 travellers</div>
+
+        <div class="statrow">
+          <div><b>4</b><span>days</span></div>
+          <div><b>14</b><span>stops</span></div>
+          <div><b>38.2 km</b><span>walked</span></div>
+          <div><b>112</b><span>photos</span></div>
+          <div><b>€1,134</b><span>total</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="g2" style="padding-bottom:52px;align-items:start">
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Photos</h2>
+            <span class="chip chip--sm">112 · from 3 people</span>
+            <button class="btn btn--quiet btn--sm" style="margin-left:auto">Add</button>
+          </div>
+          <div class="card__body">
+            <div class="shots">
+              <div class="shot"><span>Day 1 · Plaka</span></div>
+              <div class="shot shot--2"><span>Day 2 · Acropolis</span></div>
+              <div class="shot shot--3"><span>Day 2 · Lycabettus</span></div>
+              <div class="shot shot--4"><span>Day 3 · Aegina</span></div>
+              <div class="shot shot--5"><span>Day 3 · temple</span></div>
+              <div class="shot shot--6"><span>Day 4 · Sounion</span></div>
+            </div>
+            <p class="tiny" style="margin-top:9px">Photos are grouped by the day they were taken, not by upload date. Location is stripped unless you add it.</p>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Highlights</h2>
+            <span class="badge badge--brand">You wrote 3</span>
+          </div>
+          <div class="card__body stack">
+            <div>
+              <div class="quote">“We got to the museum at nine and had the top floor almost to ourselves. By eleven the coaches arrived and it was a different building.”</div>
+              <div class="tiny" style="margin-top:5px">Day 2 · Acropolis Museum · 09:12</div>
+            </div>
+            <div>
+              <div class="quote">“Missed the 17:10 ferry and ended up eating octopus on the quay for two hours. Best mistake of the trip.”</div>
+              <div class="tiny" style="margin-top:5px">Day 3 · Piraeus · 19:40</div>
+            </div>
+            <div>
+              <div class="quote">“Sounion at sunset with nobody there but us and a wedding party. The temple was closed; the car park was not.”</div>
+              <div class="tiny" style="margin-top:5px">Day 4 · Cape Sounion · 19:05</div>
+            </div>
+          </div>
+          <div class="card__foot">
+            <button class="btn btn--sm btn--ghost">Add a note</button>
+            <span class="tiny" style="margin-left:auto">Notes are private until you publish</span>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="stack">
+
+        <div class="card">
+          <div class="card__head">
+            <h2 class="h3">Route recap</h2>
+            <span class="badge badge--neutral">4 days</span>
+          </div>
+          <div class="mapsketch" style="border:0;border-bottom:1px solid var(--line);border-radius:0">
+            <svg viewBox="0 0 336 150" aria-label="Route recap map">
+              <g stroke="var(--line)" stroke-width="1">
+                <path d="M0 38h336M0 76h336M0 114h336"/>
+                <path d="M56 0v150M140 0v150M224 0v150M300 0v150"/>
+              </g>
+              <path class="route-line" d="M40 122 92 78 150 96 208 54 258 82 300 40"/>
+              <g>
+                <circle class="map-pin" cx="40" cy="122" r="5"/>
+                <circle class="map-pin" cx="92" cy="78" r="5"/>
+                <circle class="map-pin" cx="150" cy="96" r="5"/>
+                <circle class="map-pin" cx="208" cy="54" r="5"/>
+                <circle class="map-pin" cx="258" cy="82" r="5"/>
+                <circle class="map-pin" cx="300" cy="40" r="5"/>
+              </g>
+              <text class="map-label" x="26" y="138">Athens</text>
+              <text class="map-label" x="196" y="46">Aegina</text>
+              <text class="map-label" x="272" y="30">Sounion</text>
+            </svg>
+          </div>
+          <div class="card__body" style="padding-top:6px;padding-bottom:4px">
+            <div class="daychip">
+              <div class="thumb"></div>
+              <div style="flex:1">
+                <b>Day 1 · arrival &amp; Plaka</b>
+                <div class="tiny">4 stops · 6.1 km · 3 photos</div>
+              </div>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+            </div>
+            <div class="daychip">
+              <div class="thumb" style="background:linear-gradient(135deg,#F79009,#7A2E0E)"></div>
+              <div style="flex:1">
+                <b>Day 2 · Acropolis &amp; Plaka</b>
+                <div class="tiny">5 stops · 9.4 km · 41 photos</div>
+              </div>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+            </div>
+            <div class="daychip">
+              <div class="thumb" style="background:linear-gradient(135deg,#2E90FA,#0C1B33)"></div>
+              <div style="flex:1">
+                <b>Day 3 · Aegina</b>
+                <div class="tiny">3 stops · 7.2 km · 38 photos</div>
+              </div>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+            </div>
+            <div class="daychip">
+              <div class="thumb" style="background:linear-gradient(135deg,#7A5AF8,#2B1A3B)"></div>
+              <div style="flex:1">
+                <b>Day 4 · Sounion &amp; home</b>
+                <div class="tiny">2 stops · 4.8 km · 30 photos</div>
+              </div>
+              <svg class="ico ico--sm" style="color:var(--faint)" viewBox="0 0 24 24"><path d="m9 6 6 6-6 6"/></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="card card--pad">
+          <div class="flex between" style="margin-bottom:10px">
+            <div class="h3">Trip wrapped</div>
+            <span class="badge badge--brand">Auto</span>
+          </div>
+          <div class="kv"><span>Most walked day</span><b>Day 2 · 9.4 km</b></div>
+          <div class="kv"><span>Longest stop</span><b>Acropolis · 1h 45m</b></div>
+          <div class="kv"><span>Most photographed</span><b>Plaka · 23 shots</b></div>
+          <div class="kv"><span>Furthest from home</span><b>Aegina · 2,412 km</b></div>
+          <div class="kv"><span>Total spend</span><b>€1,134 · €283 pp</b></div>
+          <div class="divider"></div>
+          <div class="flex between">
+            <span class="tiny">Recompute after adding photos</span>
+            <button class="btn btn--sm btn--ghost">Refresh</button>
+          </div>
+        </div>
+
+        <div class="card card--pad">
+          <div class="flex" style="gap:10px;align-items:flex-start">
+            <svg class="ico ico--sm" style="color:var(--brand);margin-top:2px" viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+            <div style="flex:1">
+              <div class="h4">Private by default</div>
+              <div class="tiny" style="margin-top:2px">Only the 4 travellers can see this page. Publishing creates a read-only link with no location data.</div>
+            </div>
+            <button class="toggle" data-toggle aria-label="Publish story"></button>
+          </div>
+          <div class="divider"></div>
+          <div class="flex between">
+            <div>
+              <div class="h4">Journal reminders</div>
+              <div class="tiny">A gentle nudge at 20:30 each trip day</div>
+            </div>
+            <button class="toggle is-on" data-toggle aria-label="Journal reminders"></button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================
+     SCREEN 8 — DESIGN NOTES
+     ============================================================ -->
+<div class="screen" data-screen="notes">
+
+  <nav class="nav">
+    <a class="brand" href="#" aria-label="TripPlanner home">
+      <span class="brand__mark">
+        <svg class="ico ico--lg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8z"/></svg>
+      </span>
+      TripPlanner
+    </a>
+    <div class="nav__links">
+      <a class="nav__link is-active" href="#">Design notes</a>
+    </div>
+    <div class="nav__right">
+      <button class="btn btn--quiet btn--sm" onclick="location.href='trip-planner-redesign.html'">Mock v1 · workspace</button>
+      <button class="btn btn--quiet btn--sm" onclick="location.href='auth-account-admin.html'">Mock v2 · auth &amp; admin</button>
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <header class="explore-head" style="grid-template-columns:minmax(0,1fr)">
+      <div>
+        <span class="eyebrow">Design notes · mock v3</span>
+        <h1 class="h1" style="margin-top:8px">Eight features the app is missing<br>after it gets the basics right.</h1>
+        <p class="sub" style="margin-top:8px;max-width:78ch">
+          Mock v1 covered the planning flow: search, itinerary, transport, stays. Mock v2 covered auth, account and admin.
+          This one covers what happens around the trip — choosing a starting shape, fixing a day, running the day from your
+          phone, sharing it, paying for it, keeping the paperwork, and remembering it afterwards.
+        </p>
+      </div>
+    </header>
+
+    <div class="notes-cols" style="padding-bottom:52px">
+
+      <div class="card note-card">
+        <div class="note-card__head">
+          <span class="badge badge--brand">Features</span>
+          <h2 class="h2">What this mock proposes</h2>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">1</span>
+          <div>
+            <div class="feat__title">Start from a template</div>
+            <div class="feat__body">A gallery of real itineraries — stops, durations, coordinates, opening hours — that you duplicate into a trip you own. Fixes the blank-page problem without pretending to be an LLM. Never mutates the source.</div>
+            <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Full stack</span><span class="badge badge--neutral">Seed content</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">2</span>
+          <div>
+            <div class="feat__title">Day optimizer with a visible diff</div>
+            <div class="feat__body">Reorder one day against real constraints: opening hours, holiday closures, sunset, walking budget, timed tickets. Show the before/after, the minutes saved, and why each stop moved — then let the user apply or undo.</div>
+            <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Frontend + matrix API</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">3</span>
+          <div>
+            <div class="feat__title">Today / live trip mode</div>
+            <div class="feat__body">The screen people actually open on holiday: next stop, leave-by time, directions, check-in, running late, ticket windows, weather swaps. Large touch targets, works one-handed, survives refresh.</div>
+            <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Frontend</span><span class="badge badge--neutral">Push</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">4</span>
+          <div>
+            <div class="feat__title">Group planning</div>
+            <div class="feat__body">Invite travellers with owner/editor/viewer roles, collect suggestions in an inbox, vote on them, and see who is booking what. Turns the app from solo planning into the group chat that replaces five other chats.</div>
+            <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Full stack</span><span class="badge badge--neutral">Membership</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">5</span>
+          <div>
+            <div class="feat__title">Expense splitting and settle-up</div>
+            <div class="feat__body">Log who paid, split per person, keep balances in integer cents, and compute the fewest transfers. This is the natural extension of the budget panel — and it does not need a payments integration to be useful.</div>
+            <div class="feat__tags"><span class="badge badge--brand">High impact</span><span class="badge badge--neutral">Frontend + schema</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">6</span>
+          <div>
+            <div class="feat__title">Travel vault</div>
+            <div class="feat__body">Tickets, bookings, insurance and passport scans filed per trip, shared by role, expiring-document reminders, and an offline pack that includes the QR codes. The 3am-at-the-airport feature.</div>
+            <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">Storage + signed URLs</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">7</span>
+          <div>
+            <div class="feat__title">Journal and trip recap</div>
+            <div class="feat__body">Notes and photos attached to the day they happened, auto-assembled into a recap with distance walked, stops kept and money spent. Private by default, shareable as a read-only story. Gives the trip a second life after it ends.</div>
+            <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">Frontend + storage</span></div>
+          </div>
+        </div>
+
+        <div class="feat">
+          <span class="feat__n">8</span>
+          <div>
+            <div class="feat__title">Offline pack (PWA)</div>
+            <div class="feat__body">Service worker caches the day plan, tickets and map tiles for the trip. Shows staleness honestly ("saved 11:40") instead of pretending to be live. Cross-cutting: every other feature degrades gracefully without it.</div>
+            <div class="feat__tags"><span class="badge badge--warn">Medium</span><span class="badge badge--neutral">PWA</span><span class="badge badge--neutral">Cross-cutting</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="stack">
+
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--sky">Sequence</span>
+            <h2 class="h2">Build order that doesn't block</h2>
+          </div>
+          <div class="feat">
+            <span class="feat__n">1</span>
+            <div>
+              <div class="feat__title">Money over existing trip state</div>
+              <div class="feat__body">No schema change to start: expenses can live against the trip ID you already persist. Highest value per hour of work, and it exercises the shared-trip model.</div>
+            </div>
+          </div>
+          <div class="feat">
+            <span class="feat__n">2</span>
+            <div>
+              <div class="feat__title">Optimizer, client-side first</div>
+              <div class="feat__body">Opening hours and sunset are local data; the walking matrix is the only server call. Ship the diff UI with a fixed matrix, then swap in OpenRouteService.</div>
+            </div>
+          </div>
+          <div class="feat">
+            <span class="feat__n">3</span>
+            <div>
+              <div class="feat__title">Persist trips, then group</div>
+              <div class="feat__body">Group planning is not real until trips live in the database with owner IDs. This is the prerequisite v1 already flagged — do it before invites, votes or activity.</div>
+            </div>
+          </div>
+          <div class="feat">
+            <span class="feat__n">4</span>
+            <div>
+              <div class="feat__title">Templates, vault, journal, offline</div>
+              <div class="feat__body">Each is independently shippable. Templates need editorial seed content; vault needs storage; journal needs uploads; offline needs a service worker. None should block the others.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--violet">Components</span>
+            <h2 class="h2">New pieces</h2>
+          </div>
+          <div class="feat"><span class="feat__n">A</span><div><div class="feat__title">TemplateGallery + TemplateCard</div><div class="feat__body">Filter chips, route thumbnail, copy-on-use with a confirmation that names the source.</div></div></div>
+          <div class="feat"><span class="feat__n">B</span><div><div class="feat__title">ConstraintChips + StopDiffList</div><div class="feat__body">Toggleable goals, moved-from badges, "why" reasons, apply/discard with undo snapshot.</div></div></div>
+          <div class="feat"><span class="feat__n">C</span><div><div class="feat__title">NextUpCard + LeaveByBar + CheckInButton</div><div class="feat__body">Countdown, computed leave time, one-tap check-in, late broadcast.</div></div></div>
+          <div class="feat"><span class="feat__n">D</span><div><div class="feat__title">MemberList + RoleSelect + SuggestionCard + PollCard</div><div class="feat__body">Invites, roles, votes, activity feed. Optimistic updates with rollback on failure.</div></div></div>
+          <div class="feat"><span class="feat__n">E</span><div><div class="feat__title">ExpenseTable + SplitPicker + BalanceList + SettleUpSheet</div><div class="feat__body">Integer cents only, per-expense splits, minimal-transfer algorithm, CSV export.</div></div></div>
+          <div class="feat"><span class="feat__n">F</span><div><div class="feat__title">DocRow + ExpiryBadge + OfflinePackCard</div><div class="feat__body">Per-document sharing, passport/insurance reminders, cached-state timestamps.</div></div></div>
+        </div>
+
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--neutral">Schema</span>
+            <h2 class="h2">Tables this implies</h2>
+          </div>
+          <p class="tiny" style="margin-bottom:8px">Names only — shapes follow the existing EF models and DTO conventions.</p>
+<pre class="mono" style="margin:0;padding:12px;background:var(--surface-2);border:1px solid var(--line);border-radius:10px;overflow-x:auto;color:var(--body);line-height:1.7">Templates(id, city, title, days, priceBand, tags)
+TemplateStops(id, templateId, order, placeId, minutes)
+Trips(id, ownerId, title, start, end, currency)
+TripDays(id, tripId, date, note)
+Stops(id, tripDayId, order, placeId, startAt, minutes, pinned)
+TripMembers(tripId, userId, role, invitedAt)
+Suggestions(id, tripId, userId, placeId, status)
+Votes(suggestionId, userId, value)
+Expenses(id, tripId, paidByUserId, amountCents, category)
+ExpenseShares(expenseId, userId, amountCents)
+Documents(id, tripId, kind, storageKey, expiresOn, visibility)
+JournalEntries(id, tripDayId, userId, body, mediaKey)</pre>
+        </div>
+
+        <div class="card note-card">
+          <div class="note-card__head">
+            <span class="badge badge--warn">Deliberately not here</span>
+            <h2 class="h2">What I left out</h2>
+          </div>
+          <div class="feat"><span class="feat__n">×</span><div><div class="feat__title">AI itinerary generation</div><div class="feat__body">Templates solve the blank page with data you can verify. An LLM layer is a different product and a different trust problem.</div></div></div>
+          <div class="feat"><span class="feat__n">×</span><div><div class="feat__title">In-app payments</div><div class="feat__body">Settle-up records that money moved; it never moves money. No PCI scope, no payout liability.</div></div></div>
+          <div class="feat"><span class="feat__n">×</span><div><div class="feat__title">Real-time co-editing</div><div class="feat__body">Suggestions, votes and an activity feed cover group coordination. CRDT cursors on an itinerary are engineering cost without a matching user need.</div></div></div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card card--pad" style="margin-bottom:52px;display:flex;gap:12px;align-items:flex-start">
+      <svg class="ico" style="color:var(--brand);margin-top:2px" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8h.01M11 12h1v4h1"/></svg>
+      <p class="tiny" style="color:var(--body);max-width:86ch">
+        This file is standalone — no build step, no backend, no external fonts or scripts. Use the bar at the top to switch
+        screens, the moon icon for dark mode, and <span class="mono">#today</span> in the URL to deep-link a screen.
+        Colours and spacing come from the same token set as mock v1, so these pieces can be dropped into
+        <span class="mono">TripApp-Web</span> as-is.
+      </p>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var themes = ['light','dark'];
+  var stored = null;
+  try { stored = localStorage.getItem('tp-mock-theme'); } catch(e){}
+  if(themes.indexOf(stored) > -1) document.documentElement.dataset.theme = stored;
+
+  document.getElementById('themeBtn').addEventListener('click', function(){
+    var next = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = next;
+    try { localStorage.setItem('tp-mock-theme', next); } catch(e){}
+  });
+
+  function show(name){
+    document.querySelectorAll('[data-screen]').forEach(function(s){
+      s.classList.toggle('is-active', s.dataset.screen === name);
+    });
+    document.querySelectorAll('[data-screen-btn]').forEach(function(b){
+      b.setAttribute('aria-selected', String(b.dataset.screenBtn === name));
+    });
+    window.scrollTo({top:0});
+  }
+
+  document.querySelectorAll('[data-screen-btn]').forEach(function(b){
+    b.addEventListener('click', function(){
+      show(b.dataset.screenBtn);
+      try { history.replaceState(null,'','#'+b.dataset.screenBtn); } catch(e){}
+    });
+  });
+
+  var initial = (location.hash || '').replace('#','');
+  if(document.querySelector('[data-screen="'+initial+'"]')) show(initial);
+
+  document.querySelectorAll('[data-toggle]').forEach(function(el){
+    el.addEventListener('click', function(){ el.classList.toggle('is-on'); });
+  });
+})();
+</script>
+</body>
+</html>

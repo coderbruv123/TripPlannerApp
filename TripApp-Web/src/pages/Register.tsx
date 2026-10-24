@@ -51,10 +51,10 @@ export default function Register() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8f9ff] flex items-center justify-center p-4">
+    <div className="min-h-screen bg-canvas flex items-center justify-center p-4">
 
       {/* Main Container */}
-      <div className="w-full max-w-[1280px] overflow-hidden rounded-[40px] bg-white shadow-[0_4px_12px_rgba(0,0,0,0.05)] flex flex-col md:flex-row md:min-h-[700px]">
+      <div className="w-full max-w-[1280px] overflow-hidden rounded-[40px] bg-surface shadow-card flex flex-col md:flex-row md:min-h-[700px]">
 
         {/* ================= LEFT : IMAGE ================= */}
         <div className="hidden md:block md:w-1/2 relative bg-[#dce9ff]">
@@ -109,10 +109,10 @@ export default function Register() {
 
               <Plane
                 size={30}
-                className="text-[#006b5f]"
+                className="text-brand-strong"
               />
 
-              <span className="text-2xl font-extrabold text-[#006b5f]">
+              <span className="text-2xl font-extrabold text-brand-strong">
                 TripPlanner
               </span>
 
@@ -121,84 +121,13 @@ export default function Register() {
             {/* Header */}
             <div className="mb-8">
 
-              <h1 className="text-[32px] leading-[40px] font-bold tracking-tight text-[#0b1c30]">
+              <h1 className="text-[32px] leading-[40px] font-bold tracking-tight text-ink">
                 Create an account
               </h1>
 
-              <p className="mt-2 text-base leading-6 text-[#3c4947]">
+              <p className="mt-2 text-base leading-6 text-body">
                 Enter your details to start planning your next adventure.
               </p>
-
-            </div>
-
-            {/* Social Login */}
-            <div className="flex flex-col gap-4 mb-8">
-
-              {/* Google */}
-              <button
-                type="button"
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full border border-[#bbcac6] bg-white hover:bg-[#eff4ff] transition-colors"
-              >
-
-                <svg
-                  className="w-5 h-5"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    fill="#4285F4"
-                    d="M21.35 12.23c0-.79-.07-1.55-.2-2.27H12v4.3h5.24a4.48 4.48 0 0 1-1.94 2.94v2.45h3.14c1.84-1.69 2.91-4.18 2.91-7.42Z"
-                  />
-
-                  <path
-                    fill="#34A853"
-                    d="M12 21.6c2.63 0 4.84-.87 6.45-2.35l-3.14-2.45c-.87.58-1.98.92-3.31.92-2.54 0-4.69-1.72-5.46-4.03H3.3v2.53A9.74 9.74 0 0 0 12 21.6Z"
-                  />
-
-                  <path
-                    fill="#FBBC05"
-                    d="M6.54 13.69A5.86 5.86 0 0 1 6.23 12c0-.59.1-1.16.31-1.69V7.78H3.3A9.6 9.6 0 0 0 2.4 12c0 1.53.37 2.98.9 4.22l3.24-2.53Z"
-                  />
-
-                  <path
-                    fill="#EA4335"
-                    d="M12 6.28c1.43 0 2.71.49 3.72 1.45l2.79-2.79C16.83 3.37 14.63 2.4 12 2.4a9.74 9.74 0 0 0-8.7 5.38l3.24 2.53C7.31 8 9.46 6.28 12 6.28Z"
-                  />
-                </svg>
-
-                <span className="font-semibold text-[#0b1c30]">
-                  Continue with Google
-                </span>
-
-              </button>
-
-              {/* Apple */}
-              <button
-                type="button"
-                className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-full border border-[#bbcac6] bg-white hover:bg-[#eff4ff] transition-colors"
-              >
-
-                <span className="text-xl">
-                  
-                </span>
-
-                <span className="font-semibold text-[#0b1c30]">
-                  Continue with Apple
-                </span>
-
-              </button>
-
-            </div>
-
-            {/* Divider */}
-            <div className="relative flex items-center mb-8">
-
-              <div className="flex-grow border-t border-[#bbcac6]" />
-
-              <span className="mx-4 text-xs font-medium text-[#3c4947] whitespace-nowrap">
-                OR SIGN UP WITH EMAIL
-              </span>
-
-              <div className="flex-grow border-t border-[#bbcac6]" />
 
             </div>
 
@@ -209,7 +138,7 @@ export default function Register() {
             >
               {/* Error */}
               {error && (
-                <div className="rounded-full border border-red-200 bg-red-50 px-5 py-3 text-sm text-red-600">
+                <div className="rounded-full border border-danger/30 bg-danger-50 px-5 py-3 text-sm text-danger">
                   {error}
                 </div>
               )}
@@ -220,7 +149,7 @@ export default function Register() {
 
                 <label
                   htmlFor="fullName"
-                  className="block text-sm font-semibold text-[#0b1c30] mb-2"
+                  className="block text-sm font-semibold text-ink mb-2"
                 >
                   Full Name
                 </label>
@@ -232,7 +161,7 @@ export default function Register() {
                   onChange={(e) => setFullName(e.target.value)}
                   placeholder="Enter your full name"
                   required
-                  className="w-full bg-transparent border border-[#bbcac6] rounded-full py-3 px-5 text-sm text-[#0b1c30] placeholder:text-[#6c7a77] focus:border-[#006b5f] focus:ring-2 focus:ring-[#006b5f]/20 outline-none transition"
+                  className="w-full bg-transparent border border-line rounded-full py-3 px-5 text-sm text-ink placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition"
                 />
 
               </div>
@@ -242,7 +171,7 @@ export default function Register() {
 
                 <label
                   htmlFor="email"
-                  className="block text-sm font-semibold text-[#0b1c30] mb-2"
+                  className="block text-sm font-semibold text-ink mb-2"
                 >
                   Email
                 </label>
@@ -254,7 +183,7 @@ export default function Register() {
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
-                  className="w-full bg-transparent border border-[#bbcac6] rounded-full py-3 px-5 text-sm text-[#0b1c30] placeholder:text-[#6c7a77] focus:border-[#006b5f] focus:ring-2 focus:ring-[#006b5f]/20 outline-none transition"
+                  className="w-full bg-transparent border border-line rounded-full py-3 px-5 text-sm text-ink placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition"
                 />
 
               </div>
@@ -264,7 +193,7 @@ export default function Register() {
 
                 <label
                   htmlFor="password"
-                  className="block text-sm font-semibold text-[#0b1c30] mb-2"
+                  className="block text-sm font-semibold text-ink mb-2"
                 >
                   Password
                 </label>
@@ -277,7 +206,7 @@ export default function Register() {
                   placeholder="Create a password"
                   required
                   minLength={6}
-                  className="w-full bg-transparent border border-[#bbcac6] rounded-full py-3 px-5 text-sm text-[#0b1c30] placeholder:text-[#6c7a77] focus:border-[#006b5f] focus:ring-2 focus:ring-[#006b5f]/20 outline-none transition"
+                  className="w-full bg-transparent border border-line rounded-full py-3 px-5 text-sm text-ink placeholder:text-faint focus:border-brand focus:ring-2 focus:ring-brand/20 outline-none transition"
                 />
 
               </div>
@@ -286,7 +215,7 @@ export default function Register() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full bg-[#006b5f] hover:bg-[#005048] disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition-colors shadow-sm mt-2"
+                className="w-full bg-brand-strong hover:bg-brand dark:bg-brand-50 dark:hover:bg-brand-100 dark:text-brand-ink disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-full transition-colors shadow-sm mt-2"
               >
                 {loading ? "Creating Account..." : "Create Account"}
               </button>
@@ -294,13 +223,13 @@ export default function Register() {
             </form>
 
             {/* Login */}
-            <p className="mt-8 text-center text-sm text-[#3c4947]">
+            <p className="mt-8 text-center text-sm text-body">
 
               Already have an account?{" "}
 
               <Link
                 to="/login"
-                className="text-[#006b5f] font-semibold hover:underline"
+                className="text-brand-strong font-semibold hover:underline"
               >
                 Log in
               </Link>

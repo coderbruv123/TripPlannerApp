@@ -1,1900 +1,1154 @@
-// import "maplibre-gl/dist/maplibre-gl.css";
-// import Map, { Marker, Source, Layer } from "react-map-gl/maplibre";import { useLocation, useNavigate } from "react-router-dom";
-// import {
-//   ArrowLeft,
-//   CalendarDays,
-//   Compass,
-//   MapPin,
-//   Plane,
-//   Sparkles,
-//   Users,
-//   Wallet,
-// } from "lucide-react";
-// import { useState } from "react";
-
-// type SelectedDateRange = {
-//   from?: Date;
-//   to?: Date;
-// };
-
-// type Destination = {
-//   name: string;
-//   country: string;
-//   latitude: number;
-//   longitude: number;
-// };
-// type RouteOption = {
-//   type: string;
-//   name: string;
-//   available: boolean;
-//   distanceKm?: number;
-//   durationMinutes?: number;
-//   estimatedPrice?: number;
-//   provider?: string;
-//   geometry?: string;
-//   message?: string;
-// };
-
-// type FlightOption = {
-//   available: boolean;
-//   airline?: string;
-//   duration?: number;
-//   estimatedPrice?: number;
-//   message?: string;
-// };
-
-// type TripState = {
-//   destination?: Destination;
-
-//   origin?: {
-//     latitude: number;
-//     longitude: number;
-//   };
-
-//   budget?: string;
-//   adults?: number;
-//   children?: number;
-//   selectedDates?: SelectedDateRange;
-
-//   routes?: RouteOption[];
-//   flight?: FlightOption;
-// };
-
-// function formatDate(value?: Date) {
-//   if (!value) return "TBD";
-//   return value.toLocaleDateString("en", {
-//     month: "short",
-//     day: "numeric",
-//   });
-// }
-
-// export default function TripResults() {
-//   const navigate = useNavigate();
-//   const { state } = useLocation();
-//   const tripState = (state as TripState | undefined) ?? {};
-
-//   const destination = tripState.destination ?? {
-//     name: "Santorini",
-//     country: "Greece",
-//     latitude: 36.3932,
-//     longitude: 25.4615,
-//   };
-
-//   const budgetValue = tripState.budget?.trim();
-//   const adults = tripState.adults ?? 2;
-//   const children = tripState.children ?? 0;
-//   const travelers = adults + children;
-//   const selectedDates = tripState.selectedDates;
-// const userLocation = tripState.origin ?? null;
-// const routes = tripState.routes ?? [];
-
-// const availableRoutes = routes.filter(
-//   (route) => route.available
-// );
-
-// const [selectedRoute, setSelectedRoute] =
-//   useState<RouteOption | null>(
-//     availableRoutes[0] ?? null
-//   );
-//   let routeGeometry = null;
-
-// if (selectedRoute?.geometry) {
-//   try {
-//     routeGeometry = JSON.parse(selectedRoute.geometry);
-//   } catch (error) {
-//     console.error("Failed to parse route geometry:", error);
-//   }
-// }
-//   const parsedBudget = Number(budgetValue);
-//   const estimatedBudget = Number.isFinite(parsedBudget) && parsedBudget > 0
-//     ? parsedBudget
-//     : 1800;
-
-//   const stayCost = Math.round(estimatedBudget * 0.4);
-//   const flightCost = Math.round(estimatedBudget * 0.25);
-//   const activityCost = Math.round(estimatedBudget * 0.2);
-//   const foodCost = Math.round(estimatedBudget * 0.15);
-
-//   return (
-//     <div className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900 lg:px-10">
-//       <div className="mx-auto flex max-w-7xl flex-col gap-6">
-//         <button
-//           onClick={() => navigate(-1)}
-//           className="flex w-fit items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 shadow-sm transition hover:bg-slate-100"
-//         >
-//           <ArrowLeft size={16} />
-//           Back to planner
-//         </button>
-
-//         <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-xl">
-//           <div className="grid gap-8 bg-gradient-to-br from-slate-900 via-slate-800 to-indigo-700 p-8 text-white lg:grid-cols-[1.3fr_0.7fr] lg:p-10">
-//             <div>
-//               <div className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-sm font-medium backdrop-blur">
-//                 <Sparkles size={16} />
-//                 Recommended trip plan
-//               </div>
-//               <h1 className="mt-5 text-4xl font-bold leading-tight sm:text-5xl">
-//                 Your {travelers}-traveler escape to {destination.name}
-//               </h1>
-//               <p className="mt-4 max-w-2xl text-sm text-slate-200 sm:text-base">
-//                 We mapped out a balanced itinerary with a comfortable stay, scenic activities, and flexible budget pacing for your upcoming journey.
-//               </p>
-
-//               <div className="mt-6 flex flex-wrap gap-3 text-sm">
-//                 <div className="rounded-full bg-white/10 px-3 py-2 backdrop-blur">
-//                   <span className="font-semibold">Destination:</span> {destination.name}, {destination.country}
-//                 </div>
-//                 <div className="rounded-full bg-white/10 px-3 py-2 backdrop-blur">
-//                   <span className="font-semibold">Dates:</span> {formatDate(selectedDates?.from)} - {formatDate(selectedDates?.to)}
-//                 </div>
-//               </div>
-//             </div>
-
-//             <div className="rounded-[28px] border border-white/20 bg-white/10 p-6 backdrop-blur">
-//               <p className="text-sm font-semibold uppercase tracking-[0.25em] text-slate-200">
-//                 Budget snapshot
-//               </p>
-//               <div className="mt-4 space-y-3 text-sm">
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-slate-200">Estimated total</span>
-//                   <span className="text-xl font-semibold">${estimatedBudget}</span>
-//                 </div>
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-slate-200">Stay</span>
-//                   <span>${stayCost}</span>
-//                 </div>
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-slate-200">Flights</span>
-//                   <span>${flightCost}</span>
-//                 </div>
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-slate-200">Activities</span>
-//                   <span>${activityCost}</span>
-//                 </div>
-//                 <div className="flex items-center justify-between">
-//                   <span className="text-slate-200">Food</span>
-//                   <span>${foodCost}</span>
-//                 </div>
-//               </div>
-//             </div>
-//           </div>
-//         </section>
-//        <section className="overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-xl">
-
-//   {/* Transport options */}
-
-//   <div className="border-b border-slate-200 p-6">
-
-//     <h2 className="text-2xl font-bold">
-//       How do you want to travel?
-//     </h2>
-
-//     <p className="mt-1 text-slate-500">
-//       Choose a travel method to see its route.
-//     </p>
-
-//     <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-
-//       {routes.map((route) => {
-
-//         const isSelected =
-//           selectedRoute?.type === route.type;
-
-//         return (
-//           <button
-//             key={route.type}
-//             disabled={!route.available}
-//             onClick={() => {
-//               if (route.available) {
-//                 setSelectedRoute(route);
-//               }
-//             }}
-//             className={`rounded-2xl border p-4 text-left transition ${
-//               !route.available
-//                 ? "cursor-not-allowed bg-slate-100 opacity-50"
-//                 : isSelected
-//                 ? "border-indigo-600 bg-indigo-50 ring-2 ring-indigo-200"
-//                 : "border-slate-200 bg-white hover:border-indigo-300 hover:bg-slate-50"
-//             }`}
-//           >
-
-//             <div className="flex items-center justify-between">
-
-//               <span className="font-semibold">
-//                 {route.type}
-//               </span>
-
-//               {isSelected && (
-//                 <span className="text-xs font-semibold text-indigo-600">
-//                   Selected
-//                 </span>
-//               )}
-
-//             </div>
-
-//             {route.available ? (
-//               <>
-//                 <p className="mt-2 text-sm text-slate-500">
-//                   {route.distanceKm?.toFixed(1)} km
-//                 </p>
-
-//                 <p className="text-sm text-slate-500">
-//                   {Math.round(route.durationMinutes ?? 0)} min
-//                 </p>
-//               </>
-//             ) : (
-//               <p className="mt-2 text-sm text-slate-500">
-//                 Not available yet
-//               </p>
-//             )}
-
-//           </button>
-//         );
-
-//       })}
-
-//       {/* Flight */}
-
-//       {tripState.flight && (
-//         <button
-//           disabled={!tripState.flight.available}
-//           className="cursor-not-allowed rounded-2xl border border-slate-200 bg-slate-100 p-4 text-left opacity-50"
-//         >
-//           <div className="flex items-center justify-between">
-
-//             <span className="font-semibold">
-//               Flight
-//             </span>
-
-//             <Plane size={18} />
-
-//           </div>
-
-//           <p className="mt-2 text-sm text-slate-500">
-//             {tripState.flight.available
-//               ? "Available"
-//               : "Not available yet"}
-//           </p>
-
-//         </button>
-//       )}
-
-//     </div>
-
-//   </div>
-
-//   <div className="h-[500px]">
-
-  
-// <Map
-//   initialViewState={{
-//     longitude: destination.longitude,
-//     latitude: destination.latitude,
-//     zoom: 8,
-//   }}
-//   style={{ width: "100%", height: "100%" }}
-//   mapStyle="https://demotiles.maplibre.org/style.json"
-// >
-
-//   {/* Selected route */}
-//   {routeGeometry && (
-//     <Source
-//       id="selected-route"
-//       type="geojson"
-//       data={{
-//         type: "Feature",
-//         properties: {},
-//         geometry: routeGeometry,
-//       }}
-//     >
-//       <Layer
-//         id="selected-route-line"
-//         type="line"
-//         paint={{
-//           "line-color": "#4f46e5",
-//           "line-width": 5,
-//           "line-opacity": 0.8,
-//         }}
-//       />
-//     </Source>
-//   )}
-
-//   {/* Starting point */}
-//   {userLocation && (
-//     <Marker
-//       longitude={userLocation.longitude}
-//       latitude={userLocation.latitude}
-//       anchor="bottom"
-//     >
-//       <div className="h-4 w-4 rounded-full bg-blue-600 ring-4 ring-blue-200" />
-//     </Marker>
-//   )}
-
-//   {/* Destination */}
-//   <Marker
-//     longitude={destination.longitude}
-//     latitude={destination.latitude}
-//     anchor="bottom"
-//   >
-//     <MapPin
-//       className="text-red-600"
-//       fill="red"
-//     />
-//   </Marker>
-
-// </Map>
-//   </div>
-
-//   <div className="grid gap-4 border-t border-slate-200 p-6 md:grid-cols-2">
-
-//     <div>
-
-//       <p className="font-semibold">
-//         Destination
-//       </p>
-
-//       <p className="text-slate-500">
-//         {destination.name}, {destination.country}
-//       </p>
-
-//     </div>
-
-//     <div>
-
-//       <p className="font-semibold">
-//         Starting Point
-//       </p>
-
-//       <p className="text-slate-500">
-//         {userLocation
-//           ? "Current Location Detected"
-//           : "Location permission not granted"}
-//       </p>
-
-//     </div>
-
-//   </div>
-
-// </section>
-//         <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
-//           <div className="space-y-4">
-//             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-//               <div className="flex items-center justify-between">
-//                 <div>
-//                   <p className="text-sm font-semibold uppercase tracking-[0.22em] text-indigo-600">
-//                     Core itinerary
-//                   </p>
-//                   <h2 className="mt-2 text-2xl font-semibold text-slate-900">
-//                     A relaxed 4-day experience
-//                   </h2>
-//                 </div>
-//                 <div className="rounded-full bg-slate-100 px-3 py-1 text-sm font-medium text-slate-600">
-//                   Best fit
-//                 </div>
-//               </div>
-
-//               <div className="mt-6 space-y-4">
-//                 {[
-//                   {
-//                     title: "Day 1 — Arrival and waterfront stroll",
-//                     description: "Check into a boutique stay near the city center and enjoy an easy evening around the marina.",
-//                   },
-//                   {
-//                     title: "Day 2 — Scenic landmarks and local eats",
-//                     description: "Visit iconic viewpoints, grab a guided food walk, and leave space for leisurely breaks.",
-//                   },
-//                   {
-//                     title: "Day 3 — Adventure and beach time",
-//                     description: "Book a half-day excursion and spend the afternoon relaxing at a seaside spot.",
-//                   },
-//                   {
-//                     title: "Day 4 — Flexible departure day",
-//                     description: "Use the final day for shopping, brunch, or one last cultural stop before heading home.",
-//                   },
-//                 ].map((item) => (
-//                   <div key={item.title} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-//                     <h3 className="font-semibold text-slate-900">{item.title}</h3>
-//                     <p className="mt-1 text-sm text-slate-600">{item.description}</p>
-//                   </div>
-//                 ))}
-//               </div>
-//             </div>
-//           </div>
-
-//           <div className="space-y-4">
-//             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-//               <p className="text-sm font-semibold uppercase tracking-[0.22em] text-indigo-600">
-//                 Trip highlights
-//               </p>
-//               <div className="mt-5 space-y-3">
-//                 <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
-//                   <Plane className="mt-0.5 h-5 w-5 text-indigo-600" />
-//                   <div>
-//                     <h3 className="font-semibold text-slate-900">Flight recommendation</h3>
-//                     <p className="text-sm text-slate-600">Aim for morning departures to maximize your first-day energy.</p>
-//                   </div>
-//                 </div>
-//                 <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
-//                   <MapPin className="mt-0.5 h-5 w-5 text-indigo-600" />
-//                   <div>
-//                     <h3 className="font-semibold text-slate-900">Stay near the center</h3>
-//                     <p className="text-sm text-slate-600">Choose a hotel within walking distance of main attractions.</p>
-//                   </div>
-//                 </div>
-//                 <div className="flex items-start gap-3 rounded-2xl bg-slate-50 p-3">
-//                   <Compass className="mt-0.5 h-5 w-5 text-indigo-600" />
-//                   <div>
-//                     <h3 className="font-semibold text-slate-900">Best local experiences</h3>
-//                     <p className="text-sm text-slate-600">Book one guided tour and one flexible day for spontaneous exploring.</p>
-//                   </div>
-//                 </div>
-//               </div>
-//             </div>
-
-//             <div className="rounded-[28px] border border-slate-200 bg-white p-6 shadow-sm">
-//               <div className="flex items-center gap-2 text-slate-900">
-//                 <Users size={18} />
-//                 <h3 className="font-semibold">Travelers</h3>
-//               </div>
-//               <p className="mt-3 text-sm text-slate-600">
-//                 {adults} adults and {children} children are included in this plan.
-//               </p>
-
-//               <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-//                 <CalendarDays size={16} />
-//                 <span>Stay flexible around {formatDate(selectedDates?.from)} to {formatDate(selectedDates?.to)}.</span>
-//               </div>
-
-//               <div className="mt-4 flex items-center gap-2 text-sm text-slate-600">
-//                 <Wallet size={16} />
-//                 <span>Budget-friendly pacing with room for dining and extras.</span>
-//               </div>
-//             </div>
-//           </div>
-//         </section>
-//       </div>
-//     </div>
-//   );
-// }
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import Map, {
-  Marker,
-  Source,
-  Layer,
-  NavigationControl,
-} from "react-map-gl/maplibre";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 
-import { useLocation, useNavigate } from "react-router-dom";
-import { useMemo, useState } from "react";
+import Map, {
+  Layer,
+  Marker,
+  NavigationControl,
+  Source,
+} from "react-map-gl/maplibre";
+import type { MapRef } from "react-map-gl/maplibre";
+import { LngLatBounds } from "maplibre-gl";
+import type { Geometry } from "geojson";
 
 import {
-  ArrowRight,
+  ArrowLeft,
+  Bike,
   Bookmark,
+  BookmarkCheck,
   BusFront,
+  CalendarDays,
   CarFront,
-  ChevronRight,
-  Compass,
-  Expand,
-  Globe2,
+  Check,
+  CircleDot,
+  Download,
+  Footprints,
+  Info,
+  Loader2,
   MapPin,
   Moon,
   Plane,
   Plus,
-  Search,
+  Route as RouteIcon,
+  Share2,
+  TrainFront,
   Sun,
-  TentTree,
-  UserRound,
-  X,
-  CalendarDays,
+  Trash2,
   Users,
   Wallet,
-  Hotel,
 } from "lucide-react";
 
-/* =========================================================
-   TYPES
-========================================================= */
+import Navbar from "./Navbar";
+import DestinationCombobox from "./planner/DestinationCombobox";
 
-type SelectedDateRange = {
-  from?: Date;
-  to?: Date;
-};
+import { searchTrips } from "../api/trips";
+import { buildTripUrl, parseTripParams } from "../utils/tripUrl";
+import {
+  countNights,
+  formatDay,
+  formatDistance,
+  formatDuration,
+  formatPrice,
+  formatRange,
+  travellersLabel,
+} from "../utils/format";
+import { downloadCalendar } from "../utils/ics";
+import { isTripSaved, saveTrip } from "../utils/tripStore";
+import { toggleTheme, useTheme } from "../utils/theme";
 
-type Destination = {
-  name: string;
-  country: string;
-  latitude: number;
-  longitude: number;
-};
+import type {
+  AddedStop,
+  Destination,
+  FlightOption,
+  RouteOption,
+  TripPlan,
+} from "../types/trip";
 
-type RouteOption = {
-  type: string;
-  name: string;
-  available: boolean;
-  distanceKm?: number;
-  durationMinutes?: number;
-  estimatedPrice?: number;
-  provider?: string;
-  geometry?: string;
-  message?: string;
-};
+type Position = [number, number];
 
-type FlightOption = {
-  available: boolean;
-  airline?: string;
-  duration?: number;
-  estimatedPrice?: number;
-  message?: string;
-};
+const STOPS_KEY = (query: string) => `tp.stops:${query}`;
 
-type TripState = {
-  destination?: Destination;
+function modeIcon(type: string) {
+  const key = type.toLowerCase();
 
-  origin?: {
-    latitude: number;
-    longitude: number;
+  if (key.includes("walk") || key.includes("foot")) return Footprints;
+  if (key.includes("cycl") || key.includes("bike")) return Bike;
+  if (key.includes("bus") || key.includes("coach")) return BusFront;
+  if (key.includes("train") || key.includes("rail")) return TrainFront;
+  if (key.includes("flight") || key.includes("plane")) return Plane;
+
+  return CarFront;
+}
+
+function extractCoordinates(geometry: unknown): Position[] {
+  const typed = geometry as {
+    type?: string;
+    coordinates?: unknown;
   };
 
-  budget?: string;
+  const coordinates = typed.coordinates;
 
-  adults?: number;
-  children?: number;
+  if (!Array.isArray(coordinates)) return [];
 
-  selectedDates?: SelectedDateRange;
+  const positions: Position[] = [];
 
-  routes?: RouteOption[];
+  const walkLine = (line: unknown[]) => {
+    for (const point of line) {
+      if (
+        Array.isArray(point) &&
+        typeof point[0] === "number" &&
+        typeof point[1] === "number"
+      ) {
+        positions.push([point[0], point[1]]);
+      }
+    }
+  };
 
-  flight?: FlightOption;
-};
-
-type Stop = {
-  id: string;
-  number: string;
-  name: string;
-  country?: string;
-
-  transport?: string;
-  detail?: string;
-
-  tone?: "orange" | "teal";
-  icon?: "mixed" | "plane";
-};
-
-/* =========================================================
-   HELPERS
-========================================================= */
-
-function formatDate(value?: Date) {
-  if (!value) return "TBD";
-
-  return value.toLocaleDateString("en", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function formatDuration(minutes?: number) {
-  if (!minutes) return "TBD";
-
-  const hours = Math.floor(minutes / 60);
-  const mins = Math.round(minutes % 60);
-
-  if (hours === 0) {
-    return `${mins} min`;
+  if (typed.type === "Point") {
+    walkLine(coordinates);
+    return positions;
   }
 
-  if (mins === 0) {
-    return `${hours}h`;
+  for (const line of coordinates) {
+    if (Array.isArray(line)) walkLine(line);
   }
 
-  return `${hours}h ${mins}min`;
+  return positions;
 }
 
-/* =========================================================
-   COMPONENT
-========================================================= */
+function readStops(query: string): Record<number, AddedStop[]> {
+  try {
+    const raw = localStorage.getItem(STOPS_KEY(query));
 
-export default function TripPlannerMap() {
-  const navigate = useNavigate();
+    return raw ? (JSON.parse(raw) as Record<number, AddedStop[]>) : {};
+  } catch {
+    return {};
+  }
+}
 
-  const { state } = useLocation();
+export default function TripResults() {
+  const [params] = useSearchParams();
 
-  const tripState = (state as TripState | undefined) ?? {};
+  const query = params.toString();
+  const plan = useMemo(() => parseTripParams(params), [params]);
 
-  /* =======================================================
-     THEME
-  ======================================================= */
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [flight, setFlight] = useState<FlightOption | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const [darkMode, setDarkMode] = useState(false);
+  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [activeDay, setActiveDay] = useState(0);
 
-  /* =======================================================
-     SAVE
-  ======================================================= */
+  const [extraStops, setExtraStops] = useState<Record<number, AddedStop[]>>(
+    () => (plan ? readStops(query) : {})
+  );
+  const [addStopKey, setAddStopKey] = useState(0);
 
   const [saved, setSaved] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
-  /* =======================================================
-     NAV
-  ======================================================= */
+  // One app-wide theme: the navbar toggle and this one stay in sync.
+  const dark = useTheme() === "dark";
 
-  const [activeNav, setActiveNav] = useState("compass");
+  const mapRef = useRef<MapRef | null>(null);
+  const mapPaneRef = useRef<HTMLDivElement | null>(null);
 
-  /* =======================================================
-     DESTINATION
-  ======================================================= */
+  /* ---------------- fetch routes ---------------- */
 
-  const destination = tripState.destination ?? {
-    name: "Santorini",
-    country: "Greece",
-    latitude: 36.3932,
-    longitude: 25.4615,
-  };
+  useEffect(() => {
+    if (!plan) return;
 
-  /* =======================================================
-     ORIGIN
-  ======================================================= */
+    let cancelled = false;
 
-  const userLocation = tripState.origin ?? null;
+    setLoading(true);
+    setError(null);
 
-  /* =======================================================
-     TRAVELERS
-  ======================================================= */
+    searchTrips(plan.origin, plan.destination)
+      .then((result) => {
+        if (cancelled) return;
 
-  const adults = tripState.adults ?? 2;
-  const children = tripState.children ?? 0;
-  const travelers = adults + children;
+        setRoutes(result.routes);
+        setFlight(result.flight ?? null);
+      })
+      .catch((err: unknown) => {
+        if (cancelled) return;
 
-  /* =======================================================
-     DATES
-  ======================================================= */
+        console.error(err);
+        setError("Couldn't load routes for this trip. Try again in a moment.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
-  const selectedDates = tripState.selectedDates;
+    return () => {
+      cancelled = true;
+    };
+  }, [plan, reloadKey]);
 
-  /* =======================================================
-     BUDGET
-  ======================================================= */
+  /* ---------------- derived ---------------- */
 
-  const parsedBudget = Number(tripState.budget);
+  const days = useMemo(() => {
+    const from = plan?.dates?.from;
 
-  const estimatedBudget =
-    Number.isFinite(parsedBudget) && parsedBudget > 0
-      ? parsedBudget
-      : 1800;
+    if (!from) return [null];
 
-  /* =======================================================
-     ROUTES
-  ======================================================= */
-
-  const routes = tripState.routes ?? [];
-
-  const availableRoutes = routes.filter(
-    (route) => route.available
-  );
-
-  const [selectedRoute, setSelectedRoute] =
-    useState<RouteOption | null>(
-      availableRoutes[0] ?? null
+    const to = plan?.dates?.to ?? from;
+    const total = Math.min(
+      21,
+      Math.max(
+        1,
+        Math.round((to.getTime() - from.getTime()) / 86_400_000) + 1
+      )
     );
 
-  /* =======================================================
-     FLIGHT
-  ======================================================= */
+    return Array.from({ length: total }, (_, index) => {
+      const date = new Date(from);
+      date.setDate(date.getDate() + index);
 
-  const flight = tripState.flight;
+      return date;
+    });
+  }, [plan]);
 
-  /* =======================================================
-     ADD DESTINATION
-  ======================================================= */
+  const safeDay = Math.min(activeDay, days.length - 1);
 
-  const [newDestination, setNewDestination] = useState("");
+  const availableRoutes = routes.filter((route) => route.available);
 
-  const [searched, setSearched] = useState(false);
+  const selectedRoute =
+    availableRoutes.find((route) => route.type === selectedType) ??
+    availableRoutes[0] ??
+    null;
 
-  /* =======================================================
-     MAP ROUTE GEOMETRY
-  ======================================================= */
+  const fastest = availableRoutes.reduce<RouteOption | null>((best, route) => {
+    if (route.durationMinutes == null) return best;
+    if (!best || best.durationMinutes == null) return route;
+
+    return route.durationMinutes < best.durationMinutes ? route : best;
+  }, null);
+
+  const cheapest = availableRoutes.reduce<RouteOption | null>((best, route) => {
+    if (route.estimatedPrice == null) return best;
+    if (!best || best.estimatedPrice == null) return route;
+
+    return route.estimatedPrice < best.estimatedPrice ? route : best;
+  }, null);
+
+  const budgetNumber = Number(plan?.budget ?? "");
+  const hasBudget = Number.isFinite(budgetNumber) && budgetNumber > 0;
+  const travellers = (plan?.adults ?? 0) + (plan?.children ?? 0);
+
+  const transportCost = selectedRoute?.estimatedPrice ?? null;
+  const remaining =
+    hasBudget && transportCost !== null ? budgetNumber - transportCost : null;
 
   const routeGeometry = useMemo(() => {
-    if (!selectedRoute?.geometry) {
-      return null;
-    }
+    if (!selectedRoute?.geometry) return null;
 
     try {
-      return JSON.parse(selectedRoute.geometry);
-    } catch (error) {
-      console.error(
-        "Failed to parse route geometry:",
-        error
-      );
-
+      return JSON.parse(selectedRoute.geometry) as unknown;
+    } catch {
       return null;
     }
   }, [selectedRoute]);
 
-  /* =======================================================
-     STOPS
-  ======================================================= */
+  const routeBounds = useMemo(() => {
+    if (!routeGeometry) return null;
 
-  const stops: Stop[] = [
-    {
-      id: "destination",
-      number: "1",
-      name: destination.name,
-      country: destination.country,
-      transport: selectedRoute?.name,
-      detail: selectedRoute
-        ? `${formatDuration(
-            selectedRoute.durationMinutes
-          )} · ${
-            selectedRoute.estimatedPrice
-              ? `from $${selectedRoute.estimatedPrice}`
-              : "price unavailable"
-          }`
-        : "Select a transport option",
-      tone: "orange",
-      icon: "mixed",
-    },
-  ];
+    const points = extractCoordinates(routeGeometry);
 
-  /* =======================================================
-     THEME COLORS
-  ======================================================= */
+    if (points.length === 0) return null;
 
-  const theme = {
-    page: darkMode ? "#0D1117" : "#F5F5F7",
+    let south = Infinity;
+    let north = -Infinity;
+    let west = Infinity;
+    let east = -Infinity;
 
-    header: darkMode ? "#0D1117" : "#FFFFFF",
+    for (const [longitude, latitude] of points) {
+      south = Math.min(south, latitude);
+      north = Math.max(north, latitude);
+      west = Math.min(west, longitude);
+      east = Math.max(east, longitude);
+    }
 
-    panel: darkMode ? "#111720" : "#FFFFFF",
+    return new LngLatBounds([south, west], [north, east]);
+  }, [routeGeometry]);
 
-    card: darkMode ? "#1E1E2E" : "#FFFFFF",
+  useEffect(() => {
+    if (!mapRef.current || !routeBounds) return;
 
-    cardSecondary: darkMode
-      ? "#181F29"
-      : "#FFFFFF",
+    mapRef.current.fitBounds(routeBounds, { padding: 70, duration: 600 });
+  }, [routeBounds]);
 
-    border: darkMode
-      ? "#2A2A3E"
-      : "#E5E5E5",
+  /* MapLibre only listens to window resizes. The workspace reflows on its
+     own (panels, mobile sheet), so keep the canvas in sync with its box. */
+  useEffect(() => {
+    const node = mapPaneRef.current;
 
-    text: darkMode
-      ? "#FFFFFF"
-      : "#0F1F3D",
+    if (!node || typeof ResizeObserver === "undefined") return;
 
-    muted: darkMode
-      ? "#8993A2"
-      : "#888888",
+    const observer = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
 
-    primary: "#00BFA5",
+    observer.observe(node);
 
-    primaryHover: "#28D3BA",
+    return () => observer.disconnect();
+  }, []);
 
-    route: darkMode
-      ? "#00BFA5"
-      : "#4F46E5",
+  /* ---------------- persistence ---------------- */
+
+  useEffect(() => {
+    if (!plan) return;
+
+    setSaved(isTripSaved(query));
+  }, [plan, query]);
+
+  useEffect(() => {
+    if (!plan) return;
+
+    try {
+      localStorage.setItem(STOPS_KEY(query), JSON.stringify(extraStops));
+    } catch {
+      /* storage blocked — stops stay for this session only */
+    }
+  }, [extraStops, plan, query]);
+
+  useEffect(() => {
+    if (!toast) return;
+
+    const timer = window.setTimeout(() => setToast(null), 2600);
+
+    return () => window.clearTimeout(timer);
+  }, [toast]);
+
+  /* ---------------- actions ---------------- */
+
+  const stopsForDay = extraStops[safeDay] ?? [];
+
+  const addStop = (destination: Destination | null) => {
+    if (!destination) return;
+
+    setExtraStops((current) => ({
+      ...current,
+      [safeDay]: [
+        ...(current[safeDay] ?? []),
+        {
+          id: `${destination.latitude}-${destination.longitude}-${Date.now()}`,
+          name: destination.name,
+          country: destination.country,
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+        },
+      ],
+    }));
+
+    setAddStopKey((value) => value + 1);
+    setToast(`Added ${destination.name} to day ${safeDay + 1}`);
   };
 
-  /* =======================================================
-     NAVIGATION ITEMS
-  ======================================================= */
+  const removeStop = (id: string) => {
+    setExtraStops((current) => ({
+      ...current,
+      [safeDay]: (current[safeDay] ?? []).filter((stop) => stop.id !== id),
+    }));
+  };
 
-  const navItems = [
-    {
-      id: "compass",
-      icon: Compass,
-      label: "Explore",
-    },
-    {
-      id: "person",
-      icon: UserRound,
-      label: "Travelers",
-    },
-    {
-      id: "camp",
-      icon: TentTree,
-      label: "Camping",
-    },
-    {
-      id: "pin",
-      icon: MapPin,
-      label: "Places",
-    },
-  ];
+  const handleSave = () => {
+    if (!plan) return;
 
-  /* =======================================================
-     HOTEL HANDLER
-  ======================================================= */
+    if (saved) {
+      setToast("This trip is already saved");
+      return;
+    }
 
-  function handleHotels() {
-    /*
-      Later this can navigate to:
-
-      /hotels
-
-      and pass:
-
-      destination
-      selectedDates
-      travelers
-      budget
-
-      Example:
-
-      navigate("/hotels", {
-        state: {
-          destination,
-          selectedDates,
-          adults,
-          children,
-          budget: estimatedBudget
-        }
-      });
-    */
-
-    navigate("/hotels", {
-      state: {
-        destination,
-        selectedDates,
-        adults,
-        children,
-        budget: estimatedBudget,
-      },
+    saveTrip({
+      id: query,
+      title: plan.destination.name,
+      country: plan.destination.country,
+      from: plan.dates?.from
+        ? plan.dates.from.toISOString().slice(0, 10)
+        : undefined,
+      to: plan.dates?.to ? plan.dates.to.toISOString().slice(0, 10) : undefined,
+      travelers: plan.adults + plan.children,
+      budget: plan.budget,
+      url: `${window.location.pathname}?${query}`,
+      savedAt: new Date().toISOString(),
     });
+
+    setSaved(true);
+    setToast("Saved — find it under Saved trips");
+  };
+
+  const handleShare = async () => {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setToast("Link copied — it reopens this exact trip");
+    } catch {
+      setToast("Couldn't copy the link. Select the address bar instead.");
+    }
+  };
+
+  const handleExport = () => {
+    if (!plan) return;
+
+    downloadCalendar(plan);
+    setToast("Calendar file downloaded");
+  };
+
+  /* ---------------- states ---------------- */
+
+  if (!plan) {
+    return (
+      <div className="min-h-screen bg-canvas">
+        <Navbar />
+
+        <div className="mx-auto max-w-[560px] px-4 py-24 text-center">
+          <span className="mx-auto grid h-12 w-12 place-items-center rounded-2xl bg-brand-50 text-brand">
+            <MapPin className="h-6 w-6" />
+          </span>
+
+          <h1 className="mt-4 text-[22px] font-bold tracking-[-0.02em] text-navy">
+            This trip link is incomplete
+          </h1>
+
+          <p className="mt-2 text-[13.5px] text-muted">
+            A trip needs a destination and a starting point. Start a new plan and
+            the link will carry everything else.
+          </p>
+
+          <Link
+            to="/"
+            className="mt-6 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-[13px] font-semibold text-white transition hover:bg-brand-strong"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to the planner
+          </Link>
+        </div>
+      </div>
+    );
   }
 
-  /* =======================================================
-     REMOVE DESTINATION
-  ======================================================= */
-
-  function removeDestination() {
-    /*
-      Currently your TripState only contains one destination.
-
-      When multi-stop support is added, this should update
-      the destinations array instead.
-    */
-
-    console.log("Remove destination:", destination.name);
-  }
-
-  /* =======================================================
-     SEARCH
-  ======================================================= */
-
-  function handleSearch() {
-    setSearched(true);
-
-    /*
-      Later this can call your destination backend.
-
-      Example:
-
-      GET /api/Destinations?search=...
-    */
-  }
-
-  /* =======================================================
-     RENDER
-  ======================================================= */
+  const planUrl = buildTripUrl(plan as TripPlan);
 
   return (
-    <main
-      className="min-h-screen overflow-hidden"
-      style={{
-        backgroundColor: theme.page,
-        color: theme.text,
-        fontFamily:
-          "Inter, ui-sans-serif, system-ui, sans-serif",
-      }}
-    >
-      {/* =====================================================
-          HEADER
-      ===================================================== */}
+    <main className="min-h-screen bg-canvas pb-20 lg:pb-0">
+      <Navbar />
 
-      <header
-        className="flex h-16 items-center gap-5 border-b px-6"
-        style={{
-          backgroundColor: theme.header,
-          borderColor: theme.border,
-        }}
-      >
-        {/* LOGO */}
-
-        <div className="flex w-[220px] shrink-0 items-center gap-2.5">
-          <span
-            className="flex h-8 w-8 items-center justify-center rounded-full"
-            style={{
-              backgroundColor: theme.primary,
-              color: darkMode ? "#071B1B" : "#FFFFFF",
-            }}
+      <div className="mx-auto max-w-[1560px] px-4 py-4 sm:px-6">
+        {/* trip header */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Link
+            to={planUrl.replace("/trip", "/")}
+            aria-label="Back to planner"
+            className="grid h-9 w-9 place-items-center rounded-lg border border-line bg-surface text-muted transition hover:border-brand-100 hover:bg-brand-50 hover:text-brand-strong"
           >
-            <Compass
-              size={21}
-              strokeWidth={2.7}
-            />
-          </span>
+            <ArrowLeft className="h-4 w-4" />
+          </Link>
 
-          <span className="text-[19px] font-bold tracking-[-0.04em]">
-            TripPlanner
-          </span>
-        </div>
+          <div className="min-w-0">
+            <h1 className="truncate text-[19px] font-bold tracking-[-0.02em] text-navy">
+              {plan.destination.name}
+              {plan.destination.country ? (
+                <span className="ml-2 text-[14px] font-medium text-muted">
+                  {plan.destination.country}
+                </span>
+              ) : null}
+            </h1>
 
-        {/* DESTINATION PATH */}
+            <div className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
+              <span>{formatRange(plan.dates)}</span>
 
-        <nav
-          className="flex min-w-0 flex-1 items-center justify-center gap-2"
-          aria-label="Trip destinations"
-        >
-          <div className="flex min-w-0 items-center gap-2">
-            <div
-              className="flex h-10 min-w-[180px] max-w-[260px] items-center justify-between rounded-full border px-4 text-[14px] font-semibold"
-              style={{
-                backgroundColor: theme.card,
-                borderColor: theme.border,
-              }}
+              {countNights(plan.dates) > 0 && (
+                <>
+                  <span className="text-faint">·</span>
+                  <span>{countNights(plan.dates)} nights</span>
+                </>
+              )}
+
+              <span className="text-faint">·</span>
+              <span>{travellersLabel(plan.adults, plan.children)}</span>
+
+              {saved && (
+                <span className="rounded-md bg-brand-50 px-1.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wide text-brand-strong">
+                  Saved
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="ml-auto flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => toggleTheme()}
+              aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}
+              title={dark ? "Light theme" : "Dark theme"}
+              className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-line bg-surface text-muted transition hover:border-brand-100 hover:text-brand-strong"
             >
-              <span className="truncate">
-                {destination.name}
-              </span>
-
-              <button
-                onClick={removeDestination}
-                aria-label={`Remove ${destination.name}`}
-                className="ml-2"
-                style={{
-                  color: theme.muted,
-                }}
-              >
-                <X size={15} />
-              </button>
-            </div>
-
-            <ArrowRight
-              size={16}
-              style={{
-                color: theme.muted,
-              }}
-            />
-          </div>
-
-          <button
-            aria-label="More destinations"
-            className="flex h-10 w-11 items-center justify-center rounded-full border text-lg font-bold"
-            style={{
-              backgroundColor: theme.card,
-              borderColor: theme.border,
-              color: theme.muted,
-            }}
-          >
-            •••
-          </button>
-
-          <button
-            onClick={handleSearch}
-            className="ml-1 flex h-10 items-center gap-2 rounded-full px-5 text-[14px] font-bold transition"
-            style={{
-              backgroundColor: theme.primary,
-              color: darkMode
-                ? "#071B1B"
-                : "#FFFFFF",
-            }}
-          >
-            <Search size={16} />
-
-            <span>
-              {searched ? "Updated" : "Search"}
-            </span>
-          </button>
-        </nav>
-
-        {/* THEME */}
-
-        <button
-          onClick={() => setDarkMode(!darkMode)}
-          aria-label="Toggle theme"
-          className="flex h-10 w-10 items-center justify-center rounded-full border transition"
-          style={{
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-          }}
-        >
-          {darkMode ? (
-            <Sun size={18} />
-          ) : (
-            <Moon size={18} />
-          )}
-        </button>
-
-        {/* SIGN IN */}
-
-        <button
-          onClick={() => navigate("/login")}
-          className="w-[100px] rounded-full border px-4 py-2 text-[13px] font-semibold transition"
-          style={{
-            backgroundColor: theme.card,
-            borderColor: theme.border,
-          }}
-        >
-          Sign in
-        </button>
-      </header>
-
-      {/* =====================================================
-          BODY
-      ===================================================== */}
-
-      <section className="flex h-[calc(100vh-64px)] min-h-[720px]">
-        {/* ===================================================
-            LEFT ICON BAR
-        =================================================== */}
-
-        <aside
-          className="flex w-12 shrink-0 flex-col items-center justify-between border-r py-7"
-          style={{
-            backgroundColor: theme.header,
-            borderColor: theme.border,
-          }}
-        >
-          <div className="flex flex-col items-center gap-7">
-            {navItems.map(
-              ({
-                id,
-                icon: Icon,
-                label,
-              }) => {
-                const active =
-                  activeNav === id;
-
-                return (
-                  <button
-                    key={id}
-                    onClick={() =>
-                      setActiveNav(id)
-                    }
-                    aria-label={label}
-                    className="flex h-9 w-9 items-center justify-center rounded-xl transition"
-                    style={{
-                      backgroundColor: active
-                        ? darkMode
-                          ? "#123C3A"
-                          : "#DDF7F2"
-                        : "transparent",
-
-                      color: active
-                        ? theme.primary
-                        : theme.muted,
-                    }}
-                  >
-                    <Icon
-                      size={21}
-                      strokeWidth={
-                        active ? 2.7 : 2
-                      }
-                    />
-                  </button>
-                );
-              }
-            )}
-          </div>
-
-          <button
-            aria-label="World"
-            className="flex h-9 w-9 items-center justify-center rounded-xl"
-            style={{
-              color: theme.muted,
-            }}
-          >
-            <Globe2 size={21} />
-          </button>
-        </aside>
-
-        {/* ===================================================
-            TRIP SIDEBAR
-        =================================================== */}
-
-        <aside
-          className="z-10 w-[380px] shrink-0 overflow-y-auto border-r px-7 py-7"
-          style={{
-            backgroundColor: theme.panel,
-            borderColor: theme.border,
-          }}
-        >
-          {/* HEADER */}
-
-          <div className="mb-7 flex items-start justify-between">
-            <div>
-              <h1 className="text-[21px] font-bold tracking-[-0.035em]">
-                Trip overview
-              </h1>
-
-              <p
-                className="mt-1 text-[13px]"
-                style={{
-                  color: theme.muted,
-                }}
-              >
-                {travelers} travelers
-                <span className="mx-1">·</span>
-                Budget ${estimatedBudget}
-              </p>
-            </div>
+              {dark ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+            </button>
 
             <button
-              onClick={() =>
-                setSaved(!saved)
-              }
-              className="flex items-center gap-2 rounded-lg px-3.5 py-2 text-[13px] font-bold transition"
-              style={{
-                backgroundColor: saved
-                  ? darkMode
-                    ? "#27313B"
-                    : "#E6F8F5"
-                  : theme.primary,
-
-                color: saved
-                  ? theme.primary
-                  : darkMode
-                  ? "#071B1B"
-                  : "#FFFFFF",
-              }}
+              type="button"
+              onClick={handleSave}
+              className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-3 text-[12.5px] font-semibold transition ${
+                saved
+                  ? "border-brand-100 bg-brand-50 text-brand-strong"
+                  : "border-line bg-surface text-ink hover:border-brand-100 hover:text-brand-strong"
+              }`}
             >
-              <Bookmark
-                size={16}
-                fill={
-                  saved
-                    ? "currentColor"
-                    : "none"
-                }
-              />
+              {saved ? (
+                <BookmarkCheck className="h-4 w-4" />
+              ) : (
+                <Bookmark className="h-4 w-4" />
+              )}
+              {saved ? "Saved" : "Save"}
+            </button>
 
-              <span>
-                {saved ? "Saved" : "Save"}
-              </span>
+            <button
+              type="button"
+              onClick={handleShare}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-[12.5px] font-semibold text-ink transition hover:border-brand-100 hover:text-brand-strong"
+            >
+              <Share2 className="h-4 w-4" />
+              Share
+            </button>
+
+            <button
+              type="button"
+              onClick={handleExport}
+              className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-line bg-surface px-3 text-[12.5px] font-semibold text-ink transition hover:border-brand-100 hover:text-brand-strong"
+            >
+              <Download className="h-4 w-4" />
+              Export
             </button>
           </div>
+        </div>
 
-          {/* =================================================
-              DESTINATION TIMELINE
-          ================================================= */}
+        {/* workspace */}
+        <div className="mt-3 grid gap-3.5 lg:h-[calc(100vh-190px)] lg:min-h-[560px] lg:grid-cols-[340px_minmax(0,1fr)_352px]">
+          {/* ---------------- itinerary ---------------- */}
+          <section
+            id="trip-plan"
+            className="order-2 flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface lg:order-1"
+            aria-label="Trip plan"
+          >
+            <div className="flex items-center gap-3 border-b border-line-soft px-4 py-3.5">
+              <div className="min-w-0">
+                <h2 className="text-[14px] font-bold text-ink">Trip plan</h2>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  {plan.origin.label} → {plan.destination.name}
+                </p>
+              </div>
 
-          <div className="relative pb-4">
-            <div
-              className="absolute bottom-8 left-[19px] top-5 w-px"
-              style={{
-                backgroundColor: darkMode
-                  ? "#0D8F80"
-                  : "#8ADFD2",
-              }}
-            />
+              <span className="ml-auto shrink-0 rounded-md border border-line bg-canvas px-2 py-0.5 text-[11px] font-semibold text-muted">
+                {days.length} {days.length === 1 ? "day" : "days"}
+              </span>
+            </div>
 
-            {stops.map((stop) => (
-              <article
-                key={stop.id}
-                className="relative mb-5 flex gap-4"
-              >
-                {/* NUMBER */}
-
-                <div
-                  className="z-[1] flex h-10 w-10 shrink-0 items-center justify-center rounded-full border-4 text-sm font-bold shadow-sm"
-                  style={{
-                    backgroundColor: darkMode
-                      ? "#123C3A"
-                      : "#0F1F3D",
-
-                    color: darkMode
-                      ? "#00BFA5"
-                      : "#FFFFFF",
-
-                    borderColor:
-                      theme.panel,
-                  }}
+            <div className="flex gap-1.5 overflow-x-auto border-b border-line-soft px-3 py-2.5">
+              {days.map((date, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => setActiveDay(index)}
+                  aria-pressed={index === safeDay}
+                  className={`flex min-w-[52px] flex-col items-center rounded-lg border px-2 py-1 transition ${
+                    index === safeDay
+                      ? "border-brand bg-brand text-white"
+                      : "border-line text-muted hover:border-brand-100 hover:text-brand-strong"
+                  }`}
                 >
-                  {stop.number}
+                  <span
+                    className={`text-[9.5px] font-bold uppercase tracking-[0.05em] ${
+                      index === safeDay ? "text-white/80" : "text-faint"
+                    }`}
+                  >
+                    Day
+                  </span>
+                  <span
+                    className={`text-[13px] font-extrabold ${
+                      index === safeDay ? "text-white" : "text-ink"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span
+                    className={`text-[9.5px] ${
+                      index === safeDay ? "text-white/80" : "text-faint"
+                    }`}
+                  >
+                    {date
+                      ? date.toLocaleDateString("en-GB", { weekday: "short" })
+                      : "—"}
+                  </span>
+                </button>
+              ))}
+            </div>
+
+            <div className="thin-scroll min-h-0 flex-1 overflow-y-auto px-4 py-3.5">
+              {/* route */}
+              <div className="relative">
+                <div className="absolute bottom-3 left-[9px] top-4 w-px bg-brand-100" />
+
+                <div className="relative flex gap-2.5 pb-3">
+                  <span className="z-[1] mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 border-[#2E90FA] bg-[#EAF3FF]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#2E90FA]" />
+                  </span>
+
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-faint">
+                      Start
+                    </p>
+                    <p className="truncate text-[13px] font-bold text-ink">
+                      {plan.origin.label}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="min-w-0 flex-1">
-                  {/* DESTINATION CARD */}
+                <div className="relative flex gap-2.5 pb-3">
+                  <span className="z-[1] mt-0.5 grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border-2 border-brand bg-brand-50">
+                    <MapPin className="h-2.5 w-2.5 text-brand" />
+                  </span>
 
-                  <div
-                    className="rounded-xl border px-4 py-3"
-                    style={{
-                      backgroundColor:
-                        theme.card,
-                      borderColor:
-                        theme.border,
-                    }}
-                  >
-                    <h2 className="truncate text-[15px] font-bold">
-                      {stop.name}
-                    </h2>
-
-                    <p
-                      className="mt-1 text-xs"
-                      style={{
-                        color: theme.muted,
-                      }}
-                    >
-                      {stop.country}
+                  <div className="min-w-0">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.07em] text-faint">
+                      Arrive
+                    </p>
+                    <p className="truncate text-[13px] font-bold text-ink">
+                      {plan.destination.name}
                     </p>
 
-                    <button
-                      onClick={handleHotels}
-                      className="mt-2 flex items-center gap-1 text-[13px] font-semibold"
-                      style={{
-                        color: theme.primary,
-                      }}
-                    >
-                      <Hotel size={14} />
-
-                      View hotels
-
-                      <span className="text-base">
-                        ›
-                      </span>
-                    </button>
+                    {selectedRoute && (
+                      <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-line bg-canvas px-1.5 py-0.5 font-semibold text-body">
+                          {(() => {
+                            const Icon = modeIcon(selectedRoute.type);
+                            return <Icon className="h-3 w-3 text-brand" />;
+                          })()}
+                          {formatDuration(selectedRoute.durationMinutes)}
+                        </span>
+                        <span>{formatDistance(selectedRoute.distanceKm)}</span>
+                        <span className="text-faint">·</span>
+                        <span>{formatPrice(selectedRoute.estimatedPrice)}</span>
+                      </p>
+                    )}
                   </div>
+                </div>
+              </div>
 
-                  {/* TRANSPORT */}
+              {/* day stops */}
+              <div className="mt-4 flex items-center gap-2 border-t border-line-soft pt-3">
+                <h3 className="text-[12px] font-bold text-ink">
+                  {days[safeDay]
+                    ? formatDay(days[safeDay])
+                    : `Day ${safeDay + 1}`}
+                </h3>
 
-                  {stop.transport && (
-                    <div
-                      className="mt-3 flex items-center gap-3 rounded-xl border px-4 py-3.5"
-                      style={{
-                        backgroundColor:
-                          theme.cardSecondary,
-                        borderColor:
-                          theme.border,
-                      }}
+                <span className="text-[11px] text-muted">
+                  {stopsForDay.length}{" "}
+                  {stopsForDay.length === 1 ? "place" : "places"}
+                </span>
+              </div>
+
+              {stopsForDay.length === 0 ? (
+                <div className="mt-3 rounded-xl border border-dashed border-line bg-canvas px-4 py-5 text-center">
+                  <p className="text-[12.5px] font-semibold text-ink">
+                    Nothing planned for this day yet
+                  </p>
+                  <p className="mt-1 text-[11.5px] text-muted">
+                    Search a place below to add the first stop.
+                  </p>
+                </div>
+              ) : (
+                <ol className="mt-3 space-y-2">
+                  {stopsForDay.map((stop, index) => (
+                    <li
+                      key={stop.id}
+                      className="group flex items-start gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5"
                     >
-                      <span
-                        className={
-                          stop.tone === "orange"
-                            ? "flex items-center gap-1 text-[#FF7043]"
-                            : "text-[#00BFA5]"
-                        }
-                      >
-                        {stop.icon ===
-                        "mixed" ? (
-                          <>
-                            <BusFront
-                              size={21}
-                              strokeWidth={2.6}
-                            />
-
-                            <CarFront
-                              size={20}
-                              strokeWidth={2.6}
-                            />
-                          </>
-                        ) : (
-                          <Plane
-                            size={21}
-                            strokeWidth={2.5}
-                          />
-                        )}
+                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-[10px] font-extrabold text-brand-strong">
+                        {index + 1}
                       </span>
 
                       <div className="min-w-0 flex-1">
-                        <h3 className="text-[15px] font-semibold">
-                          {stop.transport}
-                        </h3>
-
-                        <p
-                          className="mt-1 text-[12px]"
-                          style={{
-                            color: theme.muted,
-                          }}
-                        >
-                          {stop.detail}
+                        <p className="truncate text-[12.5px] font-semibold text-ink">
+                          {stop.name}
+                        </p>
+                        <p className="truncate text-[11px] text-muted">
+                          {stop.country}
                         </p>
                       </div>
 
-                      <ChevronRight
-                        size={20}
+                      <button
+                        type="button"
+                        onClick={() => removeStop(stop.id)}
+                        aria-label={`Remove ${stop.name}`}
+                        className="rounded-md p-1 text-faint transition hover:bg-danger-50 hover:text-danger"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ol>
+              )}
+
+              <div className="mt-3 rounded-xl border border-dashed border-line bg-canvas px-2.5 py-2">
+                <div className="flex items-center gap-2">
+                  <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-brand text-white">
+                    <Plus className="h-3.5 w-3.5" />
+                  </span>
+
+                  <div className="min-w-0 flex-1">
+                    <DestinationCombobox
+                      key={addStopKey}
+                      compact
+                      selected={null}
+                      onSelect={addStop}
+                      placeholder="Add a place to this day"
+                      ariaLabel={`Add a place to day ${safeDay + 1}`}
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* budget */}
+            <div className="border-t border-line-soft px-4 py-3.5">
+              {hasBudget ? (
+                <>
+                  <div className="flex items-baseline justify-between">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.07em] text-faint">
+                      Budget
+                    </p>
+
+                    <p className="text-[12px] text-muted">
+                      ${budgetNumber.toLocaleString()} total
+                    </p>
+                  </div>
+
+                  <div className="mt-2 space-y-1.5">
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-muted">Selected transport</span>
+                      <span className="font-semibold text-ink">
+                        {formatPrice(transportCost)}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center justify-between text-[12px]">
+                      <span className="text-muted">Per traveler</span>
+                      <span className="font-semibold text-ink">
+                        ${Math.round(budgetNumber / Math.max(1, travellers)).toLocaleString()}
+                      </span>
+                    </div>
+
+                    {remaining !== null && (
+                      <div className="flex items-center justify-between text-[12px]">
+                        <span className="text-muted">Left after transport</span>
+                        <span
+                          className={`font-semibold ${
+                            remaining < 0 ? "text-danger" : "text-brand-strong"
+                          }`}
+                        >
+                          ${Math.round(remaining).toLocaleString()}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {remaining !== null && transportCost !== null && (
+                    <div className="mt-2.5 h-1.5 overflow-hidden rounded-full bg-line-soft">
+                      <div
+                        className={`h-full rounded-full ${
+                          remaining < 0 ? "bg-danger" : "bg-brand"
+                        }`}
                         style={{
-                          color: theme.primary,
+                          width: `${Math.min(
+                            100,
+                            Math.round((transportCost / budgetNumber) * 100)
+                          )}%`,
                         }}
                       />
                     </div>
                   )}
+
+                  <p className="mt-2 text-[10.5px] text-faint">
+                    Stays and activities aren't priced yet — only what the router
+                    actually knows is counted.
+                  </p>
+                </>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12px] text-muted">No budget set for this trip.</p>
+
+                  <Link
+                    to="/"
+                    className="text-[12px] font-semibold text-brand-strong hover:underline"
+                  >
+                    Add one
+                  </Link>
                 </div>
-              </article>
-            ))}
-
-            {/* ADD DESTINATION */}
-
-            <div
-              className="ml-[54px] flex items-center gap-3 rounded-xl border border-dashed px-3 py-3 text-sm"
-              style={{
-                backgroundColor: darkMode
-                  ? "#151C25"
-                  : "#F5F5F7",
-
-                borderColor: darkMode
-                  ? "#3A4552"
-                  : "#D4D8DC",
-
-                color: theme.muted,
-              }}
-            >
-              <button
-                aria-label="Add destination"
-                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full"
-                style={{
-                  backgroundColor:
-                    theme.primary,
-                  color: darkMode
-                    ? "#071B1B"
-                    : "#FFFFFF",
-                }}
-              >
-                <Plus size={18} />
-              </button>
-
-              <input
-                value={newDestination}
-                onChange={(event) =>
-                  setNewDestination(
-                    event.target.value
-                  )
-                }
-                placeholder="Add destination"
-                aria-label="Add destination"
-                className="min-w-0 flex-1 bg-transparent outline-none"
-                style={{
-                  color: theme.text,
-                }}
-              />
+              )}
             </div>
-          </div>
+          </section>
 
-          {/* =================================================
-              TRIP INFORMATION
-          ================================================= */}
-
-          <div className="mt-6 space-y-3">
-            {/* TRAVELERS */}
-
-            <div
-              className="rounded-xl border p-4"
-              style={{
-                backgroundColor:
-                  theme.cardSecondary,
-                borderColor:
-                  theme.border,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Users size={17} />
-
-                <span className="font-semibold">
-                  Travelers
-                </span>
-              </div>
-
-              <p
-                className="mt-2 text-sm"
-                style={{
-                  color: theme.muted,
-                }}
-              >
-                {adults} adults
-                {children > 0 &&
-                  ` · ${children} children`}
-              </p>
-            </div>
-
-            {/* DATES */}
-
-            <div
-              className="rounded-xl border p-4"
-              style={{
-                backgroundColor:
-                  theme.cardSecondary,
-                borderColor:
-                  theme.border,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <CalendarDays size={17} />
-
-                <span className="font-semibold">
-                  Travel dates
-                </span>
-              </div>
-
-              <p
-                className="mt-2 text-sm"
-                style={{
-                  color: theme.muted,
-                }}
-              >
-                {formatDate(
-                  selectedDates?.from
-                )}{" "}
-                —{" "}
-                {formatDate(
-                  selectedDates?.to
-                )}
-              </p>
-            </div>
-
-            {/* BUDGET */}
-
-            <div
-              className="rounded-xl border p-4"
-              style={{
-                backgroundColor:
-                  theme.cardSecondary,
-                borderColor:
-                  theme.border,
-              }}
-            >
-              <div className="flex items-center gap-2">
-                <Wallet size={17} />
-
-                <span className="font-semibold">
-                  Budget
-                </span>
-              </div>
-
-              <p
-                className="mt-2 text-sm"
-                style={{
-                  color: theme.muted,
-                }}
-              >
-                ${estimatedBudget} estimated total
-              </p>
-            </div>
-          </div>
-        </aside>
-
-        {/* ===================================================
-            MAP AREA
-        =================================================== */}
-
-        <section
-          className="relative min-w-0 flex-1 overflow-hidden"
-          aria-label="Trip route map"
-        >
-          <Map
-            initialViewState={{
-              longitude:
-                destination.longitude,
-              latitude:
-                destination.latitude,
-              zoom: 8,
-            }}
-            style={{
-              width: "100%",
-              height: "100%",
-            }}
-            mapStyle={
-              darkMode
-                ? "https://tiles.openfreemap.org/styles/dark"
-                : "https://tiles.openfreemap.org/styles/bright"
-            }
+          {/* ---------------- map ---------------- */}
+          <div
+            ref={mapPaneRef}
+            className="relative order-1 min-h-[38vh] overflow-hidden rounded-[18px] border border-line bg-surface lg:order-2 lg:min-h-0"
           >
-            <NavigationControl
-              position="top-right"
-            />
+            <Map
+              ref={mapRef}
+              initialViewState={{
+                longitude: plan.destination.longitude,
+                latitude: plan.destination.latitude,
+                zoom: 11,
+              }}
+              mapStyle={
+                dark
+                  ? "https://tiles.openfreemap.org/styles/dark"
+                  : "https://tiles.openfreemap.org/styles/bright"
+              }
+              style={{ width: "100%", height: "100%" }}
+              attributionControl={false}
+            >
+              <NavigationControl position="top-right" showCompass={false} />
 
-            {/* ===============================================
-                SELECTED ROUTE
-            =============================================== */}
-
-            {routeGeometry && (
-              <Source
-                id="selected-route"
-                type="geojson"
-                data={{
-                  type: "Feature",
-                  properties: {},
-                  geometry:
-                    routeGeometry,
-                }}
-              >
-                <Layer
-                  id="selected-route-line"
-                  type="line"
-                  paint={{
-                    "line-color":
-                      theme.route,
-                    "line-width": 5,
-                    "line-opacity": 0.85,
+              {routeGeometry && (
+                <Source
+                  id="trip-route"
+                  type="geojson"
+                  data={{
+                    type: "Feature",
+                    properties: {},
+                    geometry: routeGeometry as Geometry,
                   }}
-                />
-              </Source>
-            )}
+                >
+                  <Layer
+                    id="trip-route-casing"
+                    type="line"
+                    paint={{
+                      "line-color": "#ffffff",
+                      "line-width": 9,
+                      "line-opacity": 0.85,
+                    }}
+                    layout={{ "line-cap": "round", "line-join": "round" }}
+                  />
+                  <Layer
+                    id="trip-route-line"
+                    type="line"
+                    paint={{
+                      "line-color": "#0E9384",
+                      "line-width": 5,
+                      "line-opacity": 0.95,
+                    }}
+                    layout={{ "line-cap": "round", "line-join": "round" }}
+                  />
+                </Source>
+              )}
 
-            {/* ===============================================
-                ORIGIN
-            =============================================== */}
-
-            {userLocation && (
               <Marker
-                longitude={
-                  userLocation.longitude
-                }
-                latitude={
-                  userLocation.latitude
-                }
-                anchor="bottom"
+                longitude={plan.origin.longitude}
+                latitude={plan.origin.latitude}
+                anchor="center"
               >
-                <div
-                  className="h-4 w-4 rounded-full border-2 border-white"
-                  style={{
-                    backgroundColor:
-                      "#2563EB",
-                    boxShadow:
-                      "0 0 0 5px rgba(37,99,235,0.25)",
-                  }}
+                <span
+                  className="block h-4 w-4 rounded-full border-2 border-white bg-[#2E90FA]"
+                  style={{ boxShadow: "0 0 0 5px rgba(46,144,250,0.25)" }}
                 />
               </Marker>
-            )}
 
-            {/* ===============================================
-                DESTINATION
-            =============================================== */}
-
-            <Marker
-              longitude={
-                destination.longitude
-              }
-              latitude={
-                destination.latitude
-              }
-              anchor="bottom"
-            >
-              <MapPin
-                size={34}
-                className="text-red-600"
-                fill="red"
-              />
-            </Marker>
-          </Map>
-
-          {/* =================================================
-              MAP DESTINATION CARD
-          ================================================= */}
-
-          <div
-            className="absolute left-6 top-6 max-w-[330px] rounded-2xl border p-4 shadow-xl backdrop-blur"
-            style={{
-              backgroundColor: darkMode
-                ? "rgba(30,30,46,0.92)"
-                : "rgba(255,255,255,0.94)",
-
-              borderColor: theme.border,
-            }}
-          >
-            <div className="flex items-start gap-3">
-              <div
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
-                style={{
-                  backgroundColor:
-                    darkMode
-                      ? "#123C3A"
-                      : "#DDF7F2",
-                  color: theme.primary,
-                }}
+              <Marker
+                longitude={plan.destination.longitude}
+                latitude={plan.destination.latitude}
+                anchor="bottom"
               >
-                <MapPin size={20} />
-              </div>
+                <span className="grid h-8 w-8 place-items-center rounded-full border-2 border-white bg-brand text-white shadow-lg">
+                  <MapPin className="h-4 w-4" />
+                </span>
+              </Marker>
+            </Map>
+
+            <div className="absolute left-3 top-3 z-10 flex items-center gap-2.5 rounded-xl border border-line bg-surface/95 px-3 py-2 shadow-[var(--shadow-card)] backdrop-blur">
+              <span className="flex items-center gap-1">
+                <span className="h-2 w-2 rounded-full bg-[#2E90FA]" />
+                <span className="h-px w-4 border-t-2 border-dashed border-brand" />
+                <MapPin className="h-3.5 w-3.5 text-brand" />
+              </span>
 
               <div className="min-w-0">
-                <h2 className="font-bold">
-                  {destination.name}
-                </h2>
-
-                <p
-                  className="text-sm"
-                  style={{
-                    color: theme.muted,
-                  }}
-                >
-                  {destination.country}
+                <p className="truncate text-[12px] font-bold text-ink">
+                  {plan.origin.label} → {plan.destination.name}
+                </p>
+                <p className="truncate text-[10.5px] text-muted">
+                  {loading
+                    ? "Loading route…"
+                    : selectedRoute
+                    ? `${selectedRoute.name} · ${formatDuration(
+                        selectedRoute.durationMinutes
+                      )} · ${formatDistance(selectedRoute.distanceKm)}`
+                    : "No route selected"}
                 </p>
               </div>
             </div>
 
-            <button
-              onClick={handleHotels}
-              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl py-2 text-sm font-semibold"
-              style={{
-                backgroundColor:
-                  theme.primary,
-                color: darkMode
-                  ? "#071B1B"
-                  : "#FFFFFF",
-              }}
+            <a
+              href="https://www.openstreetmap.org/copyright"
+              target="_blank"
+              rel="noreferrer"
+              className="absolute bottom-1 right-2 z-10 rounded bg-white/80 px-1.5 py-0.5 text-[9.5px] text-[#2F4A50] hover:underline"
             >
-              <Hotel size={16} />
+              © OpenStreetMap contributors · OpenFreeMap
+            </a>
 
-              View hotels
-            </button>
+            {loading && (
+              <div className="absolute inset-0 z-20 grid place-items-center bg-surface/60 backdrop-blur-[1px]">
+                <span className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted shadow-[var(--shadow-card)]">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  Finding routes
+                </span>
+              </div>
+            )}
           </div>
 
-          {/* =================================================
-              TRANSPORT SELECTOR
-          ================================================= */}
-
-          <div
-            className="absolute bottom-6 left-6 right-6 rounded-2xl border p-4 shadow-xl backdrop-blur"
-            style={{
-              backgroundColor: darkMode
-                ? "rgba(17,23,32,0.94)"
-                : "rgba(255,255,255,0.95)",
-
-              borderColor: theme.border,
-            }}
+          {/* ---------------- getting there ---------------- */}
+          <section
+            id="getting-there"
+            className="order-3 flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface"
+            aria-label="Getting there"
           >
-            <div className="mb-3 flex items-center justify-between">
+            <div className="flex items-center gap-3 border-b border-line-soft px-4 py-3.5">
               <div>
-                <h2 className="font-bold">
-                  How do you want to travel?
-                </h2>
-
-                <p
-                  className="text-xs"
-                  style={{
-                    color: theme.muted,
-                  }}
-                >
-                  Choose an available transport
-                  option.
+                <h2 className="text-[14px] font-bold text-ink">Getting there</h2>
+                <p className="mt-0.5 text-[11.5px] text-muted">
+                  {availableRoutes.length} option
+                  {availableRoutes.length === 1 ? "" : "s"} available
                 </p>
               </div>
 
-              {selectedRoute && (
-                <span
-                  className="rounded-full px-3 py-1 text-xs font-semibold"
-                  style={{
-                    backgroundColor:
-                      darkMode
-                        ? "#123C3A"
-                        : "#DDF7F2",
-                    color:
-                      theme.primary,
-                  }}
-                >
-                  {selectedRoute.type}
-                </span>
-              )}
+              <span className="ml-auto grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand">
+                <RouteIcon className="h-4 w-4" />
+              </span>
             </div>
 
-            <div className="flex gap-3 overflow-x-auto pb-1">
-              {routes.map((route) => {
-                const isSelected =
-                  selectedRoute?.type ===
-                  route.type;
+            <div className="thin-scroll min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
+              {error && (
+                <div className="mb-2 rounded-xl border border-danger/20 bg-danger-50 px-3 py-2.5">
+                  <p className="text-[12px] font-medium text-danger">{error}</p>
 
-                return (
                   <button
-                    key={route.type}
-                    disabled={!route.available}
-                    onClick={() => {
-                      if (route.available) {
-                        setSelectedRoute(
-                          route
-                        );
-                      }
-                    }}
-                    className="min-w-[180px] rounded-xl border p-3 text-left transition"
-                    style={{
-                      backgroundColor:
-                        !route.available
-                          ? darkMode
-                            ? "#151C25"
-                            : "#F5F5F7"
-                          : isSelected
-                          ? darkMode
-                            ? "#123C3A"
-                            : "#DDF7F2"
-                          : theme.card,
-
-                      borderColor:
-                        isSelected
-                          ? theme.primary
-                          : theme.border,
-
-                      opacity:
-                        !route.available
-                          ? 0.5
-                          : 1,
-                    }}
+                    type="button"
+                    onClick={() => setReloadKey((value) => value + 1)}
+                    className="mt-1.5 text-[11.5px] font-bold text-danger underline"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold">
-                        {route.type}
+                    Try again
+                  </button>
+                </div>
+              )}
+
+              {loading && (
+                <div className="space-y-2">
+                  {[0, 1, 2, 3].map((row) => (
+                    <div
+                      key={row}
+                      className="h-[58px] animate-pulse rounded-xl border border-line bg-canvas"
+                    />
+                  ))}
+                </div>
+              )}
+
+              {!loading &&
+                routes.map((route) => {
+                  const Icon = modeIcon(route.type);
+                  const isSelected = selectedRoute?.type === route.type;
+
+                  return (
+                    <button
+                      key={`${route.type}-${route.name}`}
+                      type="button"
+                      disabled={!route.available}
+                      onClick={() => setSelectedType(route.type)}
+                      aria-pressed={isSelected}
+                      className={`mb-2 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
+                        !route.available
+                          ? "cursor-not-allowed border-line bg-canvas opacity-60"
+                          : isSelected
+                          ? "border-brand bg-brand-50 shadow-[inset_0_0_0_1px_var(--color-brand)]"
+                          : "border-line bg-surface hover:border-brand-100 hover:bg-brand-50/40"
+                      }`}
+                    >
+                      <span
+                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border ${
+                          isSelected
+                            ? "border-brand-100 bg-surface text-brand-strong"
+                            : "border-line-soft bg-canvas text-body"
+                        }`}
+                      >
+                        <Icon className="h-[17px] w-[17px]" />
                       </span>
 
-                      {isSelected && (
-                        <span
-                          className="text-xs font-semibold"
-                          style={{
-                            color:
-                              theme.primary,
-                          }}
-                        >
-                          Selected
-                        </span>
-                      )}
-                    </div>
+                      <span className="min-w-0 flex-1">
+                        <span className="flex items-center gap-1.5">
+                          <span className="truncate text-[13px] font-bold text-ink">
+                            {route.name || route.type}
+                          </span>
 
-                    {route.available ? (
-                      <>
-                        <p
-                          className="mt-2 text-xs"
-                          style={{
-                            color:
-                              theme.muted,
-                          }}
-                        >
-                          {formatDuration(
-                            route.durationMinutes
+                          {route.available && fastest?.type === route.type && (
+                            <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-brand-strong">
+                              Fastest
+                            </span>
                           )}
-                        </p>
 
-                        <p
-                          className="text-xs"
-                          style={{
-                            color:
-                              theme.muted,
-                          }}
+                          {route.available &&
+                            cheapest?.type === route.type &&
+                            fastest?.type !== route.type && (
+                              <span className="rounded bg-sky-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#175cd3]">
+                                Cheapest
+                              </span>
+                            )}
+                        </span>
+
+                        <span
+                          className={`mt-0.5 block text-[11.5px] leading-snug text-muted ${
+                            route.available ? "truncate" : "line-clamp-2"
+                          }`}
+                          title={route.message ?? undefined}
                         >
-                          {route.distanceKm?.toFixed(
-                            1
-                          )}{" "}
-                          km
-                        </p>
+                          {route.available
+                            ? `${formatDuration(route.durationMinutes)} · ${formatDistance(
+                                route.distanceKm
+                              )}`
+                            : route.message ?? "Not available for this route"}
+                        </span>
+                      </span>
 
-                        {route.estimatedPrice !==
-                          undefined && (
-                          <p
-                            className="mt-1 text-sm font-semibold"
-                            style={{
-                              color:
-                                theme.primary,
-                            }}
-                          >
-                            From $
-                            {
-                              route.estimatedPrice
-                            }
-                          </p>
-                        )}
-                      </>
-                    ) : (
-                      <p
-                        className="mt-2 text-xs"
-                        style={{
-                          color:
-                            theme.muted,
-                        }}
+                      <span className="shrink-0 text-right">
+                        <span className="block text-[12px] font-bold text-ink">
+                          {formatPrice(route.estimatedPrice)}
+                        </span>
+                        <span className="block text-[10px] text-muted">
+                          {route.provider ?? "estimated"}
+                        </span>
+                      </span>
+
+                      <span
+                        className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
+                          isSelected
+                            ? "border-brand bg-brand"
+                            : "border-line bg-surface"
+                        }`}
+                        aria-hidden="true"
                       >
-                        Not available
-                      </p>
-                    )}
-                  </button>
-                );
-              })}
+                        {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
+                      </span>
+                    </button>
+                  );
+                })}
 
-              {/* FLIGHT */}
-
-              {flight && (
-                <button
-                  disabled={!flight.available}
-                  className="min-w-[180px] rounded-xl border p-3 text-left"
-                  style={{
-                    backgroundColor:
-                      flight.available
-                        ? theme.card
-                        : darkMode
-                        ? "#151C25"
-                        : "#F5F5F7",
-
-                    borderColor:
-                      theme.border,
-
-                    opacity:
-                      flight.available
-                        ? 1
-                        : 0.5,
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">
-                      Flight
+              {!loading && flight && (
+                <div className="mb-2 rounded-xl border border-line bg-canvas px-3 py-2.5">
+                  <div className="flex items-center gap-2.5">
+                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-line-soft bg-surface text-body">
+                      <Plane className="h-[17px] w-[17px]" />
                     </span>
 
-                    <Plane size={18} />
-                  </div>
-
-                  <p
-                    className="mt-2 text-xs"
-                    style={{
-                      color: theme.muted,
-                    }}
-                  >
-                    {flight.available
-                      ? flight.airline ??
-                        "Available"
-                      : "Not available"}
-                  </p>
-
-                  {flight.available &&
-                    flight.estimatedPrice !==
-                      undefined && (
-                      <p
-                        className="mt-1 text-sm font-semibold"
-                        style={{
-                          color:
-                            theme.primary,
-                        }}
-                      >
-                        From $
-                        {
-                          flight.estimatedPrice
-                        }
+                    <div className="min-w-0 flex-1">
+                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-ink">
+                        Flight
+                        <span className="rounded bg-line px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-muted">
+                          {flight.available ? "Available" : "Not yet"}
+                        </span>
                       </p>
-                    )}
-                </button>
+
+                      <p className="mt-0.5 truncate text-[11.5px] text-muted">
+                        {flight.message ?? "Flight search is not available yet."}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {!loading && routes.length === 0 && !error && (
+                <p className="rounded-xl border border-dashed border-line bg-canvas px-3 py-4 text-center text-[12px] text-muted">
+                  No transport options came back for this pair of points.
+                </p>
               )}
             </div>
-          </div>
 
-          {/* =================================================
-              MAP EXPAND
-          ================================================= */}
+            <div className="border-t border-line-soft px-4 py-3">
+              <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-faint">
+                <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                Distances and durations come from the routing provider. A missing
+                fare is shown as “Fare unavailable”, never as $0.
+              </p>
 
+              <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">
+                <span className="inline-flex items-center gap-1">
+                  <Users className="h-3 w-3 text-faint" />
+                  {travellersLabel(plan.adults, plan.children)}
+                </span>
+
+                <span className="inline-flex items-center gap-1">
+                  <CalendarDays className="h-3 w-3 text-faint" />
+                  {formatRange(plan.dates)}
+                </span>
+
+                <span className="inline-flex items-center gap-1">
+                  <Wallet className="h-3 w-3 text-faint" />
+                  {hasBudget ? `$${budgetNumber.toLocaleString()}` : "No budget"}
+                </span>
+              </div>
+
+              {plan.interests.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {plan.interests.map((interest) => (
+                    <span
+                      key={interest}
+                      className="rounded-full border border-line bg-canvas px-2 py-0.5 text-[10.5px] font-semibold text-muted"
+                    >
+                      {interest}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
+
+      {/* mobile quick nav */}
+      <nav className="fixed inset-x-0 bottom-0 z-40 flex items-center justify-around border-t border-line bg-surface px-2 pb-1.5 pt-1.5 shadow-[0_-6px_20px_-12px_rgba(12,27,51,0.4)] lg:hidden">
+        {[
+          { label: "Map", target: "map", icon: MapPin },
+          { label: "Plan", target: "trip-plan", icon: CircleDot },
+          { label: "Getting there", target: "getting-there", icon: RouteIcon },
+        ].map((item) => (
           <button
-            aria-label="Expand map"
-            className="absolute right-6 top-20 flex h-11 w-11 items-center justify-center rounded-xl border shadow-lg"
-            style={{
-              backgroundColor:
-                theme.card,
-              borderColor:
-                theme.border,
-            }}
+            key={item.label}
+            type="button"
+            onClick={() =>
+              document
+                .getElementById(item.target)
+                ?.scrollIntoView({ behavior: "smooth", block: "start" })
+            }
+            className="flex flex-col items-center gap-0.5 rounded-lg px-3 py-1 text-[10px] font-semibold text-muted"
           >
-            <Expand size={19} />
+            <item.icon className="h-[17px] w-[17px]" />
+            {item.label}
           </button>
+        ))}
+      </nav>
 
-          {/* MAP ATTRIBUTION */}
-
-          <div
-            className="absolute bottom-1 right-6 text-[10px]"
-            style={{
-              color: theme.muted,
-            }}
-          >
-            Map data © 2026 TripPlanner
-          </div>
-        </section>
-      </section>
+      {toast && (
+        <div
+          role="status"
+          className="fixed bottom-20 left-1/2 z-50 -translate-x-1/2 rounded-full bg-navy px-4 py-2 text-[12.5px] font-semibold text-white shadow-lg lg:bottom-6"
+        >
+          {toast}
+        </div>
+      )}
     </main>
   );
 }

@@ -44,7 +44,8 @@ export function isLoggedIn(): boolean {
 }
 
 export function isAdmin(): boolean {
-  return getRole() === "Admin";
+  // SuperAdmin is the seeded role; it must reach the admin portal too.
+  return getRole() === "Admin" || getRole() === "SuperAdmin";
 }
 
 export function getUserEmail(): string {

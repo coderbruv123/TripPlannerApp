@@ -2,14 +2,7 @@ import { NavLink, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
-  ShieldCheck,
-  MapPin,
   Sparkles,
-  MessageSquareText,
-  BarChart3,
-  History,
-  Settings,
-  Moon,
   LogOut,
   Home,
 } from "lucide-react";
@@ -28,39 +21,9 @@ const navigation = [
     icon: Users,
   },
   {
-    name: "Administrators",
-    path: "/admin/administrators",
-    icon: ShieldCheck,
-  },
-  {
-    name: "Destinations",
-    path: "/admin/destinations",
-    icon: MapPin,
-  },
-  {
     name: "Recommendations",
     path: "/admin/recommendations",
     icon: Sparkles,
-  },
-  {
-    name: "Reviews & Feedback",
-    path: "/admin/reviews",
-    icon: MessageSquareText,
-  },
-  {
-    name: "Analytics",
-    path: "/admin/analytics",
-    icon: BarChart3,
-  },
-  {
-    name: "Activity Logs",
-    path: "/admin/activity",
-    icon: History,
-  },
-  {
-    name: "Settings",
-    path: "/admin/settings",
-    icon: Settings,
   },
 ];
 
@@ -139,11 +102,6 @@ export default function AdminSidebar() {
           <Home size={20} />
           <span>Back to App</span>
         </NavLink>
-
-        <button className="flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-[#BEC9BF] transition-colors hover:bg-[#2C3732]/20 hover:text-[#7CD9A6]">
-          <Moon size={20} />
-          <span>Theme</span>
-        </button>
 
         <button
           onClick={logout}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import AdminSidebar from "../../components/AdminComponents/AdminSidebar";
 import AdminTopbar from "../../components/AdminComponents/AdminTopbar";
 import {
@@ -52,8 +52,6 @@ export default function UsersPage() {
 
     return () => clearTimeout(timer);
   }, [search]);
-
-  const filteredUsers = useMemo(() => users, [users]);
 
   const toggleStatus = async (user: UserDto) => {
     setBusy(true);
@@ -206,14 +204,14 @@ export default function UsersPage() {
                         Loading users...
                       </td>
                     </tr>
-                  ) : filteredUsers.length === 0 ? (
+                  ) : users.length === 0 ? (
                     <tr>
                       <td colSpan={6} className="py-10 text-center text-[#bec9bf]">
                         No users found.
                       </td>
                     </tr>
                   ) : (
-                    filteredUsers.map((user) => (
+                    users.map((user) => (
                       <tr
                         key={user.id}
                         className="hover:bg-[#2F8F62]/[0.04] transition-colors group"
@@ -302,7 +300,7 @@ export default function UsersPage() {
             {/* Footer */}
             <div className="p-4 border-t border-[#1B3428] bg-[#06100C] flex items-center justify-between text-[#bec9bf] text-[11px]">
               <span>
-                Showing {filteredUsers.length} users
+                Showing {users.length} users
               </span>
             </div>
           </div>

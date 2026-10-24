@@ -22,9 +22,20 @@ public class DestinationsController : ControllerBase
             return BadRequest("Search term is required");
         }
 
-        var destinations =
-            await _destinationService.SearchDestinationsAsync(search);
+        try
+        {
+            var destinations =
+                await _destinationService.SearchDestinationsAsync(search);
 
-        return Ok(destinations);
+            return Ok(destinations);
+        }
+        catch (DestinationSearchException exception)
+        {
+            // 503 + a sentence the picker can show under the input.
+            return StatusCode(
+                StatusCodes.Status503ServiceUnavailable,
+                new { message = exception.Message }
+            );
+        }
     }
 }
