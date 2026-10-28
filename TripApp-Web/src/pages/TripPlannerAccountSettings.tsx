@@ -94,6 +94,11 @@ export const TripPlannerAccountSettings = () => {
       const result = await updateProfileApi({
         username: profile.fullName,
         email: profile.email,
+        nickname: profile.nickname,
+        phone: profile.phone,
+        address: profile.address,
+        occupation: profile.occupation,
+        location: profile.location,
       });
 
       if (result.success) {
