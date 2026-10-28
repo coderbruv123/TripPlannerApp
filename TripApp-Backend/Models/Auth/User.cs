@@ -15,7 +15,18 @@ public class User
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
+
+    public string? Nickname { get; set; }
+
+    public string? Phone { get; set; }
+
+    public string? Address { get; set; }
+
+    public string? Occupation { get; set; }
+
+    public string? Location { get; set; }
 }
+
 public enum UserRole
 {
     User = 0,

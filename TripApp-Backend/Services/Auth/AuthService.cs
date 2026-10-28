@@ -297,6 +297,22 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
             user.Username = normalizedUsername;
         }
 
+        // Profile-only fields (no uniqueness constraint)
+        if (!string.IsNullOrWhiteSpace(request.Nickname))
+            user.Nickname = request.Nickname;
+
+        if (!string.IsNullOrWhiteSpace(request.Phone))
+            user.Phone = request.Phone;
+
+        if (!string.IsNullOrWhiteSpace(request.Address))
+            user.Address = request.Address;
+
+        if (!string.IsNullOrWhiteSpace(request.Occupation))
+            user.Occupation = request.Occupation;
+
+        if (!string.IsNullOrWhiteSpace(request.Location))
+            user.Location = request.Location;
+
         user.UpdatedAt = DateTime.UtcNow;
 
         await _context.SaveChangesAsync();
@@ -334,6 +350,11 @@ public async Task<SignupResultDto> SignupAsync(SignupDto request)
             Role = user.Role.ToString(),
             IsActive = user.IsActive,
             CreatedAt = user.CreatedAt,
-            UpdatedAt = user.UpdatedAt
+            UpdatedAt = user.UpdatedAt,
+            Nickname = user.Nickname,
+            Phone = user.Phone,
+            Address = user.Address,
+            Occupation = user.Occupation,
+            Location = user.Location
         };
 }

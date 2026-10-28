@@ -38,6 +38,11 @@ export interface ChangePasswordPayload {
 export interface UpdateProfilePayload {
   username?: string;
   email?: string;
+  nickname?: string;
+  phone?: string;
+  address?: string;
+  occupation?: string;
+  location?: string;
 }
 
 export const login = async (

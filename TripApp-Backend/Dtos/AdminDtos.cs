@@ -9,6 +9,11 @@ public class UserDto
     public bool IsActive { get; set; } = true;
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string? Nickname { get; set; }
+    public string? Phone { get; set; }
+    public string? Address { get; set; }
+    public string? Occupation { get; set; }
+    public string? Location { get; set; }
 }
 
 public class UpdateUserRoleDto
