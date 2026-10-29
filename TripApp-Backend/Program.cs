@@ -78,6 +78,8 @@ builder.Services.AddScoped<ITripPlannerService, TripPlannerService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IFlightService, FlightService>();
 builder.Services.AddScoped<IAdminService,AdminService>();
+builder.Services.AddScoped<ISavedTripService, SavedTripService>();
+builder.Services.AddScoped<ITripItineraryService, ItineraryService>();
 builder.Services.AddHttpClient<IHotelService, HotelService>();
 // CORS
 builder.Services.AddCors(options =>

@@ -63,6 +63,21 @@ export type AddedStop = {
   longitude: number;
 };
 
+export type ItineraryStop = {
+  id: string;
+  dayIndex: number;
+  order: number;
+  name: string;
+  country: string;
+  latitude: number;
+  longitude: number;
+  kind: string;
+  plannedStart: string | null;
+  plannedEnd: string | null;
+  openingHours: string | null;
+  notes: string | null;
+};
+
 export type SavedTrip = {
   id: string;
   title: string;

@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using TripApp_Backend.Models;
 
 namespace TripApp_Backend.Data;
 
@@ -12,6 +13,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<User> Users => Set<User>();
 
     public DbSet<RefreshToken> RefreshTokens => Set<RefreshToken>();
+
+    public DbSet<SavedTrip> SavedTrips => Set<SavedTrip>();
+
+    public DbSet<ItineraryStop> ItineraryStops => Set<ItineraryStop>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -42,6 +47,18 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ItineraryStop>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+
+            entity.HasOne<SavedTrip>()
+                .WithMany(trip => trip.ItineraryStops)
+                .HasForeignKey(stop => stop.SavedTripId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(stop => stop.SavedTripId);
         });
     }
 }

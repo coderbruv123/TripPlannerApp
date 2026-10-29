@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -16,7 +16,7 @@ import {
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { clearSavedTrips, listSavedTrips, removeSavedTrip } from "../utils/tripStore";
+import { clearSavedTrips, listSavedTrips, loadSavedTrips, removeSavedTrip, subscribeSavedTripsChanged } from "../utils/tripStore";
 import { formatSavedRange, travellersLabel } from "../utils/format";
 import type { SavedTrip } from "../types/trip";
 
@@ -122,7 +122,18 @@ function StatCard({
 }
 
 export default function SavedTripsPage() {
-  const [trips, setTrips] = useState<SavedTrip[]>(() => listSavedTrips());
+  const [trips, setTrips] = useState<SavedTrip[]>([]);
+
+  useEffect(() => {
+    loadSavedTrips().then((trips) => setTrips(trips));
+
+    const unsubscribe = subscribeSavedTripsChanged(() =>
+      setTrips(listSavedTrips())
+    );
+
+    return () => unsubscribe();
+  }, []);
+
   const [query, setQuery] = useState("");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
   const [sort, setSort] = useState<SortKey>("recent");
@@ -184,8 +195,9 @@ export default function SavedTripsPage() {
     });
   }, [trips, query, timeFilter, sort]);
 
-  const remove = (id: string) => {
-    setTrips(removeSavedTrip(id));
+  const remove = async (id: string) => {
+    const trips = await removeSavedTrip(id);
+    setTrips(trips);
   };
 
   const clearAll = () => {

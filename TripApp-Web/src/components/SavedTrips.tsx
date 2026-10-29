@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, MapPin, Trash2 } from "lucide-react";
 
-import { listSavedTrips, removeSavedTrip } from "../utils/tripStore";
+import { listSavedTrips, loadSavedTrips, removeSavedTrip, subscribeSavedTripsChanged } from "../utils/tripStore";
 import { formatSavedRange, travellersLabel } from "../utils/format";
 import type { SavedTrip } from "../types/trip";
 
@@ -10,7 +10,13 @@ export default function SavedTrips() {
   const [trips, setTrips] = useState<SavedTrip[]>([]);
 
   useEffect(() => {
-    setTrips(listSavedTrips());
+    loadSavedTrips().then((trips) => setTrips(trips));
+
+    const unsubscribe = subscribeSavedTripsChanged(() =>
+      setTrips(listSavedTrips())
+    );
+
+    return () => unsubscribe();
   }, []);
 
   return (
@@ -69,7 +75,9 @@ export default function SavedTrips() {
 
                 <button
                   type="button"
-                  onClick={() => setTrips(removeSavedTrip(trip.id))}
+                  onClick={() => {
+  removeSavedTrip(trip.id).then((trip) => setTrips(trip));
+}}
                   aria-label={`Remove ${trip.title}`}
                   className="rounded-md p-1.5 text-faint opacity-0 transition hover:bg-danger-50 hover:text-danger group-hover:opacity-100 focus-visible:opacity-100"
                 >
