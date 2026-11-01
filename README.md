@@ -21,4 +21,4 @@ A travel planning app built with **React + TypeScript** and **ASP.NET Core** .
 
 > 🚧 **Work in progress**
 Mobile
-A mobile version of the app also exists and is currently in development, but is behind the web version in terms of features and progress.
+A mobile version of the app also exists and is currently in development, but is only in start phase of development.

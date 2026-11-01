@@ -43,7 +43,6 @@ export async function addItineraryStop(
   tripId: string,
   dto: {
     dayIndex: number;
-    order: number;
     name: string;
     country: string;
     latitude: number;
@@ -95,18 +94,15 @@ export async function deleteItineraryStop(
   await api.delete(`/trips/saved/${tripId}/itinerary/${stopId}`);
 }
 
-/** POST /api/trips/saved/{savedTripId}/itinerary/reorder */
+/** PUT /api/trips/saved/{savedTripId}/itinerary/reorder */
 export async function reorderItineraryStops(
   tripId: string,
   orderedIds: string[]
 ): Promise<void> {
-  await api.post(
-    `/trips/saved/${tripId}/itinerary/reorder`,
-    JSON.stringify({ orderedIds })
-  );
+  await api.put(`/trips/saved/${tripId}/itinerary/reorder`, { OrderedIds: orderedIds });
 }
 
-/** POST /api/trips/saved/{savedTripId}/itinerary/clear */
+/** DELETE /api/trips/saved/{savedTripId}/itinerary - clear all stops */
 export async function clearItineraryStops(tripId: string): Promise<void> {
-  await api.post(`/trips/saved/${tripId}/itinerary/clear`);
+  await api.delete(`/trips/saved/${tripId}/itinerary`);
 }

@@ -223,9 +223,23 @@ export async function loadDayStops(tripId: string, dayIndex: number): Promise<It
 
 export async function addStopToTrip(
   tripId: string,
-  stop: Omit<ItineraryStop, "id">
+  stop: Omit<
+    ItineraryStop,
+    "id" | "order" | "plannedStart" | "plannedEnd" | "openingHours" | "notes"
+  >
 ): Promise<ItineraryStop> {
-  return addItineraryStop(tripId, stop);
+  return addItineraryStop(tripId, {
+    dayIndex: stop.dayIndex,
+    name: stop.name,
+    country: stop.country,
+    latitude: stop.latitude,
+    longitude: stop.longitude,
+    kind: stop.kind,
+    plannedStart: "",
+    plannedEnd: "",
+    openingHours: "",
+    notes: "",
+  });
 }
 
 export async function upsertStopInTrip(

@@ -55,7 +55,16 @@ import {
   travellersLabel,
 } from "../utils/format";
 import { downloadCalendar } from "../utils/ics";
-import { isTripSaved, saveTrip } from "../utils/tripStore";
+import {
+  isSavedTrip,
+  listSavedTrips,
+  loadSavedTrips,
+  saveTrip,
+  loadItineraryStops,
+  addStopToTrip,
+  deleteStopFromTrip,
+} from "../utils/tripStore";
+import { getToken } from "../api/authUtils";
 import { toggleTheme, useTheme } from "../utils/theme";
 
 import type {
@@ -64,6 +73,7 @@ import type {
   FlightOption,
   RouteOption,
   TripPlan,
+  ItineraryStop,
 } from "../types/trip";
 
 type Position = [number, number];
@@ -151,7 +161,10 @@ export default function TripResults() {
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  // One app-wide theme: the navbar toggle and this one stay in sync.
+  // Account-scoped itinerary stops (backend). null until the trip is saved to
+  // the account, after which the day list renders from the server itinerary.
+  const [savedTripId, setSavedTripId] = useState<string | null>(null);
+  const [serverStops, setServerStops] = useState<Record<number, ItineraryStop[]>>({});
   const dark = useTheme() === "dark";
 
   const mapRef = useRef<MapRef | null>(null);
@@ -303,18 +316,18 @@ export default function TripResults() {
   useEffect(() => {
     if (!plan) return;
 
-    setSaved(isTripSaved(query));
+    setSaved(isSavedTrip(query));
   }, [plan, query]);
 
   useEffect(() => {
-    if (!plan) return;
+    if (!plan || savedTripId !== null) return;
 
     try {
       localStorage.setItem(STOPS_KEY(query), JSON.stringify(extraStops));
     } catch {
       /* storage blocked — stops stay for this session only */
     }
-  }, [extraStops, plan, query]);
+  }, [extraStops, plan, query, savedTripId]);
 
   useEffect(() => {
     if (!toast) return;
@@ -326,37 +339,64 @@ export default function TripResults() {
 
   /* ---------------- actions ---------------- */
 
-  const stopsForDay = extraStops[safeDay] ?? [];
+  const stopsForDay =
+    savedTripId !== null ? (serverStops[safeDay] ?? []) : (extraStops[safeDay] ?? []);
 
   const addStop = (destination: Destination | null) => {
     if (!destination) return;
 
-    setExtraStops((current) => ({
-      ...current,
-      [safeDay]: [
-        ...(current[safeDay] ?? []),
-        {
-          id: `${destination.latitude}-${destination.longitude}-${Date.now()}`,
-          name: destination.name,
-          country: destination.country,
-          latitude: destination.latitude,
-          longitude: destination.longitude,
-        },
-      ],
-    }));
+    if (savedTripId !== null) {
+      // New stops go to the account itinerary instead of localStorage.
+      addStopToTrip(savedTripId, {
+        dayIndex: safeDay,
+        name: destination.name,
+        country: destination.country,
+        latitude: destination.latitude,
+        longitude: destination.longitude,
+        kind: "place",
+      }).then((stop) => {
+        setServerStops((current) => ({
+          ...current,
+          [safeDay]: [...(current[safeDay] ?? []), stop],
+        }));
+      });
+    } else {
+      setExtraStops((current) => ({
+        ...current,
+        [safeDay]: [
+          ...(current[safeDay] ?? []),
+          {
+            id: `${destination.latitude}-${destination.longitude}-${Date.now()}`,
+            name: destination.name,
+            country: destination.country,
+            latitude: destination.latitude,
+            longitude: destination.longitude,
+          },
+        ],
+      }));
+    }
 
     setAddStopKey((value) => value + 1);
     setToast(`Added ${destination.name} to day ${safeDay + 1}`);
   };
 
   const removeStop = (id: string) => {
-    setExtraStops((current) => ({
-      ...current,
-      [safeDay]: (current[safeDay] ?? []).filter((stop) => stop.id !== id),
-    }));
+    if (savedTripId !== null) {
+      deleteStopFromTrip(savedTripId, id).then(() => {
+        setServerStops((current) => ({
+          ...current,
+          [safeDay]: (current[safeDay] ?? []).filter((s) => s.id !== id),
+        }));
+      });
+    } else {
+      setExtraStops((current) => ({
+        ...current,
+        [safeDay]: (current[safeDay] ?? []).filter((stop) => stop.id !== id),
+      }));
+    }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!plan) return;
 
     if (saved) {
@@ -364,7 +404,7 @@ export default function TripResults() {
       return;
     }
 
-    saveTrip({
+    await saveTrip({
       id: query,
       title: plan.destination.name,
       country: plan.destination.country,
@@ -380,6 +420,39 @@ export default function TripResults() {
 
     setSaved(true);
     setToast("Saved — find it under Saved trips");
+
+    // Move this trip onto the account (auth) and route its stops through the
+    // server itinerary instead of localStorage.
+    const trip = listSavedTrips().find(
+      (t) => t.url === `${window.location.pathname}?${query}`
+    );
+
+    if (trip) {
+      // Commit any stops the user already added this session into the server
+      // itinerary before we render from the server.
+      const pending = extraStops;
+      if (Object.keys(pending).length > 0) {
+        for (const [dayIndex, stops] of Object.entries(pending)) {
+          for (const stop of stops) {
+            await addStopToTrip(trip.id, {
+              dayIndex: Number(dayIndex),
+              name: stop.name,
+              country: stop.country,
+              latitude: stop.latitude,
+              longitude: stop.longitude,
+              kind: "place",
+            });
+          }
+        }
+      }
+
+      setSavedTripId(trip.id);
+      const byDay: Record<number, ItineraryStop[]> = {};
+      for (const stop of await loadItineraryStops(trip.id)) {
+        (byDay[stop.dayIndex] ??= []).push(stop);
+      }
+      setServerStops(byDay);
+    }
   };
 
   const handleShare = async () => {
@@ -432,6 +505,37 @@ export default function TripResults() {
   }
 
   const planUrl = buildTripUrl(plan as TripPlan);
+
+  /* ---------------- account itinerary sync ---------------- */
+
+  // Resolve the account trip for this URL (auth or guest) so itinerary stops
+  // can live on the server for signed-in users.
+  useEffect(() => {
+    if (!plan || !saved) return;
+
+    loadSavedTrips().then(() => {
+      const trip = listSavedTrips().find((t) => t.url === planUrl);
+
+      if (trip && Boolean(getToken())) {
+        setSavedTripId(trip.id);
+      } else {
+        setSavedTripId(null);
+      }
+    });
+  }, [plan, planUrl, saved]);
+
+  // Load the server itinerary once the account trip id is known.
+  useEffect(() => {
+    if (!plan || !saved || savedTripId === null) return;
+
+    loadItineraryStops(savedTripId).then((stops) => {
+      const byDay: Record<number, ItineraryStop[]> = {};
+      for (const stop of stops) {
+        (byDay[stop.dayIndex] ??= []).push(stop);
+      }
+      setServerStops(byDay);
+    });
+  }, [plan, planUrl, saved, savedTripId]);
 
   return (
     <main className="min-h-screen bg-canvas pb-20 lg:pb-0">
