@@ -29,6 +29,12 @@ public class SavedTripUpsertDto
 
     public string Url { get; set; } = "";
 
+    public double? OriginLat { get; set; }
+    public double? OriginLng { get; set; }
+    public double? DestinationLat { get; set; }
+    public double? DestinationLng { get; set; }
+}
+
     public string[] Interests { get; set; } = [];
 }
 
@@ -46,4 +52,9 @@ public class SavedTripCopyDto
     public int Travelers { get; set; }
 
     public string? Budget { get; set; }
+
+    public double? OriginLat { get; set; }
+    public double? OriginLng { get; set; }
+    public double? DestinationLat { get; set; }
+    public double? DestinationLng { get; set; }
 }

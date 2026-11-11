@@ -127,6 +127,18 @@ public class SavedTripService : ISavedTripService
         await _db.SaveChangesAsync(ct);
 
         return copy;
+
+    }
+
+    private static string BuildDuplicateUrl(string originalUrl, Guid newId)
+    {
+        // Give the copy its own URL so "Open trip" and itinerary scoping stay
+        // unique to each saved-trip row.
+        var separator = originalUrl.IndexOf('?');
+        var basePath = separator >= 0 ? originalUrl[..separator] : originalUrl;
+        var query = separator >= 0 ? originalUrl[separator..] : string.Empty;
+
+        return $"{basePath}-copy-{newId}{query}";
     }
 
     public async Task ClearAllAsync(Guid userId, CancellationToken ct = default)
@@ -146,8 +158,12 @@ public class SavedTripService : ISavedTripService
             Title = dto.Title,
             Country = dto.Country,
             OriginLabel = dto.OriginLabel,
+            OriginLat = dto.OriginLat,
+            OriginLng = dto.OriginLng,
             DestinationName = dto.DestinationName,
             DestinationCountry = dto.DestinationCountry,
+            DestinationLat = dto.DestinationLat,
+            DestinationLng = dto.DestinationLng,
             From = dto.From,
             To = dto.To,
             Travelers = dto.Travelers,
@@ -169,6 +185,10 @@ public class SavedTripService : ISavedTripService
         trip.Travelers = dto.Travelers;
         trip.Budget = dto.Budget;
         trip.Url = dto.Url;
+        trip.OriginLat = dto.OriginLat;
+        trip.OriginLng = dto.OriginLng;
+        trip.DestinationLat = dto.DestinationLat;
+        trip.DestinationLng = dto.DestinationLng;
         trip.Interests = dto.Interests;
     }
 }

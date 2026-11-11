@@ -33,6 +33,12 @@ public class SavedTrip
 
     public string Url { get; set; } = string.Empty;
 
+    /// <summary>Coordinates that make a saved trip self-describing without the URL.</summary>
+    public double? OriginLat { get; set; }
+    public double? OriginLng { get; set; }
+    public double? DestinationLat { get; set; }
+    public double? DestinationLng { get; set; }
+
     public string[] Interests { get; set; } = [];
 
     public ICollection<ItineraryStop> ItineraryStops { get; set; } = new List<ItineraryStop>();
