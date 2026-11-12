@@ -111,12 +111,17 @@ public class SavedTripService : ISavedTripService
             Title = original.Title,
             Country = original.Country,
             OriginLabel = original.OriginLabel,
+            OriginLat = original.OriginLat,
+            OriginLng = original.OriginLng,
             DestinationName = original.DestinationName,
             DestinationCountry = original.DestinationCountry,
+            DestinationLat = original.DestinationLat,
+            DestinationLng = original.DestinationLng,
             From = dto?.From ?? original.From,
             To = dto?.To ?? original.To,
             Travelers = dto?.Travelers ?? original.Travelers,
             Budget = dto?.Budget ?? original.Budget,
+            UserId = userId,
             Url = original.Url,
             Interests = (string[])(dto?.From is null ? original.Interests : []),
             CreatedAt = DateTime.UtcNow,
@@ -124,6 +129,12 @@ public class SavedTripService : ISavedTripService
         };
 
         _db.SavedTrips.Add(copy);
+        await _db.SaveChangesAsync(ct);
+
+        // Give the copy its own URL so "Open trip" and itinerary scoping stay
+        // unique to each row.
+        copy.Url = BuildDuplicateUrl(original.Url, copy.Id);
+        copy.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync(ct);
 
         return copy;

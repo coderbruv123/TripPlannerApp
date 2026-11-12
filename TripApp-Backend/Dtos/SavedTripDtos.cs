@@ -33,7 +33,6 @@ public class SavedTripUpsertDto
     public double? OriginLng { get; set; }
     public double? DestinationLat { get; set; }
     public double? DestinationLng { get; set; }
-}
 
     public string[] Interests { get; set; } = [];
 }

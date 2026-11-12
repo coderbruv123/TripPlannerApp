@@ -78,7 +78,25 @@ import type {
 
 type Position = [number, number];
 
-const STOPS_KEY = (query: string) => `tp.stops:${query}`;
+// Stable, trip-unique key for the in-browser stops cache. Two plans that
+// produce the identical URL query collide on `tp.stops:<query>`, so each
+// plan gets its own short token while it is unsaved. Signed-in trips never
+// write here anyway (savedTripId != null skips the write).
+const guestTripToken = new Map<string, string>();
+
+function stopsKey(plan: TripPlan | null, query: string): string {
+  if (!plan) return `tp.stops:shared-guest`;
+  const signature = [
+    plan.destination.name,
+    plan.origin.label,
+    String(plan.destination.latitude),
+    String(plan.origin.latitude),
+  ].join("|");
+  if (!guestTripToken.has(signature)) {
+    guestTripToken.set(signature, `g${Math.random().toString(36).slice(2, 9)}`);
+  }
+  return `tp.stops:${guestTripToken.get(signature)}:${query}`;
+}
 
 function modeIcon(type: string) {
   const key = type.toLowerCase();
@@ -128,9 +146,9 @@ function extractCoordinates(geometry: unknown): Position[] {
   return positions;
 }
 
-function readStops(query: string): Record<number, AddedStop[]> {
+function readStops(plan: TripPlan | null, query: string): Record<number, AddedStop[]> {
   try {
-    const raw = localStorage.getItem(STOPS_KEY(query));
+    const raw = localStorage.getItem(stopsKey(plan, query));
 
     return raw ? (JSON.parse(raw) as Record<number, AddedStop[]>) : {};
   } catch {
@@ -154,7 +172,7 @@ export default function TripResults() {
   const [activeDay, setActiveDay] = useState(0);
 
   const [extraStops, setExtraStops] = useState<Record<number, AddedStop[]>>(
-    () => (plan ? readStops(query) : {})
+    () => (plan ? readStops(plan, query) : {})
   );
   const [addStopKey, setAddStopKey] = useState(0);
 
@@ -323,7 +341,7 @@ export default function TripResults() {
     if (!plan || savedTripId !== null) return;
 
     try {
-      localStorage.setItem(STOPS_KEY(query), JSON.stringify(extraStops));
+      localStorage.setItem(stopsKey(plan, query), JSON.stringify(extraStops));
     } catch {
       /* storage blocked — stops stay for this session only */
     }
@@ -414,6 +432,10 @@ export default function TripResults() {
       to: plan.dates?.to ? plan.dates.to.toISOString().slice(0, 10) : undefined,
       travelers: plan.adults + plan.children,
       budget: plan.budget,
+      originLat: plan.origin.latitude,
+      originLng: plan.origin.longitude,
+      destinationLat: plan.destination.latitude,
+      destinationLng: plan.destination.longitude,
       url: `${window.location.pathname}?${query}`,
       savedAt: new Date().toISOString(),
     });

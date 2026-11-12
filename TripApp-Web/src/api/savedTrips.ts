@@ -80,6 +80,10 @@ export async function saveTripToAccount(input: {
   travelers: number;
   budget?: string;
   url: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
   interests?: string[];
 }): Promise<SavedTrip> {
   const entity = {
@@ -93,6 +97,10 @@ export async function saveTripToAccount(input: {
     travelers: input.travelers,
     budget: input.budget,
     url: input.url,
+    originLat: input.originLat,
+    originLng: input.originLng,
+    destinationLat: input.destinationLat,
+    destinationLng: input.destinationLng,
     interests: input.interests ?? [],
   };
 

@@ -89,6 +89,10 @@ export async function saveTrip(trip: SavedTrip): Promise<SavedTrip[]> {
       travelers: trip.travelers,
       budget: trip.budget,
       url: trip.url,
+      originLat: trip.originLat,
+      originLng: trip.originLng,
+      destinationLat: trip.destinationLat,
+      destinationLng: trip.destinationLng,
       interests: [], // interests live in plan.state, not the saved row
     });
     cachedTrips = [saved, ...cachedTrips.filter((t) => t.id !== saved.id)];
@@ -188,6 +192,44 @@ export function clearSavedTrips(): SavedTrip[] {
   notifySavedTripsChanged();
   writeToStorage(TRIPS_KEY, []);
   return [];
+}
+
+// ---- guest (localStorage) -> account migration ----
+
+/**
+ * Copy the trips a guest has bookmarked in localStorage onto the signed-in
+ * account. Idempotent: the guest store is cleared once every trip has been
+ * copied. A failure re-throws and leaves the guest trips intact so nothing is
+ * silently lost.
+ */
+export async function migrateGuestTripsToAccount(): Promise<SavedTrip[]> {
+  const raw = readFromStorage(TRIPS_KEY, null as unknown);
+  if (!raw || !Array.isArray(raw)) return [];
+
+  const guestTrips = raw as SavedTrip[];
+  const migrated: SavedTrip[] = [];
+
+  for (const trip of guestTrips) {
+    const saved = await saveTripToAccount({
+      title: trip.title,
+      country: trip.country,
+      from: trip.from,
+      to: trip.to,
+      travelers: trip.travelers,
+      budget: trip.budget,
+      url: trip.url,
+      originLat: trip.originLat,
+      originLng: trip.originLng,
+      destinationLat: trip.destinationLat,
+      destinationLng: trip.destinationLng,
+      interests: trip.interests ?? [],
+    });
+    migrated.push(saved);
+  }
+
+  // Every trip is now on the account; drop the guest store.
+  writeToStorage(TRIPS_KEY, []);
+  return migrated;
 }
 
 // ---- itinerary reactive store ----

@@ -51,6 +51,13 @@ export default function Login() {
         role: data.role,
       });
 
+      // Move guest (localStorage) trips onto this account after signing in.
+      try {
+        await migrateGuestTripsToAccount();
+      } catch (err) {
+        console.error("Guest-trip migration failed:", err);
+      }
+
       // Admins (Admin and SuperAdmin) go to the admin dashboard, everyone else home
       navigate(
         data.role === "Admin" || data.role === "SuperAdmin"

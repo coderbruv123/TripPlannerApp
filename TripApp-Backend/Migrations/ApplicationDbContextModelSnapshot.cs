@@ -127,6 +127,12 @@ namespace TripApp_Backend.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<double?>("DestinationLat")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("DestinationLng")
+                        .HasColumnType("REAL");
+
                     b.Property<string>("DestinationName")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -141,6 +147,12 @@ namespace TripApp_Backend.Migrations
                     b.Property<string>("OriginLabel")
                         .IsRequired()
                         .HasColumnType("TEXT");
+
+                    b.Property<double?>("OriginLat")
+                        .HasColumnType("REAL");
+
+                    b.Property<double?>("OriginLng")
+                        .HasColumnType("REAL");
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -240,13 +252,11 @@ namespace TripApp_Backend.Migrations
 
             modelBuilder.Entity("TripApp_Backend.Models.ItineraryStop", b =>
                 {
-                    b.HasOne("TripApp_Backend.Models.SavedTrip", "SavedTrip")
+                    b.HasOne("TripApp_Backend.Models.SavedTrip", null)
                         .WithMany("ItineraryStops")
                         .HasForeignKey("SavedTripId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("SavedTrip");
                 });
 
             modelBuilder.Entity("TripApp_Backend.Models.SavedTrip", b =>

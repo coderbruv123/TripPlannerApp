@@ -88,4 +88,10 @@ export type SavedTrip = {
   budget?: string;
   url: string;
   savedAt: string;
+
+  /** Identity baked into the row so the trip reopens without its URL. */
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
 };
