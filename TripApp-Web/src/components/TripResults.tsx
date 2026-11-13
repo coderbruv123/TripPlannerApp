@@ -3,7 +3,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
-import Map, {
+import MapGL, {
   Layer,
   Marker,
   NavigationControl,
@@ -925,7 +925,7 @@ export default function TripResults() {
             ref={mapPaneRef}
             className="relative order-1 min-h-[38vh] overflow-hidden rounded-[18px] border border-line bg-surface lg:order-2 lg:min-h-0"
           >
-            <Map
+            <MapGL
               ref={mapRef}
               initialViewState={{
                 longitude: plan.destination.longitude,
