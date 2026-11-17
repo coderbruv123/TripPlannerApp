@@ -4,6 +4,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Plane } from "lucide-react";
 import api from "./../api/axiosInstance";
 import { persistAuth } from "../api/authUtils";
+import { migrateGuestTripsToAccount } from "../utils/tripStore";
 
 interface LoginResponse {
   errorCode?: string;

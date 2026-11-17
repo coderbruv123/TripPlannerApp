@@ -222,7 +222,6 @@ export async function migrateGuestTripsToAccount(): Promise<SavedTrip[]> {
       originLng: trip.originLng,
       destinationLat: trip.destinationLat,
       destinationLng: trip.destinationLng,
-      interests: trip.interests ?? [],
     });
     migrated.push(saved);
   }
