@@ -5,6 +5,11 @@ namespace TripApp_Backend.Services;
 
 public class TripPlannerService : ITripPlannerService
 {
+    // A complete road route should start/end very near the requested points.
+    // OSRM can return "Ok" with a path that stops at the road-network edge
+    // (e.g. across a sea), so we reject routes that don't actually arrive.
+    private const double RouteEndpointToleranceKm = 5.0;
+
     private readonly OpenRouteService _routeService;
 
     public TripPlannerService(OpenRouteService routeService)
@@ -105,18 +110,19 @@ public class TripPlannerService : ITripPlannerService
             // Bus normally takes longer than a private car.
             var busMinutes = drivingMinutes * 1.8;
 
-            // Temporary estimated fare.
-            // This will eventually come from a real bus API/provider.
-            decimal? estimatedPrice = null;
+            var geometryElement = feature.GetProperty("geometry");
+            if (!RouteReachesDestination(request, geometryElement))
+            {
+                return new TravelOption
+                {
+                    Type = "Bus",
+                    Name = "Bus",
+                    Available = false,
+                    Message = "No bus route found to this destination. Try another mode."
+                };
+            }
 
-            if (distanceKm <= 50)
-                estimatedPrice = 300;
-            else if (distanceKm <= 150)
-                estimatedPrice = 700;
-            else if (distanceKm <= 250)
-                estimatedPrice = 1200;
-            else
-                estimatedPrice = 1500;
+            var geometry = geometryElement.GetRawText();
 
             return new TravelOption
             {
@@ -126,17 +132,32 @@ public class TripPlannerService : ITripPlannerService
 
                 DistanceKm = distanceKm,
 
+                DurationMinutes = busMinutes,
+
                 EstimatedPrice = null,
 
                 Provider = null,
 
+                Geometry = geometry,
 
-                Geometry =
-                    feature
-                        .GetProperty("geometry")
-                        .GetRawText(),
-Message =
-    "Bus route and duration are estimated. Fare and provider information are not currently available."
+                Message =
+                    "Bus route and duration are estimated. Fare and provider information are not currently available.",
+
+                // Single road-following segment so the UI can render a breakdown
+                // without fabricated schedule/operator data.
+                Segments =
+                [
+                    new TravelSegment
+                    {
+                        Type = "Bus",
+                        Name = "Bus",
+                        From = SegmentEndpoint(request.OriginName, "Origin"),
+                        To = SegmentEndpoint(request.DestinationName, "Destination"),
+                        DistanceKm = distanceKm,
+                        DurationMinutes = busMinutes,
+                        Geometry = geometry
+                    }
+                ]
             };
         }
         catch (Exception ex)
@@ -179,26 +200,54 @@ Message =
                 .GetProperty("properties")
                 .GetProperty("summary");
 
+            var distanceKm = summary
+                .GetProperty("distance")
+                .GetDouble() / 1000;
+
+            var durationMinutes = summary
+                .GetProperty("duration")
+                .GetDouble() / 60;
+
+            var geometryElement = feature.GetProperty("geometry");
+            if (!RouteReachesDestination(request, geometryElement))
+            {
+                return new TravelOption
+                {
+                    Type = type,
+                    Name = type,
+                    Available = false,
+                    Message =
+                        $"No {type.ToLower()} route found to this destination. Try another mode."
+                };
+            }
+
+            var geometry = geometryElement.GetRawText();
+
             return new TravelOption
             {
                 Type = type,
                 Name = type,
                 Available = true,
 
-                DistanceKm =
-                    summary
-                        .GetProperty("distance")
-                        .GetDouble() / 1000,
+                DistanceKm = distanceKm,
 
-                DurationMinutes =
-                    summary
-                        .GetProperty("duration")
-                        .GetDouble() / 60,
+                DurationMinutes = durationMinutes,
 
-                Geometry =
-                    feature
-                        .GetProperty("geometry")
-                        .GetRawText()
+                Geometry = geometry,
+
+                Segments =
+                [
+                    new TravelSegment
+                    {
+                        Type = type,
+                        Name = type,
+                        From = SegmentEndpoint(request.OriginName, "Origin"),
+                        To = SegmentEndpoint(request.DestinationName, "Destination"),
+                        DistanceKm = distanceKm,
+                        DurationMinutes = durationMinutes,
+                        Geometry = geometry
+                    }
+                ]
             };
         }
         catch (Exception ex)
@@ -215,6 +264,59 @@ Message =
                     $"Unable to calculate {type.ToLower()} route."
             };
         }
+    }
+
+    private static string SegmentEndpoint(string? provided, string fallback)
+    {
+        return string.IsNullOrWhiteSpace(provided) ? fallback : provided;
+    }
+
+    /// <summary>
+    /// Returns false when the routed line does not actually reach the requested
+    /// origin/destination (OSRM can stop at the road-network edge, e.g. across a sea).
+    /// </summary>
+    private static bool RouteReachesDestination(TripRequest request, JsonElement geometryElement)
+    {
+        if (!geometryElement.TryGetProperty("coordinates", out var coords) ||
+            coords.ValueKind != JsonValueKind.Array)
+        {
+            return false;
+        }
+
+        var len = coords.GetArrayLength();
+        if (len < 2) return false;
+
+        var first = coords[0];
+        var last = coords[len - 1];
+
+        var startKm = HaversineKm(
+            request.OriginLat, request.OriginLng,
+            first.GetArrayLength() > 1 ? first[1].GetDouble() : double.NaN,
+            first.GetArrayLength() > 0 ? first[0].GetDouble() : double.NaN);
+
+        var endKm = HaversineKm(
+            request.DestinationLat, request.DestinationLng,
+            last.GetArrayLength() > 1 ? last[1].GetDouble() : double.NaN,
+            last.GetArrayLength() > 0 ? last[0].GetDouble() : double.NaN);
+
+        return startKm <= RouteEndpointToleranceKm && endKm <= RouteEndpointToleranceKm;
+    }
+
+    private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
+    {
+        if (double.IsNaN(lat1) || double.IsNaN(lon1) || double.IsNaN(lat2) || double.IsNaN(lon2))
+            return double.PositiveInfinity;
+
+        const double R = 6371.0;
+        static double ToRad(double d) => d * Math.PI / 180.0;
+
+        var dLat = ToRad(lat2 - lat1);
+        var dLon = ToRad(lon2 - lon1);
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(ToRad(lat1)) * Math.Cos(ToRad(lat2)) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return R * c;
     }
 }
 

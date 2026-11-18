@@ -15,6 +15,16 @@ public interface ITripItineraryService
     /// <summary>All stops for a trip, day-indexed and ordered.</summary>
     Task<List<ItineraryStop>> LoadAsync(Guid userId, Guid savedTripId);
 
+    /// <summary>
+    /// Travel legs between consecutive stops of one day. Returns null when the
+    /// trip does not exist or is not owned by the caller.
+    /// </summary>
+    Task<List<ItineraryLegDto>?> GetLegsAsync(
+        Guid userId,
+        Guid savedTripId,
+        int dayIndex,
+        CancellationToken ct = default);
+
     /// <summary>Insert, or update an existing stop id into the same trip.</summary>
     Task UpsertAsync(ItineraryStopUpsertDto dto, Guid userId, Guid savedTripId);
 

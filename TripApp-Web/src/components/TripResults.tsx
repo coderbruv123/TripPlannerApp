@@ -1,6 +1,6 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 
 import MapGL, {
@@ -15,6 +15,7 @@ import type { Geometry } from "geojson";
 
 import {
   ArrowLeft,
+  BedDouble,
   Bike,
   Bookmark,
   BookmarkCheck,
@@ -24,6 +25,7 @@ import {
   Check,
   CircleDot,
   Download,
+  ExternalLink,
   Footprints,
   Info,
   Loader2,
@@ -33,6 +35,7 @@ import {
   Plus,
   Route as RouteIcon,
   Share2,
+  Star,
   TrainFront,
   Sun,
   Trash2,
@@ -41,9 +44,12 @@ import {
 } from "lucide-react";
 
 import Navbar from "./Navbar";
+import BudgetBreakdown from "./BudgetBreakdown";
 import DestinationCombobox from "./planner/DestinationCombobox";
 
 import { searchTrips } from "../api/trips";
+import { searchHotels, type HotelResult } from "../api/hotels";
+import { fetchItineraryLegs, type ItineraryLeg } from "../api/itinerary";
 import { buildTripUrl, parseTripParams } from "../utils/tripUrl";
 import {
   countNights,
@@ -134,8 +140,10 @@ function extractCoordinates(geometry: unknown): Position[] {
     }
   };
 
-  if (typed.type === "Point") {
-    walkLine(coordinates);
+  // Point and LineString hold position arrays directly; MultiLineString /
+  // Polygon hold arrays of position arrays.
+  if (typed.type === "Point" || typed.type === "LineString") {
+    walkLine(coordinates as unknown[]);
     return positions;
   }
 
@@ -161,6 +169,9 @@ export default function TripResults() {
 
   const query = params.toString();
   const plan = useMemo(() => parseTripParams(params), [params]);
+  // Saved-trip links carry the row id so the account trip (and its saved
+  // budget) resolves even when the stored URL is legacy or slightly different.
+  const savedTripIdParam = params.get("tripId")?.trim() || null;
 
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [flight, setFlight] = useState<FlightOption | null>(null);
@@ -175,6 +186,7 @@ export default function TripResults() {
     () => (plan ? readStops(plan, query) : {})
   );
   const [addStopKey, setAddStopKey] = useState(0);
+  const [stopActionPending, setStopActionPending] = useState(false);
 
   const [saved, setSaved] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
@@ -285,6 +297,8 @@ export default function TripResults() {
     }
   }, [selectedRoute]);
 
+  const isFlightRoute = selectedRoute?.type?.toLowerCase().includes("flight") ?? false;
+
   const routeBounds = useMemo(() => {
     if (!routeGeometry) return null;
 
@@ -304,7 +318,8 @@ export default function TripResults() {
       east = Math.max(east, longitude);
     }
 
-    return new LngLatBounds([south, west], [north, east]);
+    // MapLibre bounds are [lng, lat], not [lat, lng].
+    return new LngLatBounds([west, south], [east, north]);
   }, [routeGeometry]);
 
   useEffect(() => {
@@ -334,8 +349,8 @@ export default function TripResults() {
   useEffect(() => {
     if (!plan) return;
 
-    setSaved(isSavedTrip(query));
-  }, [plan, query]);
+    setSaved(savedTripIdParam !== null || isSavedTrip(query));
+  }, [plan, query, savedTripIdParam]);
 
   useEffect(() => {
     if (!plan || savedTripId !== null) return;
@@ -355,62 +370,184 @@ export default function TripResults() {
     return () => window.clearTimeout(timer);
   }, [toast]);
 
+  /* ---------------- live stays near the destination ---------------- */
+
+  const destinationKey = plan
+    ? `${plan.destination.latitude}|${plan.destination.longitude}`
+    : "";
+
+  const [hotelState, setHotelState] = useState<{
+    key: string;
+    hotels: HotelResult[];
+    failed: boolean;
+  } | null>(null);
+  const [hotelReloadKey, setHotelReloadKey] = useState(0);
+
+  useEffect(() => {
+    if (!plan || !destinationKey) return;
+
+    let cancelled = false;
+
+    searchHotels({
+      latitude: plan.destination.latitude,
+      longitude: plan.destination.longitude,
+      radiusKm: 8,
+      limit: 4,
+    })
+      .then((hotels) => {
+        if (!cancelled) {
+          setHotelState({ key: destinationKey, hotels, failed: false });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setHotelState({ key: destinationKey, hotels: [], failed: true });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [plan, destinationKey, hotelReloadKey]);
+
+  const hotelsMatch = hotelState !== null && hotelState.key === destinationKey;
+  const nearbyHotels = hotelsMatch ? hotelState.hotels : [];
+  const hotelsFailed = Boolean(hotelsMatch && hotelState.failed);
+  const hotelsLoading = Boolean(destinationKey) && !hotelsMatch;
+
   /* ---------------- actions ---------------- */
 
   const stopsForDay =
     savedTripId !== null ? (serverStops[safeDay] ?? []) : (extraStops[safeDay] ?? []);
 
-  const addStop = (destination: Destination | null) => {
-    if (!destination) return;
+  /* ---------------- travel legs between ordered stops ---------------- */
 
-    if (savedTripId !== null) {
-      // New stops go to the account itinerary instead of localStorage.
-      addStopToTrip(savedTripId, {
-        dayIndex: safeDay,
-        name: destination.name,
-        country: destination.country,
-        latitude: destination.latitude,
-        longitude: destination.longitude,
-        kind: "place",
-      }).then((stop) => {
+  const [legState, setLegState] = useState<{
+    tripId: string;
+    dayIndex: number;
+    stopKey: string;
+    legs: ItineraryLeg[];
+    failed: boolean;
+  } | null>(null);
+
+  const legStopKey = stopsForDay.map((stop) => stop.id).join("|");
+
+  useEffect(() => {
+    if (!savedTripId || !legStopKey) return;
+
+    let cancelled = false;
+
+    fetchItineraryLegs(savedTripId, safeDay)
+      .then((legs) => {
+        if (!cancelled) {
+          setLegState({
+            tripId: savedTripId,
+            dayIndex: safeDay,
+            stopKey: legStopKey,
+            legs,
+            failed: false,
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setLegState({
+            tripId: savedTripId,
+            dayIndex: safeDay,
+            stopKey: legStopKey,
+            legs: [],
+            failed: true,
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [savedTripId, safeDay, legStopKey]);
+
+  const legContextMatches =
+    legState !== null &&
+    legState.tripId === savedTripId &&
+    legState.dayIndex === safeDay &&
+    legState.stopKey === legStopKey;
+  const legs = legContextMatches ? legState.legs : [];
+  const legsFailed = Boolean(legContextMatches && legState.failed);
+  const legsLoading = Boolean(savedTripId) && Boolean(legStopKey) && !legContextMatches && !legsFailed;
+
+  const legForPair = (fromId: string, toId: string) =>
+    legs.find((leg) => leg.fromStopId === fromId && leg.toStopId === toId);
+
+  const addStop = async (destination: Destination | null) => {
+    if (!destination || stopActionPending) return;
+
+    setStopActionPending(true);
+
+    try {
+      if (savedTripId !== null) {
+        // New stops go to the account itinerary instead of localStorage.
+        const stop = await addStopToTrip(savedTripId, {
+          dayIndex: safeDay,
+          name: destination.name,
+          country: destination.country,
+          latitude: destination.latitude,
+          longitude: destination.longitude,
+          kind: "place",
+        });
+
         setServerStops((current) => ({
           ...current,
           [safeDay]: [...(current[safeDay] ?? []), stop],
         }));
-      });
-    } else {
-      setExtraStops((current) => ({
-        ...current,
-        [safeDay]: [
-          ...(current[safeDay] ?? []),
-          {
-            id: `${destination.latitude}-${destination.longitude}-${Date.now()}`,
-            name: destination.name,
-            country: destination.country,
-            latitude: destination.latitude,
-            longitude: destination.longitude,
-          },
-        ],
-      }));
-    }
+      } else {
+        setExtraStops((current) => ({
+          ...current,
+          [safeDay]: [
+            ...(current[safeDay] ?? []),
+            {
+              id: `${destination.latitude}-${destination.longitude}-${Date.now()}`,
+              name: destination.name,
+              country: destination.country,
+              latitude: destination.latitude,
+              longitude: destination.longitude,
+            },
+          ],
+        }));
+      }
 
-    setAddStopKey((value) => value + 1);
-    setToast(`Added ${destination.name} to day ${safeDay + 1}`);
+      setAddStopKey((value) => value + 1);
+      setToast(`Added ${destination.name} to day ${safeDay + 1}`);
+    } catch {
+      setToast(`Couldn't add ${destination.name}. Try again.`);
+    } finally {
+      setStopActionPending(false);
+    }
   };
 
-  const removeStop = (id: string) => {
-    if (savedTripId !== null) {
-      deleteStopFromTrip(savedTripId, id).then(() => {
+  const removeStop = async (id: string, name: string) => {
+    if (stopActionPending) return;
+
+    setStopActionPending(true);
+
+    try {
+      if (savedTripId !== null) {
+        await deleteStopFromTrip(savedTripId, id);
         setServerStops((current) => ({
           ...current,
           [safeDay]: (current[safeDay] ?? []).filter((s) => s.id !== id),
         }));
-      });
-    } else {
-      setExtraStops((current) => ({
-        ...current,
-        [safeDay]: (current[safeDay] ?? []).filter((stop) => stop.id !== id),
-      }));
+      } else {
+        setExtraStops((current) => ({
+          ...current,
+          [safeDay]: (current[safeDay] ?? []).filter((stop) => stop.id !== id),
+        }));
+      }
+
+      setToast(`Removed ${name} from day ${safeDay + 1}`);
+    } catch {
+      setToast(`Couldn't remove ${name}. Try again.`);
+    } finally {
+      setStopActionPending(false);
     }
   };
 
@@ -535,8 +672,18 @@ export default function TripResults() {
   useEffect(() => {
     if (!plan || !saved) return;
 
+    // A saved-trip link carries the id, so use it directly for account trips.
+    if (savedTripIdParam && getToken()) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSavedTripId(savedTripIdParam);
+      return;
+    }
+
     loadSavedTrips().then(() => {
-      const trip = listSavedTrips().find((t) => t.url === planUrl);
+      const trips = listSavedTrips();
+      const trip =
+        trips.find((t) => t.id === savedTripIdParam) ??
+        trips.find((t) => t.url === planUrl);
 
       if (trip && Boolean(getToken())) {
         setSavedTripId(trip.id);
@@ -544,7 +691,7 @@ export default function TripResults() {
         setSavedTripId(null);
       }
     });
-  }, [plan, planUrl, saved]);
+  }, [plan, planUrl, saved, savedTripIdParam]);
 
   // Load the server itinerary once the account trip id is known.
   useEffect(() => {
@@ -790,34 +937,75 @@ export default function TripResults() {
                 </div>
               ) : (
                 <ol className="mt-3 space-y-2">
-                  {stopsForDay.map((stop, index) => (
-                    <li
-                      key={stop.id}
-                      className="group flex items-start gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5"
-                    >
-                      <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-[10px] font-extrabold text-brand-strong">
-                        {index + 1}
-                      </span>
+                  {stopsForDay.map((stop, index) => {
+                    const previous = stopsForDay[index - 1];
+                    const leg = previous
+                      ? legForPair(previous.id, stop.id)
+                      : undefined;
 
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12.5px] font-semibold text-ink">
-                          {stop.name}
-                        </p>
-                        <p className="truncate text-[11px] text-muted">
-                          {stop.country}
-                        </p>
-                      </div>
+                    return (
+                      <Fragment key={stop.id}>
+                        {previous && (
+                          <li className="pl-8">
+                            <div className="flex flex-wrap items-center gap-1.5 border-l border-dashed border-brand-100 pl-3 text-[10.5px] text-muted">
+                              {leg ? (
+                                leg.available && leg.durationMinutes !== null ? (
+                                  <>
+                                    <Footprints className="h-3 w-3 text-brand" />
+                                    <span>
+                                      {formatDuration(leg.durationMinutes)} ·{" "}
+                                      {formatDistance(leg.distanceKm)}
+                                    </span>
+                                    {leg.estimated && (
+                                      <span className="rounded bg-line px-1 py-0.5 text-[9px] font-bold uppercase text-muted">
+                                        est.
+                                      </span>
+                                    )}
+                                  </>
+                                ) : (
+                                  <span title={leg.reason ?? undefined}>
+                                    {formatDistance(leg.distanceKm)} · travel time
+                                    unavailable
+                                  </span>
+                                )
+                              ) : legsLoading ? (
+                                <span>Checking travel time…</span>
+                              ) : legsFailed ? (
+                                <span>Travel time unavailable</span>
+                              ) : (
+                                <span>Save this trip to see travel time</span>
+                              )}
+                            </div>
+                          </li>
+                        )}
 
-                      <button
-                        type="button"
-                        onClick={() => removeStop(stop.id)}
-                        aria-label={`Remove ${stop.name}`}
-                        className="rounded-md p-1 text-faint transition hover:bg-danger-50 hover:text-danger"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
-                    </li>
-                  ))}
+                        <li className="group flex items-start gap-2.5 rounded-xl border border-line bg-surface px-3 py-2.5">
+                          <span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-brand-50 text-[10px] font-extrabold text-brand-strong">
+                            {index + 1}
+                          </span>
+
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[12.5px] font-semibold text-ink">
+                              {stop.name}
+                            </p>
+                            <p className="truncate text-[11px] text-muted">
+                              {stop.country}
+                            </p>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() => removeStop(stop.id, stop.name)}
+                            disabled={stopActionPending}
+                            aria-label={`Remove ${stop.name}`}
+                            className="rounded-md p-1 text-faint transition hover:bg-danger-50 hover:text-danger disabled:opacity-40"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </li>
+                      </Fragment>
+                    );
+                  })}
                 </ol>
               )}
 
@@ -833,6 +1021,7 @@ export default function TripResults() {
                       compact
                       selected={null}
                       onSelect={addStop}
+                      disabled={stopActionPending}
                       placeholder="Add a place to this day"
                       ariaLabel={`Add a place to day ${safeDay + 1}`}
                     />
@@ -922,8 +1111,9 @@ export default function TripResults() {
 
           {/* ---------------- map ---------------- */}
           <div
+            id="map"
             ref={mapPaneRef}
-            className="relative order-1 min-h-[38vh] overflow-hidden rounded-[18px] border border-line bg-surface lg:order-2 lg:min-h-0"
+            className="relative order-1 min-h-[38vh] scroll-mt-24 overflow-hidden rounded-[18px] border border-line bg-surface lg:order-2 lg:min-h-0"
           >
             <MapGL
               ref={mapRef}
@@ -957,7 +1147,7 @@ export default function TripResults() {
                     type="line"
                     paint={{
                       "line-color": "#ffffff",
-                      "line-width": 9,
+                      "line-width": isFlightRoute ? 7 : 9,
                       "line-opacity": 0.85,
                     }}
                     layout={{ "line-cap": "round", "line-join": "round" }}
@@ -966,11 +1156,16 @@ export default function TripResults() {
                     id="trip-route-line"
                     type="line"
                     paint={{
-                      "line-color": "#0E9384",
-                      "line-width": 5,
+                      "line-color": isFlightRoute ? "#2563EB" : "#0E9384",
+                      "line-width": isFlightRoute ? 3 : 5,
                       "line-opacity": 0.95,
+                      ...(isFlightRoute ? { "line-dasharray": [2, 2] } : {}),
                     }}
-                    layout={{ "line-cap": "round", "line-join": "round" }}
+                    layout={
+                      isFlightRoute
+                        ? { "line-cap": "butt", "line-join": "round" }
+                        : { "line-cap": "round", "line-join": "round" }
+                    }
                   />
                 </Source>
               )}
@@ -1148,6 +1343,57 @@ export default function TripResults() {
                               )}`
                             : route.message ?? "Not available for this route"}
                         </span>
+
+                        {route.available &&
+                          Array.isArray(route.segments) &&
+                          route.segments.length > 0 && (
+                            <span className="mt-2 block space-y-1 border-t border-line-soft pt-2">
+                              {route.segments.map((segment, index) => {
+                                const from = segment.from?.trim();
+                                const to = segment.to?.trim();
+                                const endpoints =
+                                  from || to ? `${from || "Start"} → ${to || "End"}` : null;
+                                const label =
+                                  segment.name?.trim() || segment.type?.trim() || "Segment";
+                                const details = [
+                                  segment.durationMinutes != null
+                                    ? formatDuration(segment.durationMinutes)
+                                    : null,
+                                  segment.distanceKm != null
+                                    ? formatDistance(segment.distanceKm)
+                                    : null,
+                                ].filter(Boolean);
+
+                                return (
+                                  <span
+                                    key={`${route.type}-${index}`}
+                                    className="flex items-start gap-1.5 text-[10.5px] leading-snug text-muted"
+                                  >
+                                    {(() => {
+                                      const SegmentIcon = modeIcon(
+                                        segment.type ?? segment.name ?? route.type
+                                      );
+                                      return (
+                                        <SegmentIcon className="mt-0.5 h-3 w-3 shrink-0 text-brand" />
+                                      );
+                                    })()}
+                                    <span className="min-w-0">
+                                      <span className="block truncate text-body">
+                                        {endpoints ? `${endpoints} · ${label}` : label}
+                                      </span>
+                                      {(details.length > 0 || segment.message) && (
+                                        <span className="block truncate text-faint">
+                                          {[details.join(" · "), segment.message]
+                                            .filter(Boolean)
+                                            .join(" · ")}
+                                        </span>
+                                      )}
+                                    </span>
+                                  </span>
+                                );
+                              })}
+                            </span>
+                          )}
                       </span>
 
                       <span className="shrink-0 text-right">
@@ -1173,24 +1419,76 @@ export default function TripResults() {
                   );
                 })}
 
-              {!loading && flight && (
+              {!loading &&
+                flight &&
+                !routes.some(
+                  (route) => route.type.toLowerCase().includes("flight") && route.available
+                ) && (
                 <div className="mb-2 rounded-xl border border-line bg-canvas px-3 py-2.5">
-                  <div className="flex items-center gap-2.5">
+                  <div className="flex items-start gap-2.5">
                     <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-line-soft bg-surface text-body">
                       <Plane className="h-[17px] w-[17px]" />
                     </span>
 
                     <div className="min-w-0 flex-1">
-                      <p className="flex items-center gap-1.5 text-[13px] font-bold text-ink">
-                        Flight
-                        <span className="rounded bg-line px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-muted">
-                          {flight.available ? "Available" : "Not yet"}
-                        </span>
-                      </p>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-ink">
+                            Flight
+                            <span
+                              className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${
+                                flight.available
+                                  ? "bg-brand-soft text-brand"
+                                  : "bg-line text-muted"
+                              }`}
+                            >
+                              {flight.available
+                                ? flight.estimated
+                                  ? "Estimated"
+                                  : "Available"
+                                : "Not yet"}
+                            </span>
+                          </p>
 
-                      <p className="mt-0.5 truncate text-[11.5px] text-muted">
-                        {flight.message ?? "Flight search is not available yet."}
-                      </p>
+                          <p className="mt-0.5 text-[11.5px] text-muted">
+                            {flight.available
+                              ? [
+                                  flight.durationMinutes != null
+                                    ? formatDuration(flight.durationMinutes)
+                                    : null,
+                                  flight.estimatedPrice != null
+                                    ? formatPrice(flight.estimatedPrice)
+                                    : null,
+                                  flight.airline && flight.airline !== "Estimated"
+                                    ? flight.airline
+                                    : null,
+                                ]
+                                  .filter(Boolean)
+                                  .join(" · ") ||
+                                (flight.estimated
+                                  ? "Indicative estimate"
+                                  : "Details unavailable")
+                              : flight.message ?? "Flight search is not available yet."}
+                          </p>
+                        </div>
+
+                        {flight.available && flight.estimatedPrice != null && (
+                          <span className="shrink-0 text-right">
+                            <span className="block text-[12px] font-bold text-ink">
+                              {formatPrice(flight.estimatedPrice)}
+                            </span>
+                            <span className="block text-[10px] text-muted">
+                              {flight.estimated ? "indicative" : "estimated"}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+
+                      {flight.available && flight.estimated && flight.message && (
+                        <p className="mt-1 text-[10.5px] leading-relaxed text-faint">
+                          {flight.message}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1242,6 +1540,130 @@ export default function TripResults() {
             </div>
           </section>
         </div>
+
+        {/* ---------------- budget breakdown ---------------- */}
+        <section id="budget" aria-label="Budget" className="mt-3.5">
+          <div className="mb-2 flex items-center gap-2 px-1">
+            <Wallet className="h-4 w-4 text-brand" />
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+              Budget
+            </h2>
+          </div>
+
+          <BudgetBreakdown
+            tripId={savedTripId}
+            totalBudget={plan.budget}
+            travelers={plan.adults + plan.children}
+            onSaved={(message) => setToast(message)}
+          />
+        </section>
+
+        {/* ---------------- live stays near this destination ---------------- */}
+        <section id="stays" aria-label="Nearby stays" className="mt-3.5">
+          <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
+            <BedDouble className="h-4 w-4 text-brand" />
+            <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+              Stays near {plan.destination.name}
+            </h2>
+          </div>
+
+          <div className="rounded-[18px] border border-line bg-surface px-4 py-4">
+            {hotelsLoading ? (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {[0, 1, 2, 3].map((row) => (
+                  <div
+                    key={row}
+                    className="h-[112px] animate-pulse rounded-xl border border-line bg-canvas"
+                  />
+                ))}
+              </div>
+            ) : hotelsFailed ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-danger/20 bg-danger-50 px-3 py-2.5">
+                <p className="text-[12px] text-danger">
+                  Couldn't load nearby stays right now.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setHotelState(null);
+                    setHotelReloadKey((value) => value + 1);
+                  }}
+                  className="text-[11.5px] font-bold text-danger underline"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : nearbyHotels.length === 0 ? (
+              <p className="rounded-xl border border-dashed border-line bg-canvas px-3 py-5 text-center text-[12px] text-muted">
+                No hotels found within 8 km yet. Try a different destination.
+              </p>
+            ) : (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+                {nearbyHotels.map((hotel) => (
+                  <div
+                    key={hotel.id}
+                    className="flex min-w-0 flex-col rounded-xl border border-line bg-canvas px-3 py-2.5"
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="grid h-7 w-7 shrink-0 place-items-center rounded-lg bg-brand-50 text-brand">
+                        <BedDouble className="h-3.5 w-3.5" />
+                      </span>
+
+                      <p
+                        className="min-w-0 flex-1 truncate text-[12.5px] font-bold text-ink"
+                        title={hotel.name}
+                      >
+                        {hotel.name}
+                      </p>
+                    </div>
+
+                    <p className="mt-2 truncate text-[11px] text-muted" title={hotel.address ?? undefined}>
+                      {hotel.address ?? hotel.type ?? "Address not listed"}
+                    </p>
+
+                    <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10.5px] text-muted">
+                      <span>{formatDistance(hotel.distanceKm)} away</span>
+                      {hotel.stars !== null && (
+                        <span className="inline-flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-[#FDB022] text-[#FDB022]" />
+                          {hotel.stars}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="mt-auto flex items-center justify-between gap-2 pt-2">
+                      <span className="text-[11.5px] font-semibold text-body">
+                        {hotel.estimatedPricePerNight !== null &&
+                        hotel.estimatedPricePerNight > 0
+                          ? formatPrice(hotel.estimatedPricePerNight)
+                          : "Price unavailable"}
+                        <span className="font-normal text-muted"> /night</span>
+                      </span>
+
+                      {hotel.website && (
+                        <a
+                          href={hotel.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          aria-label={`Website for ${hotel.name}`}
+                          className="text-brand-strong hover:underline"
+                        >
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] text-faint">
+              <Info className="h-3 w-3 shrink-0" />
+              Live places from OpenStreetMap. Fares aren't published for these
+              listings, so price stays unavailable rather than becoming $0.
+            </p>
+          </div>
+        </section>
       </div>
 
       {/* mobile quick nav */}
@@ -1250,6 +1672,8 @@ export default function TripResults() {
           { label: "Map", target: "map", icon: MapPin },
           { label: "Plan", target: "trip-plan", icon: CircleDot },
           { label: "Getting there", target: "getting-there", icon: RouteIcon },
+          { label: "Budget", target: "budget", icon: Wallet },
+          { label: "Stays", target: "stays", icon: BedDouble },
         ].map((item) => (
           <button
             key={item.label}

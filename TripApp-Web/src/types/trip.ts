@@ -20,6 +20,17 @@ export type DateRange = {
   to?: Date;
 };
 
+export type RouteSegment = {
+  type?: string;
+  name?: string;
+  from?: string | null;
+  to?: string | null;
+  distanceKm?: number | null;
+  durationMinutes?: number | null;
+  geometry?: string | null;
+  message?: string | null;
+};
+
 export type RouteOption = {
   type: string;
   name: string;
@@ -30,14 +41,20 @@ export type RouteOption = {
   provider?: string | null;
   geometry?: string | null;
   message?: string | null;
+  /** Rome2Rio-style leg breakdown when provided by the search backend. */
+  segments?: RouteSegment[];
 };
 
 export type FlightOption = {
   available: boolean;
   airline?: string | null;
   duration?: number | null;
+  /** Backend convenience field; preferred over `duration` when present. */
+  durationMinutes?: number | null;
   estimatedPrice?: number | null;
   message?: string | null;
+  /** True when values are heuristic estimates, not live fares/schedules. */
+  estimated?: boolean;
 };
 
 export type TripSearchResult = {
@@ -78,6 +95,37 @@ export type ItineraryStop = {
   notes: string | null;
 };
 
+/** Budget breakdown for a saved trip (per-category allocation). */
+export type BudgetCategory =
+  | "Transport"
+  | "Stay"
+  | "Food"
+  | "Activities"
+  | "Shopping"
+  | "Other";
+
+/** Fixed category list, shared with the backend. */
+export const BUDGET_CATEGORIES: BudgetCategory[] = [
+  "Transport",
+  "Stay",
+  "Food",
+  "Activities",
+  "Shopping",
+  "Other",
+];
+
+/** A single planned amount for a category. */
+export interface BudgetEntry {
+  category: BudgetCategory;
+  amount: number;
+}
+
+/** Budget breakdown returned by GET /api/trips/{tripId}/budget. */
+export interface TripBudget {
+  tripId: string;
+  categories: Record<BudgetCategory, number>;
+}
+
 export type SavedTrip = {
   id: string;
   title: string;
@@ -94,4 +142,7 @@ export type SavedTrip = {
   originLng?: number;
   destinationLat?: number;
   destinationLng?: number;
+  originLabel?: string;
+  destinationName?: string;
+  destinationCountry?: string;
 };

@@ -1,10 +1,18 @@
 export interface AuthUser {
-  userId: string;
+  /** /auth/me returns UserDto.id; older payloads used userId. */
+  id?: string;
+  userId?: string;
   username: string;
   email: string;
   role: string;
   isActive: boolean;
   createdAt?: string;
+  /** Optional profile fields returned by /auth/me and update-profile. */
+  nickname?: string | null;
+  phone?: string | null;
+  address?: string | null;
+  occupation?: string | null;
+  location?: string | null;
 }
 
 const TOKEN_KEY = "token";

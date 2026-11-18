@@ -18,6 +18,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<ItineraryStop> ItineraryStops => Set<ItineraryStop>();
 
+    public DbSet<BudgetBreakdown> BudgetBreakdowns => Set<BudgetBreakdown>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -59,6 +61,21 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.HasIndex(stop => stop.SavedTripId);
+        });
+
+        modelBuilder.Entity<BudgetBreakdown>(entity =>
+        {
+            entity.ToTable("BudgetBreakdown");
+
+            // One row per fixed category per trip; upserts key off both.
+            entity.HasKey(b => new { b.SavedTripId, b.Category });
+
+            entity.HasOne(b => b.SavedTrip)
+                .WithMany(trip => trip.BudgetBreakdowns)
+                .HasForeignKey(b => b.SavedTripId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.Property(b => b.Category).HasMaxLength(64);
         });
     }
 }

@@ -13,6 +13,7 @@ type Props = {
   inputId?: string;
   ariaLabel?: string;
   compact?: boolean;
+  disabled?: boolean;
 };
 
 type Anchor = {
@@ -65,6 +66,7 @@ export default function DestinationCombobox({
   inputId,
   ariaLabel,
   compact = false,
+  disabled = false,
 }: Props) {
   const fallbackId = useId();
   const id = inputId ?? fallbackId;
@@ -261,6 +263,7 @@ export default function DestinationCombobox({
           aria-controls={`${id}-listbox`}
           aria-autocomplete="list"
           aria-label={ariaLabel ?? "Destination"}
+          disabled={disabled}
           value={query}
           placeholder={placeholder}
           autoComplete="off"

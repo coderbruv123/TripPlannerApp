@@ -1,4 +1,4 @@
-import type { Destination, Origin, TripPlan } from "../types/trip";
+import type { Destination, Origin, SavedTrip, TripPlan } from "../types/trip";
 
 function toIsoDate(date: Date): string {
   const year = date.getFullYear();
@@ -98,4 +98,72 @@ export function parseTripParams(params: URLSearchParams): TripPlan | null {
       .map((value) => value.trim())
       .filter(Boolean),
   };
+}
+
+function numberFrom(value: string | null | undefined): number | null {
+  if (value === null || value === undefined) return null;
+
+  const parsed = Number(value);
+
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+/**
+ * Build a real `/trip?...` link for a saved trip. Older rows can carry a
+ * slug-like `url` that the router doesn't know, so we prefer the coordinates
+ * stored on the row and only fall back to its URL's query string.
+ * Returns null when the row has no usable coordinates (nothing we can reopen).
+ */
+export function savedTripUrl(trip: SavedTrip): string | null {
+  let legacy: URLSearchParams | null = null;
+
+  try {
+    const marker = trip.url.indexOf("?");
+    if (marker >= 0) legacy = new URLSearchParams(trip.url.slice(marker + 1));
+  } catch {
+    legacy = null;
+  }
+
+  const dlat =
+    trip.destinationLat ?? numberFrom(legacy?.get("dlat")) ?? Number.NaN;
+  const dlng =
+    trip.destinationLng ?? numberFrom(legacy?.get("dlng")) ?? Number.NaN;
+  const olat = trip.originLat ?? numberFrom(legacy?.get("olat")) ?? Number.NaN;
+  const olng = trip.originLng ?? numberFrom(legacy?.get("olng")) ?? Number.NaN;
+
+  if (![dlat, dlng, olat, olng].every(Number.isFinite)) return null;
+
+  const params = new URLSearchParams();
+  params.set("dest", trip.destinationName || trip.title || "Saved trip");
+  params.set("country", trip.destinationCountry || trip.country || "");
+  params.set("dlat", String(dlat));
+  params.set("dlng", String(dlng));
+  params.set("origin", trip.originLabel || legacy?.get("origin") || "Starting point");
+  params.set("olat", String(olat));
+  params.set("olng", String(olng));
+  params.set("okind", legacy?.get("okind") === "geo" ? "geo" : "city");
+
+  const from = trip.from?.slice(0, 10) ?? legacy?.get("from");
+  const to = trip.to?.slice(0, 10) ?? legacy?.get("to");
+  if (from) params.set("from", from);
+  if (to) params.set("to", to);
+
+  const adults = Math.max(1, trip.travelers || Number(legacy?.get("adults")) || 2);
+  params.set("adults", String(adults));
+  params.set("children", legacy?.get("children") ?? "0");
+
+  if (trip.budget?.trim()) {
+    params.set("budget", trip.budget.trim());
+  } else if (legacy?.get("budget")) {
+    params.set("budget", legacy.get("budget")!);
+  }
+
+  const interests = legacy?.get("interests");
+  if (interests) params.set("interests", interests);
+
+  // Lets the workspace resolve the account trip id directly, so the saved
+  // budget breakdown loads even if the serialized URL differs slightly.
+  if (trip.id) params.set("tripId", trip.id);
+
+  return `/trip?${params.toString()}`;
 }

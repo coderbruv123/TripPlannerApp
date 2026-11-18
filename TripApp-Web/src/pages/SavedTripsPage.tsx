@@ -18,6 +18,7 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { clearSavedTrips, listSavedTrips, loadSavedTrips, removeSavedTrip, subscribeSavedTripsChanged } from "../utils/tripStore";
 import { formatSavedRange, travellersLabel } from "../utils/format";
+import { savedTripUrl } from "../utils/tripUrl";
 import type { SavedTrip } from "../types/trip";
 
 type SortKey = "recent" | "departure" | "budget" | "name";
@@ -373,6 +374,7 @@ export default function SavedTripsPage() {
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {visible.map((trip) => {
               const upcomingTrip = isUpcoming(trip);
+              const openUrl = savedTripUrl(trip);
 
               return (
                 <article
@@ -429,13 +431,22 @@ export default function SavedTripsPage() {
                     <p className="mt-3 text-[11.5px] text-faint">{savedAgo(trip.savedAt)}</p>
 
                     <div className="mt-auto flex items-center justify-between gap-2 border-t border-line-soft pt-3.5">
-                      <Link
-                        to={trip.url}
-                        className="inline-flex items-center gap-1.5 rounded-lg text-[12.5px] font-semibold text-brand-strong hover:underline"
-                      >
-                        Open trip
-                        <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-                      </Link>
+                      {openUrl ? (
+                        <Link
+                          to={openUrl}
+                          className="inline-flex items-center gap-1.5 rounded-lg text-[12.5px] font-semibold text-brand-strong hover:underline"
+                        >
+                          Open trip
+                          <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                        </Link>
+                      ) : (
+                        <span
+                          className="text-[12px] text-faint"
+                          title="This saved trip is missing coordinates"
+                        >
+                          Trip details unavailable
+                        </span>
+                      )}
 
                       <button
                         type="button"

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ArrowRight, CalendarDays, MapPin, Trash2 } from "lucide-react";
 
 import { listSavedTrips, loadSavedTrips, removeSavedTrip, subscribeSavedTripsChanged } from "../utils/tripStore";
+import { savedTripUrl } from "../utils/tripUrl";
 import { formatSavedRange, travellersLabel } from "../utils/format";
 import type { SavedTrip } from "../types/trip";
 
@@ -63,7 +64,10 @@ export default function SavedTrips() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {trips.slice(0, 6).map((trip) => (
+          {trips.slice(0, 6).map((trip) => {
+            const openUrl = savedTripUrl(trip);
+
+            return (
             <article
               key={trip.id}
               className="group flex flex-col rounded-[18px] border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:border-brand-100"
@@ -101,15 +105,22 @@ export default function SavedTrips() {
                 </div>
               </dl>
 
-              <Link
-                to={trip.url}
-                className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-strong hover:underline"
-              >
-                Open trip
-                <ArrowRight className="h-3.5 w-3.5" />
-              </Link>
+              {openUrl ? (
+                <Link
+                  to={openUrl}
+                  className="mt-4 inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-brand-strong hover:underline"
+                >
+                  Open trip
+                  <ArrowRight className="h-3.5 w-3.5" />
+                </Link>
+              ) : (
+                <span className="mt-4 text-[12px] text-faint" title="This saved trip is missing coordinates">
+                  Trip details unavailable
+                </span>
+              )}
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

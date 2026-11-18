@@ -25,14 +25,25 @@ public class TripsController : ControllerBase
     {
         var routes = await _planner.SearchAsync(request);
 
-        var flight = await _flightService.SearchFlightAsync(
-            new FlightSearchRequest
-            {
-                OriginLat = request.OriginLat,
-                OriginLng = request.OriginLng,
-                DestinationLat = request.DestinationLat,
-                DestinationLng = request.DestinationLng
-            });
+        var flightRequest = new FlightSearchRequest
+        {
+            OriginLat = request.OriginLat,
+            OriginLng = request.OriginLng,
+            DestinationLat = request.DestinationLat,
+            DestinationLng = request.DestinationLng,
+            OriginName = request.OriginName,
+            DestinationName = request.DestinationName
+        };
+
+        var flight = await _flightService.SearchFlightAsync(flightRequest);
+
+        // Present flights as first-class route options (Rome2Rio-like) so they can be
+        // compared/selected and show a segment breakdown + map path.
+        var flightRoutes = _flightService.BuildRouteOptions(flightRequest, flight);
+        if (flightRoutes.Count > 0)
+        {
+            routes = routes.Concat(flightRoutes).ToList();
+        }
 
         return Ok(new
         {

@@ -18,6 +18,14 @@ export interface AuthResult<T = AuthResponse> {
   data: T;
 }
 
+export interface UpdateProfileResult {
+  success: boolean;
+  errorCode?: string;
+  message?: string;
+  /** UserDto returned by the backend on success. */
+  data?: AuthUser | null;
+}
+
 export interface LoginPayload {
   email: string;
   password: string;
@@ -98,7 +106,7 @@ export const changePassword = async (
 
 export const updateProfile = async (
   data: UpdateProfilePayload
-): Promise<{ success: boolean; errorCode?: string; message?: string }> => {
-  const response = await api.put("/auth/update-profile", data);
+): Promise<UpdateProfileResult> => {
+  const response = await api.put<UpdateProfileResult>("/auth/update-profile", data);
   return response.data;
 };

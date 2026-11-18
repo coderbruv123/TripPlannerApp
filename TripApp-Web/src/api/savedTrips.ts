@@ -15,6 +15,11 @@ interface SavedTripEntity {
   travelers: number;
   budget?: string;
   url: string;
+  /** Coordinates baked in so a legacy/bad URL can still reopen the trip. */
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
   interests: string[];
   createdAt?: string;
   updatedAt?: string;
@@ -31,6 +36,13 @@ export interface SavedTrip {
   budget?: string;
   url: string;
   savedAt: string;
+  originLabel?: string;
+  destinationName?: string;
+  destinationCountry?: string;
+  originLat?: number;
+  originLng?: number;
+  destinationLat?: number;
+  destinationLng?: number;
 }
 
 function toIso(value: string | undefined): string {
@@ -59,6 +71,13 @@ function toFrontend(entity: SavedTripEntity): SavedTrip {
     budget: entity.budget,
     url: entity.url,
     savedAt: toIso(entity.createdAt),
+    originLabel: entity.originLabel,
+    destinationName: entity.destinationName,
+    destinationCountry: entity.destinationCountry,
+    originLat: entity.originLat,
+    originLng: entity.originLng,
+    destinationLat: entity.destinationLat,
+    destinationLng: entity.destinationLng,
   };
 }
 

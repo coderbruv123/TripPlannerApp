@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using TripApp_Backend.Data;
 using TripApp_Backend.Dtos;
@@ -9,10 +10,17 @@ namespace TripApp_Backend.Services;
 public class ItineraryService : ITripItineraryService
 {
     private readonly ApplicationDbContext _db;
+    private readonly OpenRouteService _routeService;
+    private readonly ILogger<ItineraryService> _logger;
 
-    public ItineraryService(ApplicationDbContext db)
+    public ItineraryService(
+        ApplicationDbContext db,
+        OpenRouteService routeService,
+        ILogger<ItineraryService> logger)
     {
         _db = db;
+        _routeService = routeService;
+        _logger = logger;
     }
 
     public async Task<List<ItineraryStop>> LoadAsync(
@@ -32,6 +40,119 @@ public class ItineraryService : ITripItineraryService
             .OrderBy(s => s.DayIndex)
             .ThenBy(s => s.Order)
             .ToListAsync();
+    }
+
+    public async Task<List<ItineraryLegDto>?> GetLegsAsync(
+        Guid userId,
+        Guid savedTripId,
+        int dayIndex,
+        CancellationToken ct = default)
+    {
+        // Same account scope as every other itinerary call. The controller
+        // turns null into 404 so a foreign trip looks like a missing one.
+        var ownsTrip = await _db.SavedTrips
+            .AnyAsync(t => t.Id == savedTripId && t.UserId == userId, ct);
+
+        if (!ownsTrip)
+            return null;
+
+        var stops = await _db.ItineraryStops
+            .Where(s => s.SavedTripId == savedTripId && s.DayIndex == dayIndex)
+            .OrderBy(s => s.Order)
+            .ThenBy(s => s.Id)
+            .ToListAsync(ct);
+
+        var legs = new List<ItineraryLegDto>();
+
+        for (var i = 0; i < stops.Count - 1; i++)
+            legs.Add(await BuildLegAsync(stops[i], stops[i + 1]));
+
+        return legs;
+    }
+
+    private async Task<ItineraryLegDto> BuildLegAsync(
+        ItineraryStop from,
+        ItineraryStop to)
+    {
+        var leg = new ItineraryLegDto
+        {
+            FromStopId = from.Id,
+            ToStopId = to.Id
+        };
+
+        try
+        {
+            var json = await _routeService.GetRouteAsync(
+                new TripRequest
+                {
+                    OriginLat = from.Latitude,
+                    OriginLng = from.Longitude,
+                    DestinationLat = to.Latitude,
+                    DestinationLng = to.Longitude
+                },
+                "foot-walking");
+
+            using var document = JsonDocument.Parse(json);
+
+            if (!document.RootElement.TryGetProperty("features", out var features) ||
+                features.GetArrayLength() == 0)
+            {
+                leg.Estimated = true;
+                leg.DistanceKm = Math.Round(StraightLineKm(from, to), 2);
+                leg.Reason =
+                    "No walking route was returned for this leg. Showing straight-line distance only.";
+                return leg;
+            }
+
+            var summary = features[0]
+                .GetProperty("properties")
+                .GetProperty("summary");
+
+            leg.DistanceKm = Math.Round(
+                summary.GetProperty("distance").GetDouble() / 1000, 2);
+            leg.DurationMinutes = Math.Round(
+                summary.GetProperty("duration").GetDouble() / 60, 1);
+            leg.Available = true;
+
+            return leg;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(
+                ex,
+                "Walking route unavailable for itinerary leg {FromId} -> {ToId}",
+                from.Id,
+                to.Id);
+
+            // Never fabricate a travel time: only a straight-line distance is
+            // defensible when the routing provider is down or unreachable.
+            leg.Estimated = true;
+            leg.DistanceKm = Math.Round(StraightLineKm(from, to), 2);
+            leg.DurationMinutes = null;
+            leg.Reason =
+                "Walking route is unavailable right now. Showing straight-line distance only.";
+
+            return leg;
+        }
+    }
+
+    private static double StraightLineKm(ItineraryStop from, ItineraryStop to)
+    {
+        const double earthRadiusKm = 6371;
+
+        var fromLat = from.Latitude * Math.PI / 180;
+        var toLat = to.Latitude * Math.PI / 180;
+        var dLat = (to.Latitude - from.Latitude) * Math.PI / 180;
+        var dLon = (to.Longitude - from.Longitude) * Math.PI / 180;
+
+        var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                Math.Cos(fromLat) * Math.Cos(toLat) *
+                Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+        var c = 2 * Math.Atan2(
+            Math.Sqrt(a),
+            Math.Sqrt(Math.Max(0, 1 - a)));
+
+        return earthRadiusKm * c;
     }
 
     public async Task UpsertAsync(

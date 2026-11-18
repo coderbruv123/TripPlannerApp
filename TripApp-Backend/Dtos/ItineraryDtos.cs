@@ -51,3 +51,30 @@ public class ItineraryReorderDto
 {
     public required string[] OrderedIds { get; set; } = [];
 }
+
+/// <summary>
+/// A computed travel leg between two consecutive stops in one day. Routing
+/// failures are reported on the wire (available=false + reason) so the client
+/// can show a graceful fallback instead of an error page.
+/// </summary>
+public class ItineraryLegDto
+{
+    public required string FromStopId { get; set; }
+
+    public required string ToStopId { get; set; }
+
+    /// <summary>Routed distance, or straight-line estimate when unavailable.</summary>
+    public double? DistanceKm { get; set; }
+
+    /// <summary>Null when routing is unavailable: no fabricated travel time.</summary>
+    public double? DurationMinutes { get; set; }
+
+    public string Mode { get; set; } = "walking";
+
+    /// <summary>True when distance is a straight-line fallback, not a route.</summary>
+    public bool Estimated { get; set; }
+
+    public bool Available { get; set; }
+
+    public string? Reason { get; set; }
+}

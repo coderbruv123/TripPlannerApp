@@ -56,6 +56,19 @@ public class ItineraryController : ControllerBase
         return Ok(day);
     }
 
+    // GET /api/trips/saved/{savedTripId}/itinerary/legs?dayIndex=0
+    [HttpGet("legs")]
+    public async Task<ActionResult<List<ItineraryLegDto>>> GetLegs(
+        Guid savedTripId,
+        [FromQuery] int dayIndex = 0,
+        CancellationToken ct = default)
+    {
+        var legs = await _service.GetLegsAsync(
+            GetUserId(), savedTripId, dayIndex, ct);
+
+        return legs is null ? NotFound("Saved trip not found.") : Ok(legs);
+    }
+
     // POST /api/trips/saved/{savedTripId}/itinerary
     [HttpPost]
     public async Task<ActionResult<ItineraryStop>> Post(

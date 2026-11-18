@@ -72,14 +72,22 @@ builder.Services
         // stalled connection can never hang the city picker.
         client.Timeout = TimeSpan.FromSeconds(15);
     });
-builder.Services.AddHttpClient<OpenRouteService>();
+builder.Services.AddHttpClient<OpenRouteService>(client =>
+{
+    client.BaseAddress = new Uri("https://router.project-osrm.org/");
+    client.Timeout = TimeSpan.FromSeconds(20);
+    // OSRM's public demo rejects requests with an empty User-Agent (403).
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("TripPlannerApp/1.0");
+});
 
 builder.Services.AddScoped<ITripPlannerService, TripPlannerService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
+builder.Services.AddHttpClient<IAirportLookupService, AirportLookupService>();
 builder.Services.AddScoped<IFlightService, FlightService>();
 builder.Services.AddScoped<IAdminService,AdminService>();
 builder.Services.AddScoped<ISavedTripService, SavedTripService>();
 builder.Services.AddScoped<ITripItineraryService, ItineraryService>();
+builder.Services.AddScoped<IBudgetService, BudgetService>();
 builder.Services.AddHttpClient<IHotelService, HotelService>();
 // CORS
 builder.Services.AddCors(options =>
@@ -134,6 +142,19 @@ using (var scope = app.Services.CreateScope())
     if (db.Database.IsSqlite())
     {
         db.Database.EnsureCreated();
+
+        // EnsureCreated only builds the schema for a brand-new file. Older dev
+        // databases already exist, so add the budget table idempotently here.
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "BudgetBreakdown" (
+                "SavedTripId" TEXT NOT NULL,
+                "Category" TEXT NOT NULL,
+                "Amount" TEXT NOT NULL,
+                CONSTRAINT "PK_BudgetBreakdown" PRIMARY KEY ("SavedTripId", "Category"),
+                CONSTRAINT "FK_BudgetBreakdown_SavedTrips_SavedTripId"
+                    FOREIGN KEY ("SavedTripId") REFERENCES "SavedTrips" ("Id") ON DELETE CASCADE
+            );
+            """);
     }
     else
     {

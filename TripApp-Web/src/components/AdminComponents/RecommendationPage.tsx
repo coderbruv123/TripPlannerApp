@@ -74,13 +74,20 @@ const categoryIcons: Record<string, string> = {
   "Travel Tips": "lightbulb",
 };
 
+type StatusFilter = "all" | "Published" | "Draft";
+
 export default function RecommendationsPage() {
   const [activeCategory, setActiveCategory] = useState("All");
   const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const filteredRecommendations = recommendations.filter((item) => {
     const matchesCategory =
       activeCategory === "All" || item.category === activeCategory;
+
+    const matchesStatus =
+      statusFilter === "all" || item.status === statusFilter;
 
     const searchValue = search.toLowerCase();
 
@@ -89,7 +96,7 @@ export default function RecommendationsPage() {
       item.destination.toLowerCase().includes(searchValue) ||
       item.category.toLowerCase().includes(searchValue);
 
-    return matchesCategory && matchesSearch;
+    return matchesCategory && matchesStatus && matchesSearch;
   });
 
   return (
@@ -168,8 +175,12 @@ export default function RecommendationsPage() {
           })}
 
           {/* Filters */}
-          <div className="ml-auto">
+          <div className="relative ml-auto">
             <button
+              type="button"
+              aria-expanded={filtersOpen}
+              aria-haspopup="menu"
+              onClick={() => setFiltersOpen((open) => !open)}
               className="
                 flex items-center gap-2
                 rounded-lg
@@ -185,8 +196,43 @@ export default function RecommendationsPage() {
                 filter_list
               </span>
 
-              Filters
+              {statusFilter === "all"
+                ? "Filters"
+                : `Status: ${statusFilter}`}
             </button>
+
+            {filtersOpen && (
+              <div
+                role="menu"
+                className="absolute right-0 z-20 mt-2 w-44 overflow-hidden rounded-lg border border-[#1B3428] bg-[#0b1511] shadow-xl"
+              >
+                {(
+                  [
+                    { value: "all", label: "All statuses" },
+                    { value: "Published", label: "Published" },
+                    { value: "Draft", label: "Draft" },
+                  ] as { value: StatusFilter; label: string }[]
+                ).map((option) => (
+                  <button
+                    key={option.value}
+                    type="button"
+                    role="menuitemradio"
+                    aria-checked={statusFilter === option.value}
+                    onClick={() => {
+                      setStatusFilter(option.value);
+                      setFiltersOpen(false);
+                    }}
+                    className={`block w-full px-3 py-2 text-left text-xs transition-colors hover:bg-[#7cd9a6]/10 ${
+                      statusFilter === option.value
+                        ? "text-[#7cd9a6]"
+                        : "text-[#bec9bf]"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -234,9 +280,6 @@ export default function RecommendationsPage() {
                     Last Updated
                   </th>
 
-                  <th className="px-6 py-4 text-right text-xs font-semibold uppercase tracking-wider text-[#d9e5de]">
-                    Actions
-                  </th>
                 </tr>
               </thead>
 
@@ -252,7 +295,7 @@ export default function RecommendationsPage() {
                 ) : (
                   <tr>
                     <td
-                      colSpan={8}
+                      colSpan={7}
                       className="px-6 py-12 text-center text-sm text-[#88948a]"
                     >
                       No recommendations found.

@@ -43,6 +43,8 @@ public class SavedTrip
 
     public ICollection<ItineraryStop> ItineraryStops { get; set; } = new List<ItineraryStop>();
 
+    public ICollection<BudgetBreakdown> BudgetBreakdowns { get; set; } = new List<BudgetBreakdown>();
+
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

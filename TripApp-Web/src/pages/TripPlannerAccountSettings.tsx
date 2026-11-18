@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isAxiosError } from "axios";
 import {
   ChevronDown,
   Compass,
@@ -10,8 +11,14 @@ import {
   X,
 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
-import { changePassword, revokeRefreshToken, updateProfile as updateProfileApi } from "../api/auth";
-import { clearAuth, getUserEmail, getUserName } from "../api/authUtils";
+import {
+  changePassword,
+  getMe,
+  revokeRefreshToken,
+  updateProfile as updateProfileApi,
+} from "../api/auth";
+import type { AuthUser } from "../api/authUtils";
+import { clearAuth, getUserName } from "../api/authUtils";
 import { getInitials } from "../utils/userInitials";
 import { toggleTheme, useTheme } from "../utils/theme";
 
@@ -25,38 +32,93 @@ type Profile = {
   location: string;
 };
 
-const defaultProfile: Profile = {
-  fullName: getUserName() || "Undefined",
-  nickname: "None",
-  email: getUserEmail() || "Undefined",
-  phone: "+1 (555) 123-4567",
-  address: "San Francisco, CA 94102",
-  occupation: "Adventure Traveler",
-  location: "United States",
+const EMPTY_PROFILE: Profile = {
+  fullName: "",
+  nickname: "",
+  email: "",
+  phone: "",
+  address: "",
+  occupation: "",
+  location: "",
 };
 
+const LOCATIONS = ["United States", "Canada", "United Kingdom", "Nepal"];
+
 type ProfileKey = keyof Profile;
+
+type ProfileState = {
+  key: number;
+  profile: Profile;
+  baseline: Profile;
+  error: string | null;
+};
+
+type Notice = { kind: "success" | "error"; text: string };
+
+function text(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+function profileFromUser(user: AuthUser): Profile {
+  return {
+    fullName: text(user.username),
+    nickname: text(user.nickname),
+    email: text(user.email),
+    phone: text(user.phone),
+    address: text(user.address),
+    occupation: text(user.occupation),
+    location: text(user.location),
+  };
+}
+
+function saveErrorMessage(code?: string, message?: string): string {
+  switch (code) {
+    case "EMAIL_EXISTS":
+      return "That email is already in use. Try a different address.";
+    case "USERNAME_EXISTS":
+      return "That full name is already taken. Try another one.";
+    default:
+      return message || "Could not save your profile. Please try again.";
+  }
+}
+
+function readableError(error: unknown): string {
+  if (isAxiosError(error)) {
+    const data = error.response?.data as
+      | { errorCode?: string; message?: string }
+      | undefined;
+
+    return saveErrorMessage(data?.errorCode, data?.message);
+  }
+
+  return error instanceof Error
+    ? error.message
+    : "Could not save your profile. Please try again.";
+}
 
 const sidebarItems = [
   {
     label: "Profile",
     icon: UserRound,
+    targetId: "profile-section",
   },
   {
-    label: "Settings",
+    label: "Security",
     icon: Settings,
+    targetId: "security-section",
   },
 ];
 
 export const TripPlannerAccountSettings = () => {
   const navigate = useNavigate();
 
-  const [profile, setProfile] = useState<Profile>(defaultProfile);
+  const [profileState, setProfileState] = useState<ProfileState | null>(null);
+  const [profileReloadKey, setProfileReloadKey] = useState(0);
+  const [notice, setNotice] = useState<Notice | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const [activeItem, setActiveItem] = useState("Profile");
-
-  const [savedMessage, setSavedMessage] = useState("");
-
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Password change state
@@ -67,9 +129,56 @@ export const TripPlannerAccountSettings = () => {
   const [passwordError, setPasswordError] = useState("");
   const [updatingPassword, setUpdatingPassword] = useState(false);
 
-  const displayName = getUserName();
+  const profileLoaded = profileState !== null && profileState.key === profileReloadKey;
+  const profile = profileState && profileLoaded ? profileState.profile : EMPTY_PROFILE;
+  const profileLoadError = profileState && profileLoaded ? profileState.error : null;
+
+  const displayName = (profileLoaded && profile.fullName) || getUserName();
   const initials = getInitials(displayName);
   const theme = useTheme();
+
+  /* Load the real account on mount (and on retry). State is keyed by the
+     reload id so a late response from an old request can't win. */
+  useEffect(() => {
+    let cancelled = false;
+
+    getMe()
+      .then((user) => {
+        if (cancelled) return;
+
+        const loaded = profileFromUser(user);
+        setProfileState({
+          key: profileReloadKey,
+          profile: loaded,
+          baseline: loaded,
+          error: null,
+        });
+        localStorage.setItem("userName", loaded.fullName);
+        localStorage.setItem("userEmail", loaded.email);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setProfileState({
+            key: profileReloadKey,
+            profile: EMPTY_PROFILE,
+            baseline: EMPTY_PROFILE,
+            error: "Couldn't load your profile. Check your connection and try again.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [profileReloadKey]);
+
+  useEffect(() => {
+    if (!notice) return;
+
+    const timer = window.setTimeout(() => setNotice(null), 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const logout = () => {
     revokeRefreshToken();
@@ -77,23 +186,40 @@ export const TripPlannerAccountSettings = () => {
     navigate("/login", { replace: true });
   };
 
-  const updateProfile = (
-    field: ProfileKey,
-    value: string
-  ) => {
-    setProfile((current) => ({
-      ...current,
-      [field]: value,
-    }));
-
-    setSavedMessage("");
+  const updateProfileField = (field: ProfileKey, value: string) => {
+    setProfileState((current) =>
+      current && current.key === profileReloadKey
+        ? { ...current, profile: { ...current.profile, [field]: value } }
+        : current
+    );
+    setNotice(null);
+    setProfileError(null);
   };
 
   const saveProfile = async () => {
+    if (!profileLoaded || savingProfile) return;
+
+    const fullName = profile.fullName.trim();
+    const email = profile.email.trim();
+
+    if (!fullName) {
+      setProfileError("Full name is required.");
+      return;
+    }
+
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      setProfileError("Enter a valid email address.");
+      return;
+    }
+
+    setSavingProfile(true);
+    setProfileError(null);
+    setNotice(null);
+
     try {
       const result = await updateProfileApi({
-        username: profile.fullName,
-        email: profile.email,
+        username: fullName,
+        email,
         nickname: profile.nickname,
         phone: profile.phone,
         address: profile.address,
@@ -101,21 +227,33 @@ export const TripPlannerAccountSettings = () => {
         location: profile.location,
       });
 
-      if (result.success) {
-        localStorage.setItem("userName", profile.fullName);
-        localStorage.setItem("userEmail", profile.email);
-
-        setSavedMessage("Profile changes saved");
-      } else {
-        setSavedMessage(result.message || "Could not save profile");
+      if (!result.success) {
+        setProfileError(saveErrorMessage(result.errorCode, result.message));
+        return;
       }
-    } catch {
-      setSavedMessage("Could not save profile. Please try again.");
-    }
 
-    window.setTimeout(() => {
-      setSavedMessage("");
-    }, 2800);
+      const returned = result.data;
+      const nextProfile = returned
+        ? profileFromUser(returned)
+        : { ...profile, fullName, email };
+
+      localStorage.setItem("userName", nextProfile.fullName || fullName);
+      localStorage.setItem("userEmail", nextProfile.email || email);
+
+      setProfileState((current) =>
+        current && current.key === profileReloadKey
+          ? { ...current, profile: nextProfile, baseline: nextProfile }
+          : current
+      );
+      setNotice({
+        kind: "success",
+        text: result.message || "Profile changes saved",
+      });
+    } catch (error) {
+      setProfileError(readableError(error));
+    } finally {
+      setSavingProfile(false);
+    }
   };
 
   const handlePasswordChange = async () => {
@@ -157,13 +295,15 @@ export const TripPlannerAccountSettings = () => {
   };
 
   const discardProfile = () => {
-    setProfile(defaultProfile);
+    if (!profileLoaded) return;
 
-    setSavedMessage("Changes discarded");
-
-    window.setTimeout(() => {
-      setSavedMessage("");
-    }, 2800);
+    setProfileState((current) =>
+      current && current.key === profileReloadKey
+        ? { ...current, profile: current.baseline }
+        : current
+    );
+    setProfileError(null);
+    setNotice({ kind: "success", text: "Changes discarded" });
   };
 
   return (
@@ -257,13 +397,17 @@ export const TripPlannerAccountSettings = () => {
             className="space-y-1"
           >
             {sidebarItems.map(
-              ({ label, icon: Icon }) => (
+              ({ label, icon: Icon, targetId }) => (
                 <button
                   key={label}
                   type="button"
                   onClick={() => {
                     setActiveItem(label);
                     setMobileNavOpen(false);
+                    document.getElementById(targetId)?.scrollIntoView({
+                      behavior: "smooth",
+                      block: "start",
+                    });
                   }}
                   aria-current={
                     activeItem === label
@@ -340,7 +484,8 @@ export const TripPlannerAccountSettings = () => {
             {/* ================= PROFILE ================= */}
 
             <section
-              className="py-8"
+              id="profile-section"
+              className="scroll-mt-24 py-8"
               aria-labelledby="profile-heading"
             >
               <h2
@@ -350,185 +495,195 @@ export const TripPlannerAccountSettings = () => {
                 Profile
               </h2>
 
-              {/* Profile fields */}
-
-              <div className="space-y-4">
-
-                <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                    Full Name
-                  </span>
-
-                  <input
-                    value={profile.fullName}
-                    onChange={(event) =>
-                      updateProfile(
-                        "fullName",
-                        event.target.value
-                      )
-                    }
-                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                  />
-                </label>
-
-                <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                    Nickname
-                  </span>
-
-                  <input
-                    value={profile.nickname}
-                    onChange={(event) =>
-                      updateProfile(
-                        "nickname",
-                        event.target.value
-                      )
-                    }
-                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                  />
-                </label>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                      Email
-                    </span>
-
-                    <input
-                      type="email"
-                      value={profile.email}
-                      onChange={(event) =>
-                        updateProfile(
-                          "email",
-                          event.target.value
-                        )
-                      }
-                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                      Phone
-                    </span>
-
-                    <input
-                      value={profile.phone}
-                      onChange={(event) =>
-                        updateProfile(
-                          "phone",
-                          event.target.value
-                        )
-                      }
-                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                    />
-                  </label>
-
+              {!profileLoaded ? (
+                <div className="mt-4 flex items-center gap-2 rounded-lg border border-line bg-surface px-4 py-3 text-[13px] text-muted">
+                  <span className="h-4 w-4 animate-spin rounded-full border-2 border-line border-t-brand" />
+                  Loading your profile…
                 </div>
+              ) : profileLoadError ? (
+                <div className="mt-4 flex flex-wrap items-center gap-3 rounded-lg border border-red-200 bg-red-50 px-4 py-3">
+                  <p className="text-[13px] text-red-600">{profileLoadError}</p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setProfileState(null);
+                      setProfileReloadKey((key) => key + 1);
+                    }}
+                    className="text-[13px] font-semibold text-red-600 underline"
+                  >
+                    Retry
+                  </button>
+                </div>
+              ) : (
+                <>
+                  {notice && (
+                    <p
+                      role="status"
+                      className={`mt-4 rounded-lg px-4 py-2.5 text-[13px] font-medium ${
+                        notice.kind === "success"
+                          ? "bg-brand-50 text-brand-strong"
+                          : "bg-red-50 text-red-600"
+                      }`}
+                    >
+                      {notice.text}
+                    </p>
+                  )}
 
-                <label className="block">
-                  <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                    Address
-                  </span>
+                  {profileError && (
+                    <p
+                      role="alert"
+                      className="mt-3 rounded-lg border border-red-200 bg-red-50 px-4 py-2.5 text-[13px] text-red-600"
+                    >
+                      {profileError}
+                    </p>
+                  )}
 
-                  <input
-                    value={profile.address}
-                    onChange={(event) =>
-                      updateProfile(
-                        "address",
-                        event.target.value
-                      )
-                    }
-                    className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                  />
-                </label>
-
-                <div className="grid gap-4 sm:grid-cols-2">
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                      Occupation
-                    </span>
-
-                    <input
-                      value={profile.occupation}
-                      onChange={(event) =>
-                        updateProfile(
-                          "occupation",
-                          event.target.value
-                        )
-                      }
-                      className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                    />
-                  </label>
-
-                  <label className="block">
-                    <span className="mb-1.5 block text-[12px] font-medium text-muted">
-                      Location
-                    </span>
-
-                    <span className="relative block">
-
-                      <select
-                        value={profile.location}
+                  {/* Profile fields */}
+                  <div className="mt-5 space-y-4">
+                    <label className="block">
+                      <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                        Full Name
+                      </span>
+                      <input
+                        value={profile.fullName}
+                        disabled={savingProfile}
                         onChange={(event) =>
-                          updateProfile(
-                            "location",
-                            event.target.value
-                          )
+                          updateProfileField("fullName", event.target.value)
                         }
-                        className="h-11 w-full appearance-none rounded-lg border border-line bg-surface px-3 pr-9 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10"
-                      >
-                        <option>
-                          United States
-                        </option>
-                        <option>Canada</option>
-                        <option>
-                          United Kingdom
-                        </option>
-                        <option>Nepal</option>
-                      </select>
-
-                      <ChevronDown
-                        size={16}
-                        className="pointer-events-none absolute right-3 top-3.5 text-faint"
+                        className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
                       />
+                    </label>
 
-                    </span>
-                  </label>
+                    <label className="block">
+                      <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                        Nickname
+                      </span>
+                      <input
+                        value={profile.nickname}
+                        disabled={savingProfile}
+                        onChange={(event) =>
+                          updateProfileField("nickname", event.target.value)
+                        }
+                        className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                      />
+                    </label>
 
-                </div>
-              </div>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                          Email
+                        </span>
+                        <input
+                          type="email"
+                          value={profile.email}
+                          disabled={savingProfile}
+                          onChange={(event) =>
+                            updateProfileField("email", event.target.value)
+                          }
+                          className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                        />
+                      </label>
 
-              {/* Buttons */}
+                      <label className="block">
+                        <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                          Phone
+                        </span>
+                        <input
+                          value={profile.phone}
+                          disabled={savingProfile}
+                          onChange={(event) =>
+                            updateProfileField("phone", event.target.value)
+                          }
+                          className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                        />
+                      </label>
+                    </div>
 
-              <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
+                    <label className="block">
+                      <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                        Address
+                      </span>
+                      <input
+                        value={profile.address}
+                        disabled={savingProfile}
+                        onChange={(event) =>
+                          updateProfileField("address", event.target.value)
+                        }
+                        className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                      />
+                    </label>
 
-                <span
-                  role="status"
-                  className="mr-auto text-[13px] font-medium text-brand-strong"
-                >
-                  {savedMessage}
-                </span>
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <label className="block">
+                        <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                          Occupation
+                        </span>
+                        <input
+                          value={profile.occupation}
+                          disabled={savingProfile}
+                          onChange={(event) =>
+                            updateProfileField("occupation", event.target.value)
+                          }
+                          className="h-11 w-full rounded-lg border border-line bg-surface px-3 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                        />
+                      </label>
 
-                <button
-                  type="button"
-                  onClick={discardProfile}
-                  className="h-10 rounded-full border border-line bg-surface px-5 text-[13px] font-semibold text-muted transition hover:bg-canvas focus:outline-none focus:ring-2 focus:ring-brand/40"
-                >
-                  Discard
-                </button>
+                      <label className="block">
+                        <span className="mb-1.5 block text-[12px] font-medium text-muted">
+                          Location
+                        </span>
+                        <span className="relative block">
+                          <select
+                            value={profile.location}
+                            disabled={savingProfile}
+                            onChange={(event) =>
+                              updateProfileField("location", event.target.value)
+                            }
+                            className="h-11 w-full appearance-none rounded-lg border border-line bg-surface px-3 pr-9 text-[14px] text-ink outline-none transition focus:border-brand focus:ring-4 focus:ring-brand/10 disabled:opacity-60"
+                          >
+                            {profile.location &&
+                              !LOCATIONS.includes(profile.location) && (
+                                <option value={profile.location}>
+                                  {profile.location}
+                                </option>
+                              )}
+                            {LOCATIONS.map((location) => (
+                              <option key={location} value={location}>
+                                {location}
+                              </option>
+                            ))}
+                          </select>
+                          <ChevronDown
+                            size={16}
+                            className="pointer-events-none absolute right-3 top-3.5 text-faint"
+                          />
+                        </span>
+                      </label>
+                    </div>
+                  </div>
 
-                <button
-                  type="button"
-                  onClick={saveProfile}
-                  className="h-10 rounded-full bg-brand px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-brand-strong focus:outline-none focus:ring-2 focus:ring-brand/40"
-                >
-                  Save Changes
-                </button>
+                  {/* Buttons */}
+                  <div className="mt-7 flex flex-wrap items-center justify-end gap-3">
+                    <button
+                      type="button"
+                      onClick={discardProfile}
+                      disabled={savingProfile}
+                      className="h-10 rounded-full border border-line bg-surface px-5 text-[13px] font-semibold text-muted transition hover:bg-canvas focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50"
+                    >
+                      Discard
+                    </button>
 
-              </div>
+                    <button
+                      type="button"
+                      onClick={saveProfile}
+                      disabled={savingProfile}
+                      className="h-10 rounded-full bg-brand px-5 text-[13px] font-semibold text-white shadow-[0_5px_12px_rgba(0,191,165,0.18)] transition hover:bg-brand-strong focus:outline-none focus:ring-2 focus:ring-brand/40 disabled:opacity-50"
+                    >
+                      {savingProfile ? "Saving…" : "Save Changes"}
+                    </button>
+                  </div>
+                </>
+              )}
             </section>
 
             {/* ================= SECURITY ================= */}
@@ -536,7 +691,8 @@ export const TripPlannerAccountSettings = () => {
             <div className="border-t border-line" />
 
             <section
-              className="py-8"
+              id="security-section"
+              className="scroll-mt-24 py-8"
               aria-labelledby="security-heading"
             >
               <h2

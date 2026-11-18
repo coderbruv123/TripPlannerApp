@@ -27,6 +27,34 @@ export async function fetchItineraryStops(tripId: string): Promise<ItineraryStop
   return response.data ?? [];
 }
 
+/** Travel leg between two consecutive stops on one itinerary day. */
+export interface ItineraryLeg {
+  fromStopId: string;
+  toStopId: string;
+  distanceKm: number;
+  /** null when routing is unavailable — never coerce to "0 min". */
+  durationMinutes: number | null;
+  mode: string;
+  estimated: boolean;
+  available: boolean;
+  reason: string | null;
+}
+
+/**
+ * GET /api/trips/saved/{savedTripId}/itinerary/legs?dayIndex=N
+ * The endpoint returns unavailable legs (with a reason) instead of throwing.
+ */
+export async function fetchItineraryLegs(
+  tripId: string,
+  dayIndex: number
+): Promise<ItineraryLeg[]> {
+  const response = await api.get<ItineraryLeg[]>(
+    `/trips/saved/${tripId}/itinerary/legs`,
+    { params: { dayIndex } }
+  );
+  return Array.isArray(response.data) ? response.data : [];
+}
+
 /** GET /api/trips/saved/{savedTripId}/itinerary/day/{dayIndex} - day filtered */
 export async function fetchDayStops(
   tripId: string,

@@ -3,6 +3,7 @@ import { BrowserRouter, Navigate, Route, Routes, useNavigate } from "react-route
 
 import Home from "./pages/Home";
 import TripResults from "./components/TripResults";
+import OpenSavedTrip from "./components/OpenSavedTrip";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import ProtectedRoute from "./components/ProtectedRoute";
@@ -47,6 +48,7 @@ export default function App() {
         {/* Protected routes */}
         <Route element={<ProtectedRoute />}>
           <Route path="/" element={<Home />} />
+          <Route path="/trip/:tripId" element={<OpenSavedTrip />} />
           <Route path="/trip" element={<TripResults />} />
           <Route path="/saved-trips" element={<SavedTripsPage />} />
           <Route path="/stays" element={<StaysPage />} />
