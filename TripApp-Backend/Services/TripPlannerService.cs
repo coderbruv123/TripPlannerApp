@@ -66,7 +66,8 @@ public class TripPlannerService : ITripPlannerService
             Type = "Train",
             Name = "Train",
             Available = false,
-            Message = "Train routing is not available yet."
+            Estimated = false,
+            Message = "Train routing isn't available for this route yet."
         });
 
         return options;
@@ -118,6 +119,7 @@ public class TripPlannerService : ITripPlannerService
                     Type = "Bus",
                     Name = "Bus",
                     Available = false,
+                    Estimated = false,
                     Message = "No bus route found to this destination. Try another mode."
                 };
             }
@@ -136,12 +138,14 @@ public class TripPlannerService : ITripPlannerService
 
                 EstimatedPrice = null,
 
-                Provider = null,
+                Provider = "Indicative estimate",
+                Estimated = true,
+                Currency = "USD",
 
                 Geometry = geometry,
 
                 Message =
-                    "Bus route and duration are estimated. Fare and provider information are not currently available.",
+                    "Route and duration are indicative estimates (USD). Live bus fare and operator information are not available.",
 
                 // Single road-following segment so the UI can render a breakdown
                 // without fabricated schedule/operator data.
@@ -170,7 +174,8 @@ public class TripPlannerService : ITripPlannerService
                 Type = "Bus",
                 Name = "Bus",
                 Available = false,
-                Message = "Unable to calculate bus route."
+                Estimated = false,
+                Message = "We couldn't calculate a bus route for this trip right now. Try another mode."
             };
         }
     }
@@ -216,6 +221,7 @@ public class TripPlannerService : ITripPlannerService
                     Type = type,
                     Name = type,
                     Available = false,
+                    Estimated = false,
                     Message =
                         $"No {type.ToLower()} route found to this destination. Try another mode."
                 };
@@ -233,7 +239,13 @@ public class TripPlannerService : ITripPlannerService
 
                 DurationMinutes = durationMinutes,
 
+                Provider = "Indicative estimate",
+                Estimated = true,
+                Currency = "USD",
+
                 Geometry = geometry,
+
+                Message = "Route and duration are indicative estimates, not live data.",
 
                 Segments =
                 [
@@ -260,8 +272,9 @@ public class TripPlannerService : ITripPlannerService
                 Type = type,
                 Name = type,
                 Available = false,
+                Estimated = false,
                 Message =
-                    $"Unable to calculate {type.ToLower()} route."
+                    $"We couldn't calculate a {type.ToLower()} route for this trip right now. Try another mode."
             };
         }
     }

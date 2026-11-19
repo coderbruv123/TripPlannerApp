@@ -173,7 +173,7 @@ public class FlightService : IFlightService
                 originTransferKm: originTransferKm,
                 destTransferKm: destTransferKm,
                 flightNote: "Direct flight estimate",
-                message: $"Door-to-door estimate · {fromCity} → {toCity}{viaText}. Indicative, no live schedules or fares."),
+                message: $"Indicative door-to-door estimate (USD) · {fromCity} → {toCity}{viaText}. No live schedules or fares."),
         };
 
         if (flightDistanceKm >= 400)
@@ -195,7 +195,7 @@ public class FlightService : IFlightService
                 originTransferKm: originTransferKm,
                 destTransferKm: destTransferKm,
                 flightNote: "May involve a stop/longer routing",
-                message: $"Door-to-door estimate · {fromCity} → {toCity}{viaText}. Indicative, no live schedules or fares."));
+                message: $"Indicative door-to-door estimate (USD) · {fromCity} → {toCity}{viaText}. No live schedules or fares."));
         }
 
         return options;
@@ -240,7 +240,9 @@ public class FlightService : IFlightService
             DistanceKm = totalDistance,
             DurationMinutes = totalDuration,
             EstimatedPrice = price,
-            Provider = "indicative estimate",
+            Provider = "Indicative estimate",
+            Estimated = true,
+            Currency = "USD",
             Geometry = geometry,
             Message = message,
             Segments =

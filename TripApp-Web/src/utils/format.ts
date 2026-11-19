@@ -43,6 +43,20 @@ export function formatPrice(
   return `${options.prefix ?? "$"}${rounded}`;
 }
 
+/** Transport costs in results are heuristic estimates (USD), not live fares. */
+export function formatIndicativePrice(value?: number | null): string {
+  if (value === null || value === undefined || !Number.isFinite(value)) {
+    return "Fare unavailable";
+  }
+
+  if (value === 0) return "Free";
+
+  const rounded =
+    value % 1 === 0 ? value.toFixed(0) : value.toFixed(2).replace(/0$/, "");
+
+  return `~$${rounded}`;
+}
+
 export function formatDay(value?: Date | null): string {
   if (!value) return "Date not set";
 

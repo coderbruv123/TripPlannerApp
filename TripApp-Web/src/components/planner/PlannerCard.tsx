@@ -157,11 +157,19 @@ export default function PlannerCard() {
       return;
     }
 
+    const code =
+      city.code ?? city.iata ?? city.iataCode ?? null;
+    const airport =
+      (city.type ?? city.kind ?? "").toString().toLowerCase() === "airport";
+
     setOrigin({
-      label: `${city.name}, ${city.country}`,
+      label:
+        airport && code
+          ? `${city.name} (${String(code).toUpperCase()}), ${city.country}`
+          : `${city.name}, ${city.country}`,
       latitude: city.latitude,
       longitude: city.longitude,
-      kind: "city",
+      kind: airport ? "airport" : "city",
     });
     setGeoStatus("idle");
     setError(null);
@@ -209,8 +217,22 @@ export default function PlannerCard() {
           label="Destination"
           sub={
             destination
-              ? destination.country
-              : "City-level results, ranked by population"
+              ? (() => {
+                  const airport =
+                    (destination.type ?? destination.kind ?? "")
+                      .toString()
+                      .toLowerCase() === "airport";
+                  const code =
+                    destination.code ??
+                    destination.iata ??
+                    destination.iataCode ??
+                    null;
+
+                  return airport
+                    ? `${code ? `${String(code).toUpperCase()} · ` : ""}${destination.country} · Airport`
+                    : destination.country;
+                })()
+              : "Search cities and airports"
           }
         >
           <DestinationCombobox
@@ -418,7 +440,11 @@ export default function PlannerCard() {
               <p className="truncate text-[12.5px] font-semibold text-ink">
                 {origin.label}
                 <span className="ml-1.5 rounded bg-sky-brand-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#175cd3]">
-                  {origin.kind === "geo" ? "Location" : "City"}
+                  {origin.kind === "geo"
+                    ? "Location"
+                    : origin.kind === "airport"
+                      ? "Airport"
+                      : "City"}
                 </span>
               </p>
             ) : (
@@ -427,8 +453,8 @@ export default function PlannerCard() {
                   compact
                   selected={null}
                   onSelect={selectOriginCity}
-                  placeholder="Search a starting city"
-                  ariaLabel="Starting city"
+                  placeholder="Search a starting place"
+                  ariaLabel="Starting place"
                 />
               </div>
             )}

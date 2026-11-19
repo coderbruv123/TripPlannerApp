@@ -76,11 +76,12 @@ export function parseTripParams(params: URLSearchParams): TripPlan | null {
     return null;
   }
 
+  const rawKind = params.get("okind");
   const origin: Origin = {
     label: params.get("origin") ?? "Starting point",
     latitude: olat,
     longitude: olng,
-    kind: params.get("okind") === "geo" ? "geo" : "city",
+    kind: rawKind === "geo" ? "geo" : rawKind === "airport" ? "airport" : "city",
   };
 
   const from = fromIsoDate(params.get("from"));
@@ -141,7 +142,11 @@ export function savedTripUrl(trip: SavedTrip): string | null {
   params.set("origin", trip.originLabel || legacy?.get("origin") || "Starting point");
   params.set("olat", String(olat));
   params.set("olng", String(olng));
-  params.set("okind", legacy?.get("okind") === "geo" ? "geo" : "city");
+  const legacyKind = legacy?.get("okind");
+  params.set(
+    "okind",
+    legacyKind === "geo" ? "geo" : legacyKind === "airport" ? "airport" : "city"
+  );
 
   const from = trip.from?.slice(0, 10) ?? legacy?.get("from");
   const to = trip.to?.slice(0, 10) ?? legacy?.get("to");

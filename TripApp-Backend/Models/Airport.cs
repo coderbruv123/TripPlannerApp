@@ -12,6 +12,12 @@ public class Airport
 
     public double Longitude { get; set; }
 
-    /// <summary>Distance from the queried point, in km.</summary>
+    /// <summary>Distance from the queried point, in km (0 when not applicable).</summary>
     public double DistanceKm { get; set; }
+
+    /// <summary>City/locality from the airport dataset, when available.</summary>
+    public string? City { get; set; }
+
+    /// <summary>Country (or country code) from the airport dataset, when available.</summary>
+    public string? Country { get; set; }
 }

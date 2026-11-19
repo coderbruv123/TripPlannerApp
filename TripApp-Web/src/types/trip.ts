@@ -6,13 +6,20 @@ export type Destination = {
   country: string;
   latitude: number;
   longitude: number;
+  /** Place kind from search results (e.g. "city" | "airport"); backend may send `kind`. */
+  type?: string | null;
+  kind?: string | null;
+  /** Short code such as IATA for airports (backend may send `iata`/`iataCode`). */
+  code?: string | null;
+  iata?: string | null;
+  iataCode?: string | null;
 };
 
 export type Origin = {
   label: string;
   latitude: number;
   longitude: number;
-  kind: "geo" | "city";
+  kind: "geo" | "city" | "airport";
 };
 
 export type DateRange = {

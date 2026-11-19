@@ -174,14 +174,24 @@ export function recentDestinations(): Destination[] {
   return readFromStorage<Destination[]>(RECENT_KEY, []);
 }
 
+function destinationKey(destination: Destination): string {
+  const kind = (destination.type ?? destination.kind ?? "").toLowerCase();
+  const code = (
+    destination.code ??
+    destination.iata ??
+    destination.iataCode ??
+    ""
+  ).toLowerCase();
+
+  return `${destination.name}|${destination.country}|${kind}|${code}`.toLowerCase();
+}
+
 export function rememberDestination(destination: Destination): void {
-  const key = `${destination.name}|${destination.country}`.toLowerCase();
+  const key = destinationKey(destination);
 
   const next = [
     destination,
-    ...recentDestinations().filter(
-      (item) => `${item.name}|${item.country}`.toLowerCase() !== key
-    ),
+    ...recentDestinations().filter((item) => destinationKey(item) !== key),
   ];
 
   writeToStorage(RECENT_KEY, next.slice(0, MAX_RECENT));

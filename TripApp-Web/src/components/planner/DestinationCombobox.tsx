@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { Loader2, MapPin, Search, X } from "lucide-react";
+import { Loader2, MapPin, Plane, Search, X } from "lucide-react";
 
 import { searchDestinations } from "../../api/destinations";
 import { recentDestinations, rememberDestination } from "../../utils/tripStore";
@@ -24,45 +24,66 @@ type Anchor = {
   bottom?: number;
 };
 
-const ADMIN_NAME =
-  /(arrondissement|municipality|regional unit|prefecture|county|province|oblast|department|commune|borough|district|parish|partido|comuna|township|canton|voivodeship|governorate|okrug|raion|regency|subdistrict|region)/i;
-
 const GAP = 10;
 const EDGE = 12;
 const MAX_LIST_HEIGHT = 340;
+
+function placeKind(destination: Destination): "airport" | "city" {
+  const raw = (destination.type ?? destination.kind ?? "").toString().toLowerCase();
+
+  return raw === "airport" ? "airport" : "city";
+}
+
+function placeCode(destination: Destination): string | null {
+  const code =
+    destination.code ?? destination.iata ?? destination.iataCode ?? null;
+
+  return typeof code === "string" && code.trim() ? code.trim().toUpperCase() : null;
+}
 
 function rank(results: Destination[], query: string): Destination[] {
   const needle = query.trim().toLowerCase();
   const seen = new Set<string>();
 
-  const ranked = results
-    .filter((item) => {
-      const key = `${item.name}|${item.country}`.toLowerCase();
+  const deduped = results.filter((item) => {
+    const key = `${item.name}|${item.country}|${placeKind(item)}|${placeCode(item) ?? ""}`.toLowerCase();
 
-      if (seen.has(key)) return false;
+    if (seen.has(key)) return false;
 
-      seen.add(key);
+    seen.add(key);
 
-      return true;
-    })
+    return true;
+  });
+
+  // Preserve backend relevance order, but surface strong direct matches
+  // (e.g. IATA/code queries like "CDG") to the top.
+  const ranked = deduped
+    .map((item, index) => ({ item, index }))
     .sort((a, b) => {
-      const aExact = a.name.toLowerCase() === needle ? 0 : 1;
-      const bExact = b.name.toLowerCase() === needle ? 0 : 1;
+      const aCode = (placeCode(a.item) ?? "").toLowerCase();
+      const bCode = (placeCode(b.item) ?? "").toLowerCase();
+      const aName = a.item.name.toLowerCase();
+      const bName = b.item.name.toLowerCase();
 
+      const aExact = aCode === needle || aName === needle ? 0 : 1;
+      const bExact = bCode === needle || bName === needle ? 0 : 1;
       if (aExact !== bExact) return aExact - bExact;
 
-      return a.name.length - b.name.length;
-    });
+      const aPrefix = (aCode && aCode.startsWith(needle)) || aName.startsWith(needle) ? 0 : 1;
+      const bPrefix = (bCode && bCode.startsWith(needle)) || bName.startsWith(needle) ? 0 : 1;
+      if (aPrefix !== bPrefix) return aPrefix - bPrefix;
 
-  const cities = ranked.filter((item) => !ADMIN_NAME.test(item.name));
+      return a.index - b.index;
+    })
+    .map(({ item }) => item);
 
-  return (cities.length > 0 ? cities : ranked).slice(0, 6);
+  return ranked.slice(0, 8);
 }
 
 export default function DestinationCombobox({
   selected,
   onSelect,
-  placeholder = "Search a city",
+  placeholder = "Search a city or airport",
   inputId,
   ariaLabel,
   compact = false,
@@ -336,50 +357,93 @@ export default function DestinationCombobox({
             className="thin-scroll z-[1000] overflow-y-auto overflow-x-hidden rounded-xl border border-line bg-surface p-1.5 shadow-[var(--shadow-float)]"
           >
             <div className="flex items-center justify-between px-2 pb-1.5 pt-1 text-[10px] font-bold uppercase tracking-[0.08em] text-faint">
-              <span>{showRecent ? "Recent" : "Destinations"}</span>
-              <span>Cities only</span>
+              <span>{showRecent ? "Recent" : "Places"}</span>
+              <span>Cities & airports</span>
             </div>
 
             {loading && (
               <p className="flex items-center gap-2 px-2 py-2.5 text-[12.5px] text-muted">
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                Searching cities…
+                Searching places…
               </p>
             )}
 
             {!loading &&
-              visible.map((destination, index) => (
-                <button
-                  key={`${destination.name}-${destination.country}-${index}`}
-                  type="button"
-                  role="option"
-                  aria-selected={index === cursor}
-                  onMouseEnter={() => setCursor(index)}
-                  onClick={() => pick(destination)}
-                  className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition ${
-                    index === cursor ? "bg-brand-50" : "hover:bg-line-soft"
-                  }`}
-                >
-                  <span className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-gradient-to-br from-brand-100 to-brand text-[10px] font-extrabold text-white">
-                    {destination.name.slice(0, 2).toUpperCase()}
-                  </span>
+              visible.map((destination, index) => {
+                const kind = placeKind(destination);
+                const code = placeCode(destination);
+                const airport = kind === "airport";
 
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-[13px] font-semibold text-ink">
-                      {destination.name}
+                return (
+                  <button
+                    key={`${destination.name}-${destination.country}-${kind}-${code ?? ""}-${index}`}
+                    type="button"
+                    role="option"
+                    aria-selected={index === cursor}
+                    aria-label={
+                      airport
+                        ? `${destination.name}${code ? ` ${code}` : ""}, ${destination.country}, Airport`
+                        : `${destination.name}, ${destination.country}, City`
+                    }
+                    onMouseEnter={() => setCursor(index)}
+                    onClick={() => pick(destination)}
+                    className={`flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left transition ${
+                      index === cursor ? "bg-brand-50" : "hover:bg-line-soft"
+                    }`}
+                  >
+                    <span
+                      className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg text-white ${
+                        airport
+                          ? "bg-gradient-to-br from-sky-brand to-[#175cd3]"
+                          : "bg-gradient-to-br from-brand-100 to-brand"
+                      }`}
+                    >
+                      {airport ? (
+                        <Plane className="h-4 w-4" aria-hidden="true" />
+                      ) : (
+                        <span className="text-[10px] font-extrabold">
+                          {destination.name.slice(0, 2).toUpperCase()}
+                        </span>
+                      )}
                     </span>
-                    <span className="block truncate text-[11px] text-muted">
-                      {destination.country}
-                    </span>
-                  </span>
 
-                  <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                </button>
-              ))}
+                    <span className="min-w-0 flex-1">
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span className="truncate text-[13px] font-semibold text-ink">
+                          {destination.name}
+                        </span>
+                        {code && (
+                          <span className="shrink-0 rounded bg-line-soft px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-body">
+                            {code}
+                          </span>
+                        )}
+                      </span>
+                      <span className="mt-0.5 flex items-center gap-1.5 truncate text-[11px] text-muted">
+                        <span
+                          className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${
+                            airport
+                              ? "bg-sky-brand-50 text-[#175cd3]"
+                              : "bg-brand-50 text-brand-strong"
+                          }`}
+                        >
+                          {airport ? "Airport" : "City"}
+                        </span>
+                        <span className="truncate">{destination.country}</span>
+                      </span>
+                    </span>
+
+                    {airport ? (
+                      <Plane className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+                    ) : (
+                      <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+                    )}
+                  </button>
+                );
+              })}
 
             {!loading && !error && visible.length === 0 && (
               <p className="px-2 py-2.5 text-[12.5px] text-muted">
-                No cities matched. Try the nearest larger town.
+                No places matched. Try a different name, city, or airport.
               </p>
             )}
 

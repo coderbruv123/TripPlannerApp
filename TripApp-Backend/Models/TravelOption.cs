@@ -20,5 +20,11 @@ public class TravelOption
 
     public string? Message { get; set; }
 
+    /// <summary>True when returned values are heuristic estimates, not live data.</summary>
+    public bool? Estimated { get; set; }
+
+    /// <summary>Currency code for EstimatedPrice, when applicable (e.g. "USD").</summary>
+    public string? Currency { get; set; }
+
     public List<TravelSegment> Segments { get; set; } = new();
 }

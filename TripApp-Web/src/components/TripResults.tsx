@@ -56,6 +56,7 @@ import {
   formatDay,
   formatDistance,
   formatDuration,
+  formatIndicativePrice,
   formatPrice,
   formatRange,
   travellersLabel,
@@ -179,8 +180,13 @@ export default function TripResults() {
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
 
-  const [selectedType, setSelectedType] = useState<string | null>(null);
+  const [selectedRouteChoice, setSelectedRouteChoice] = useState<RouteOption | null>(null);
   const [activeDay, setActiveDay] = useState(0);
+  const [routeSort, setRouteSort] = useState<
+    "recommended" | "fastest" | "cheapest" | "fewest"
+  >("recommended");
+  const [showAvailableOnly, setShowAvailableOnly] = useState(false);
+  const [routeModeFilter, setRouteModeFilter] = useState<string | "all">("all");
 
   const [extraStops, setExtraStops] = useState<Record<number, AddedStop[]>>(
     () => (plan ? readStops(plan, query) : {})
@@ -260,11 +266,6 @@ export default function TripResults() {
 
   const availableRoutes = routes.filter((route) => route.available);
 
-  const selectedRoute =
-    availableRoutes.find((route) => route.type === selectedType) ??
-    availableRoutes[0] ??
-    null;
-
   const fastest = availableRoutes.reduce<RouteOption | null>((best, route) => {
     if (route.durationMinutes == null) return best;
     if (!best || best.durationMinutes == null) return route;
@@ -278,6 +279,106 @@ export default function TripResults() {
 
     return route.estimatedPrice < best.estimatedPrice ? route : best;
   }, null);
+
+  const routeModes = useMemo(
+    () => Array.from(new Set(routes.map((route) => route.type))),
+    [routes]
+  );
+
+  const routeSegmentCount = (route: RouteOption): number => {
+    const segments = Array.isArray(route.segments) ? route.segments.length : 0;
+
+    if (segments > 0) return segments;
+
+    return route.available ? 1 : Number.MAX_SAFE_INTEGER;
+  };
+
+  const displayedRoutes = useMemo(() => {
+    const modeFiltered =
+      routeModeFilter === "all"
+        ? routes
+        : routes.filter((route) => route.type === routeModeFilter);
+
+    const availabilityFiltered = showAvailableOnly
+      ? modeFiltered.filter((route) => route.available)
+      : modeFiltered;
+
+    const byRecommended = (a: RouteOption, b: RouteOption) =>
+      routes.indexOf(a) - routes.indexOf(b);
+
+    const sorted = [...availabilityFiltered];
+
+    if (routeSort === "fastest") {
+      sorted.sort((a, b) => {
+        const ad = a.durationMinutes ?? Number.POSITIVE_INFINITY;
+        const bd = b.durationMinutes ?? Number.POSITIVE_INFINITY;
+
+        if (ad !== bd) return ad - bd;
+
+        return byRecommended(a, b);
+      });
+    } else if (routeSort === "cheapest") {
+      sorted.sort((a, b) => {
+        const ap = a.estimatedPrice ?? Number.POSITIVE_INFINITY;
+        const bp = b.estimatedPrice ?? Number.POSITIVE_INFINITY;
+
+        if (ap !== bp) return ap - bp;
+
+        return byRecommended(a, b);
+      });
+    } else if (routeSort === "fewest") {
+      sorted.sort((a, b) => {
+        const ac = routeSegmentCount(a);
+        const bc = routeSegmentCount(b);
+
+        if (ac !== bc) return ac - bc;
+
+        return byRecommended(a, b);
+      });
+    } else {
+      sorted.sort(byRecommended);
+    }
+
+    return sorted;
+  }, [routes, routeModeFilter, routeSort, showAvailableOnly]);
+
+  const visibleAvailableRoutes = useMemo(
+    () => displayedRoutes.filter((route) => route.available),
+    [displayedRoutes]
+  );
+
+  const selectedRoute = (() => {
+    if (
+      selectedRouteChoice &&
+      visibleAvailableRoutes.includes(selectedRouteChoice)
+    ) {
+      return selectedRouteChoice;
+    }
+
+    if (visibleAvailableRoutes[0]) return visibleAvailableRoutes[0];
+
+    if (selectedRouteChoice && availableRoutes.includes(selectedRouteChoice)) {
+      return selectedRouteChoice;
+    }
+
+    return availableRoutes[0] ?? null;
+  })();
+
+  useEffect(() => {
+    if (routeModeFilter !== "all" && !routeModes.includes(routeModeFilter)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setRouteModeFilter("all");
+    }
+  }, [routeModeFilter, routeModes]);
+
+  useEffect(() => {
+    if (visibleAvailableRoutes.length === 0) return;
+
+    if (!selectedRouteChoice || !visibleAvailableRoutes.includes(selectedRouteChoice)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setSelectedRouteChoice(visibleAvailableRoutes[0]);
+    }
+  }, [visibleAvailableRoutes, selectedRouteChoice]);
 
   const budgetNumber = Number(plan?.budget ?? "");
   const hasBudget = Number.isFinite(budgetNumber) && budgetNumber > 0;
@@ -905,7 +1006,10 @@ export default function TripResults() {
                         </span>
                         <span>{formatDistance(selectedRoute.distanceKm)}</span>
                         <span className="text-faint">·</span>
-                        <span>{formatPrice(selectedRoute.estimatedPrice)}</span>
+                        <span>
+                          {formatIndicativePrice(selectedRoute.estimatedPrice)}
+                          {selectedRoute.estimatedPrice != null ? " (USD, indicative)" : ""}
+                        </span>
                       </p>
                     )}
                   </div>
@@ -1048,7 +1152,9 @@ export default function TripResults() {
                     <div className="flex items-center justify-between text-[12px]">
                       <span className="text-muted">Selected transport</span>
                       <span className="font-semibold text-ink">
-                        {formatPrice(transportCost)}
+                        {transportCost != null
+                          ? `${formatIndicativePrice(transportCost)} USD`
+                          : formatIndicativePrice(transportCost)}
                       </span>
                     </div>
 
@@ -1240,18 +1346,83 @@ export default function TripResults() {
             className="order-3 flex min-h-0 flex-col overflow-hidden rounded-[18px] border border-line bg-surface"
             aria-label="Getting there"
           >
-            <div className="flex items-center gap-3 border-b border-line-soft px-4 py-3.5">
-              <div>
-                <h2 className="text-[14px] font-bold text-ink">Getting there</h2>
-                <p className="mt-0.5 text-[11.5px] text-muted">
-                  {availableRoutes.length} option
-                  {availableRoutes.length === 1 ? "" : "s"} available
-                </p>
+            <div className="border-b border-line-soft px-4 py-3.5">
+              <div className="flex items-center gap-3">
+                <div>
+                  <h2 className="text-[14px] font-bold text-ink">Getting there</h2>
+                  <p className="mt-0.5 text-[11.5px] text-muted">
+                    {displayedRoutes.length} shown · {availableRoutes.length} available
+                  </p>
+                </div>
+
+                <span className="ml-auto grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand">
+                  <RouteIcon className="h-4 w-4" />
+                </span>
               </div>
 
-              <span className="ml-auto grid h-7 w-7 place-items-center rounded-lg bg-brand-50 text-brand">
-                <RouteIcon className="h-4 w-4" />
-              </span>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <label className="flex items-center gap-1.5 text-[11px] font-semibold text-muted">
+                  <span>Sort</span>
+                  <select
+                    value={routeSort}
+                    onChange={(event) =>
+                      setRouteSort(event.target.value as typeof routeSort)
+                    }
+                    aria-label="Sort route options"
+                    className="h-8 rounded-lg border border-line bg-canvas px-2 text-[11.5px] font-semibold text-body outline-none transition focus:border-brand"
+                  >
+                    <option value="recommended">Recommended</option>
+                    <option value="fastest">Fastest</option>
+                    <option value="cheapest">Cheapest</option>
+                    <option value="fewest">Fewest legs</option>
+                  </select>
+                </label>
+
+                <button
+                  type="button"
+                  onClick={() => setShowAvailableOnly((value) => !value)}
+                  aria-pressed={showAvailableOnly}
+                  className={`h-8 rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                    showAvailableOnly
+                      ? "border-brand bg-brand-50 text-brand-strong"
+                      : "border-line bg-canvas text-muted hover:border-brand-100 hover:text-ink"
+                  }`}
+                >
+                  Available only
+                </button>
+
+                {routeModes.length > 1 && (
+                  <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filter by mode">
+                    <button
+                      type="button"
+                      onClick={() => setRouteModeFilter("all")}
+                      aria-pressed={routeModeFilter === "all"}
+                      className={`h-8 rounded-full border px-2.5 text-[11px] font-semibold transition ${
+                        routeModeFilter === "all"
+                          ? "border-brand bg-brand-50 text-brand-strong"
+                          : "border-line bg-canvas text-muted hover:border-brand-100 hover:text-ink"
+                      }`}
+                    >
+                      All
+                    </button>
+                    {routeModes.map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setRouteModeFilter(mode)}
+                        aria-pressed={routeModeFilter === mode}
+                        className={`h-8 rounded-full border px-2.5 text-[11px] font-semibold capitalize transition ${
+                          routeModeFilter === mode
+                            ? "border-brand bg-brand-50 text-brand-strong"
+                            : "border-line bg-canvas text-muted hover:border-brand-100 hover:text-ink"
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="thin-scroll min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
@@ -1281,28 +1452,33 @@ export default function TripResults() {
               )}
 
               {!loading &&
-                routes.map((route) => {
+                displayedRoutes.map((route) => {
                   const Icon = modeIcon(route.type);
-                  const isSelected = selectedRoute?.type === route.type;
+                  const isSelected = selectedRoute === route;
+                  const infeasible =
+                    !route.available &&
+                    /not feasible|infeasible/i.test(route.message ?? "");
 
                   return (
                     <button
-                      key={`${route.type}-${route.name}`}
+                      key={`${routes.indexOf(route)}-${route.type}-${route.name}`}
                       type="button"
                       disabled={!route.available}
-                      onClick={() => setSelectedType(route.type)}
+                      onClick={() => setSelectedRouteChoice(route)}
                       aria-pressed={isSelected}
-                      className={`mb-2 flex w-full items-center gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
+                      className={`mb-2 flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
                         !route.available
-                          ? "cursor-not-allowed border-line bg-canvas opacity-60"
+                          ? "cursor-not-allowed border-danger/20 bg-danger-50/40"
                           : isSelected
                           ? "border-brand bg-brand-50 shadow-[inset_0_0_0_1px_var(--color-brand)]"
                           : "border-line bg-surface hover:border-brand-100 hover:bg-brand-50/40"
                       }`}
                     >
                       <span
-                        className={`grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border ${
-                          isSelected
+                        className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border ${
+                          !route.available
+                            ? "border-danger/20 bg-surface text-danger"
+                            : isSelected
                             ? "border-brand-100 bg-surface text-brand-strong"
                             : "border-line-soft bg-canvas text-body"
                         }`}
@@ -1311,20 +1487,26 @@ export default function TripResults() {
                       </span>
 
                       <span className="min-w-0 flex-1">
-                        <span className="flex items-center gap-1.5">
+                        <span className="flex flex-wrap items-center gap-1.5">
                           <span className="truncate text-[13px] font-bold text-ink">
                             {route.name || route.type}
                           </span>
 
-                          {route.available && fastest?.type === route.type && (
+                          {!route.available && (
+                            <span className="rounded bg-danger-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-danger">
+                              {infeasible ? "Not feasible" : "Unavailable"}
+                            </span>
+                          )}
+
+                          {route.available && fastest === route && (
                             <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-brand-strong">
                               Fastest
                             </span>
                           )}
 
                           {route.available &&
-                            cheapest?.type === route.type &&
-                            fastest?.type !== route.type && (
+                            cheapest === route &&
+                            fastest !== route && (
                               <span className="rounded bg-sky-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#175cd3]">
                                 Cheapest
                               </span>
@@ -1332,8 +1514,8 @@ export default function TripResults() {
                         </span>
 
                         <span
-                          className={`mt-0.5 block text-[11.5px] leading-snug text-muted ${
-                            route.available ? "truncate" : "line-clamp-2"
+                          className={`mt-0.5 block text-[11.5px] leading-snug ${
+                            route.available ? "truncate text-muted" : "text-danger"
                           }`}
                           title={route.message ?? undefined}
                         >
@@ -1341,7 +1523,7 @@ export default function TripResults() {
                             ? `${formatDuration(route.durationMinutes)} · ${formatDistance(
                                 route.distanceKm
                               )}`
-                            : route.message ?? "Not available for this route"}
+                            : route.message ?? "This mode is unavailable for this route."}
                         </span>
 
                         {route.available &&
@@ -1396,12 +1578,18 @@ export default function TripResults() {
                           )}
                       </span>
 
-                      <span className="shrink-0 text-right">
+                      <span className="mt-0.5 shrink-0 text-right">
                         <span className="block text-[12px] font-bold text-ink">
-                          {formatPrice(route.estimatedPrice)}
+                          {route.available
+                            ? formatIndicativePrice(route.estimatedPrice)
+                            : formatPrice(route.estimatedPrice)}
                         </span>
                         <span className="block text-[10px] text-muted">
-                          {route.provider ?? "estimated"}
+                          {route.available
+                            ? route.estimatedPrice != null
+                              ? "Indicative estimate (USD)"
+                              : route.provider ?? "Estimate"
+                            : "Unavailable"}
                         </span>
                       </span>
 
@@ -1418,6 +1606,12 @@ export default function TripResults() {
                     </button>
                   );
                 })}
+
+              {!loading && routes.length > 0 && displayedRoutes.length === 0 && !error && (
+                <p className="rounded-xl border border-dashed border-line bg-canvas px-3 py-4 text-center text-[12px] text-muted">
+                  No routes match these filters. Try showing all modes or turning off “Available only”.
+                </p>
+              )}
 
               {!loading &&
                 flight &&
@@ -1438,15 +1632,11 @@ export default function TripResults() {
                             <span
                               className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${
                                 flight.available
-                                  ? "bg-brand-soft text-brand"
-                                  : "bg-line text-muted"
+                                  ? "bg-sky-brand-50 text-[#175cd3]"
+                                  : "bg-danger-50 text-danger"
                               }`}
                             >
-                              {flight.available
-                                ? flight.estimated
-                                  ? "Estimated"
-                                  : "Available"
-                                : "Not yet"}
+                              {flight.available ? "Indicative estimate" : "Unavailable"}
                             </span>
                           </p>
 
@@ -1455,36 +1645,32 @@ export default function TripResults() {
                               ? [
                                   flight.durationMinutes != null
                                     ? formatDuration(flight.durationMinutes)
+                                    : flight.duration != null
+                                    ? formatDuration(flight.duration)
                                     : null,
                                   flight.estimatedPrice != null
-                                    ? formatPrice(flight.estimatedPrice)
-                                    : null,
-                                  flight.airline && flight.airline !== "Estimated"
-                                    ? flight.airline
+                                    ? formatIndicativePrice(flight.estimatedPrice)
                                     : null,
                                 ]
                                   .filter(Boolean)
-                                  .join(" · ") ||
-                                (flight.estimated
-                                  ? "Indicative estimate"
-                                  : "Details unavailable")
-                              : flight.message ?? "Flight search is not available yet."}
+                                  .join(" · ") || "Indicative estimate (USD), not a live fare"
+                              : flight.message ?? "Flight option unavailable for this route."}
                           </p>
                         </div>
 
-                        {flight.available && flight.estimatedPrice != null && (
+                        {flight.available && (
                           <span className="shrink-0 text-right">
                             <span className="block text-[12px] font-bold text-ink">
-                              {formatPrice(flight.estimatedPrice)}
+                              {formatIndicativePrice(flight.estimatedPrice)}
                             </span>
                             <span className="block text-[10px] text-muted">
-                              {flight.estimated ? "indicative" : "estimated"}
+                              Indicative estimate (USD)
                             </span>
                           </span>
                         )}
                       </div>
 
-                      {flight.available && flight.estimated && flight.message && (
+                      {flight.message && (
                         <p className="mt-1 text-[10.5px] leading-relaxed text-faint">
                           {flight.message}
                         </p>
@@ -1504,8 +1690,9 @@ export default function TripResults() {
             <div className="border-t border-line-soft px-4 py-3">
               <p className="flex items-start gap-1.5 text-[10.5px] leading-relaxed text-faint">
                 <Info className="mt-0.5 h-3 w-3 shrink-0" />
-                Distances and durations come from the routing provider. A missing
-                fare is shown as “Fare unavailable”, never as $0.
+                Distances and durations come from the routing provider. Route and
+                flight prices are indicative estimates (USD), not live fares.
+                Missing fares are shown as “Fare unavailable”, never as $0.
               </p>
 
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-muted">

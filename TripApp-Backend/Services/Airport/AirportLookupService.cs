@@ -64,20 +64,43 @@ public class AirportLookupService : IAirportLookupService
             if (score < bestScore)
             {
                 bestScore = score;
-                best = new Airport
-                {
-                    Name = a.Name,
-                    Iata = a.Iata,
-                    Icao = a.Icao,
-                    Latitude = a.Latitude,
-                    Longitude = a.Longitude,
-                    DistanceKm = dist
-                };
+                best = ToAirport(a, dist);
             }
         }
 
         Cache[key] = (DateTime.UtcNow, best);
         return best;
+    }
+
+    public async Task<IReadOnlyList<Airport>> SearchAsync(string query, int limit = 8, CancellationToken cancellationToken = default)
+    {
+        query = (query ?? string.Empty).Trim();
+        if (query.Length == 0)
+            return Array.Empty<Airport>();
+
+        var dataset = await EnsureDatasetAsync(cancellationToken);
+        if (dataset == null || dataset.Count == 0)
+            return Array.Empty<Airport>();
+
+        var q = query.ToUpperInvariant();
+        limit = Math.Clamp(limit, 1, 20);
+
+        var matches = new List<(int Score, bool HasIata, AirportRecord Record)>();
+
+        foreach (var a in dataset)
+        {
+            var score = MatchScore(a, query, q);
+            if (score < int.MaxValue)
+                matches.Add((score, a.HasIata, a));
+        }
+
+        return matches
+            .OrderBy(m => m.Score)
+            .ThenByDescending(m => m.HasIata)
+            .ThenBy(m => m.Record.Name, StringComparer.OrdinalIgnoreCase)
+            .Take(limit)
+            .Select(m => ToAirport(m.Record, 0))
+            .ToList();
     }
 
     private async Task<IReadOnlyList<AirportRecord>?> EnsureDatasetAsync(CancellationToken cancellationToken)
@@ -111,11 +134,13 @@ public class AirportLookupService : IAirportLookupService
                         var name = GetString(v, "name");
                         var iata = NormalizeCode(GetString(v, "iata"));
                         var icao = NormalizeCode(GetString(v, "icao"));
+                        var city = GetString(v, "city");
+                        var country = GetString(v, "country");
 
                         if (string.IsNullOrWhiteSpace(name) && iata == null)
                             continue;
 
-                        list.Add(new AirportRecord(name ?? iata ?? "Airport", iata, icao, lat, lon));
+                        list.Add(new AirportRecord(name ?? iata ?? "Airport", iata, icao, city, country, lat, lon));
                     }
 
                     if (list.Count > 0)
@@ -156,6 +181,45 @@ public class AirportLookupService : IAirportLookupService
         return code;
     }
 
+    private static Airport ToAirport(AirportRecord record, double distanceKm) => new()
+    {
+        Name = record.Name,
+        Iata = record.Iata,
+        Icao = record.Icao,
+        Latitude = record.Latitude,
+        Longitude = record.Longitude,
+        DistanceKm = distanceKm,
+        City = record.City,
+        Country = record.Country
+    };
+
+    private static int MatchScore(AirportRecord airport, string query, string qUpper)
+    {
+        var iata = airport.Iata;
+        var icao = airport.Icao;
+        var name = airport.Name ?? string.Empty;
+        var city = airport.City ?? string.Empty;
+
+        if (!string.IsNullOrEmpty(iata))
+        {
+            if (string.Equals(iata, qUpper, StringComparison.Ordinal)) return 0; // exact IATA
+            if (iata.StartsWith(qUpper, StringComparison.Ordinal)) return 1;    // IATA prefix
+        }
+
+        if (!string.IsNullOrEmpty(icao))
+        {
+            if (string.Equals(icao, qUpper, StringComparison.Ordinal)) return 2; // exact ICAO
+            if (icao.StartsWith(qUpper, StringComparison.Ordinal)) return 3;    // ICAO prefix
+        }
+
+        if (name.StartsWith(query, StringComparison.OrdinalIgnoreCase)) return 4;
+        if (city.StartsWith(query, StringComparison.OrdinalIgnoreCase)) return 5;
+        if (name.Contains(query, StringComparison.OrdinalIgnoreCase)) return 6;
+        if (city.Contains(query, StringComparison.OrdinalIgnoreCase)) return 7;
+
+        return int.MaxValue;
+    }
+
     private static double HaversineKm(double lat1, double lon1, double lat2, double lon2)
     {
         const double R = 6371.0;
@@ -169,7 +233,7 @@ public class AirportLookupService : IAirportLookupService
         return R * c;
     }
 
-    private sealed record AirportRecord(string Name, string? Iata, string? Icao, double Latitude, double Longitude)
+    private sealed record AirportRecord(string Name, string? Iata, string? Icao, string? City, string? Country, double Latitude, double Longitude)
     {
         public bool HasIata => !string.IsNullOrWhiteSpace(Iata);
     }
