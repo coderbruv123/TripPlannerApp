@@ -293,6 +293,182 @@ export default function TripResults() {
     return route.available ? 1 : Number.MAX_SAFE_INTEGER;
   };
 
+  const budgetNumber = Number(plan?.budget ?? "");
+  const hasBudget = Number.isFinite(budgetNumber) && budgetNumber > 0;
+  const travellers = (plan?.adults ?? 0) + (plan?.children ?? 0);
+
+  type Recommendation = {
+    score: number;
+    reasons: string[];
+    isBestOverall: boolean;
+    transfers: number;
+    budgetFit: "within" | "over" | "unknown";
+  };
+
+  const recommendations = useMemo(() => {
+    const map = new Map<RouteOption, Recommendation>();
+    const available = routes.filter((route) => route.available);
+
+    const transfersFor = (route: RouteOption): number => {
+      const segments = Array.isArray(route.segments) ? route.segments.length : 0;
+
+      if (segments > 0) return Math.max(0, segments - 1);
+
+      return 0;
+    };
+
+    const knownDurations = available
+      .map((route) => route.durationMinutes)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    const knownPrices = available
+      .map((route) => route.estimatedPrice)
+      .filter((value): value is number => value != null && Number.isFinite(value));
+    const transferValues = available.map(transfersFor);
+
+    const minDuration = Math.min(...knownDurations);
+    const maxDuration = Math.max(...knownDurations);
+    const minPrice = Math.min(...knownPrices);
+    const maxPrice = Math.max(...knownPrices);
+    const minTransfers = Math.min(...transferValues);
+    const maxTransfers = Math.max(...transferValues);
+
+    const normalize = (value: number, min: number, max: number, fallback = 0.5) => {
+      if (!Number.isFinite(value)) return fallback;
+      if (max <= min) return 1;
+
+      return 1 - (value - min) / (max - min);
+    };
+
+    const wTime = hasBudget ? 0.35 : 0.44;
+    const wCost = hasBudget ? 0.3 : 0.37;
+    const wTransfers = hasBudget ? 0.15 : 0.19;
+    const wBudget = hasBudget ? 0.2 : 0;
+
+    for (const route of routes) {
+      const transfers = transfersFor(route);
+      const price = route.estimatedPrice;
+      const duration = route.durationMinutes;
+
+      const budgetFit: Recommendation["budgetFit"] =
+        !hasBudget || price == null
+          ? "unknown"
+          : price <= budgetNumber
+          ? "within"
+          : "over";
+
+      if (!route.available) {
+        map.set(route, {
+          score: -1,
+          reasons: [],
+          isBestOverall: false,
+          transfers,
+          budgetFit,
+        });
+        continue;
+      }
+
+      const timeScore =
+        duration != null && Number.isFinite(duration)
+          ? normalize(duration, minDuration, maxDuration, 0.5)
+          : 0.45;
+
+      const costScore =
+        price != null && Number.isFinite(price)
+          ? normalize(price, minPrice, maxPrice, 0.5)
+          : 0.45;
+
+      const transferScore = normalize(transfers, minTransfers, maxTransfers, 1);
+
+      let budgetScore = 0.5;
+
+      if (hasBudget && price != null && Number.isFinite(price)) {
+        if (price <= budgetNumber) {
+          budgetScore = 1;
+        } else {
+          const overRatio = (price - budgetNumber) / Math.max(budgetNumber, 1);
+          budgetScore = Math.max(0, 1 - overRatio * 0.8);
+        }
+      }
+
+      const score =
+        wTime * timeScore +
+        wCost * costScore +
+        wTransfers * transferScore +
+        wBudget * budgetScore;
+
+      map.set(route, {
+        score,
+        reasons: [],
+        isBestOverall: false,
+        transfers,
+        budgetFit,
+      });
+    }
+
+    const bestOverall = available.reduce<RouteOption | null>((best, route) => {
+      if (!best) return route;
+
+      const a = map.get(route)!;
+      const b = map.get(best)!;
+
+      if (a.score !== b.score) return a.score > b.score ? route : best;
+
+      if (a.transfers !== b.transfers) {
+        return a.transfers < b.transfers ? route : best;
+      }
+
+      const ad = route.durationMinutes ?? Number.POSITIVE_INFINITY;
+      const bd = best.durationMinutes ?? Number.POSITIVE_INFINITY;
+
+      if (ad !== bd) return ad < bd ? route : best;
+
+      const ap = route.estimatedPrice ?? Number.POSITIVE_INFINITY;
+      const bp = best.estimatedPrice ?? Number.POSITIVE_INFINITY;
+
+      if (ap !== bp) return ap < bp ? route : best;
+
+      return routes.indexOf(route) < routes.indexOf(best) ? route : best;
+    }, null);
+
+    if (bestOverall) {
+      const rec = map.get(bestOverall)!;
+      const reasons: string[] = [];
+
+      if (fastest !== bestOverall && cheapest !== bestOverall) {
+        reasons.push("Best balance");
+      } else if (fastest === bestOverall && cheapest === bestOverall) {
+        reasons.push("Best balance");
+      }
+
+      if (fastest === bestOverall) reasons.push("Fastest");
+      if (cheapest === bestOverall && reasons.length < 2) reasons.push("Cheapest");
+
+      if (
+        rec.transfers === minTransfers &&
+        maxTransfers !== minTransfers &&
+        reasons.length < 2
+      ) {
+        reasons.push(rec.transfers === 0 ? "Direct route" : "Fewest transfers");
+      }
+
+      if (hasBudget && rec.budgetFit === "within" && reasons.length < 2) {
+        reasons.push("Within budget");
+      } else if (hasBudget && rec.budgetFit === "over" && reasons.length < 2) {
+        reasons.push("Over budget");
+      }
+
+      if (reasons.length === 0) reasons.push("Best overall");
+
+      map.set(bestOverall, {
+        ...rec,
+        isBestOverall: true,
+        reasons: reasons.slice(0, 2),
+      });
+    }
+
+    return map;
+  }, [routes, fastest, cheapest, hasBudget, budgetNumber]);
+
   const displayedRoutes = useMemo(() => {
     const modeFiltered =
       routeModeFilter === "all"
@@ -336,11 +512,18 @@ export default function TripResults() {
         return byRecommended(a, b);
       });
     } else {
-      sorted.sort(byRecommended);
+      sorted.sort((a, b) => {
+        const as = recommendations.get(a)?.score ?? -1;
+        const bs = recommendations.get(b)?.score ?? -1;
+
+        if (as !== bs) return bs - as;
+
+        return byRecommended(a, b);
+      });
     }
 
     return sorted;
-  }, [routes, routeModeFilter, routeSort, showAvailableOnly]);
+  }, [routes, routeModeFilter, routeSort, showAvailableOnly, recommendations]);
 
   const visibleAvailableRoutes = useMemo(
     () => displayedRoutes.filter((route) => route.available),
@@ -379,10 +562,6 @@ export default function TripResults() {
       setSelectedRouteChoice(visibleAvailableRoutes[0]);
     }
   }, [visibleAvailableRoutes, selectedRouteChoice]);
-
-  const budgetNumber = Number(plan?.budget ?? "");
-  const hasBudget = Number.isFinite(budgetNumber) && budgetNumber > 0;
-  const travellers = (plan?.adults ?? 0) + (plan?.children ?? 0);
 
   const transportCost = selectedRoute?.estimatedPrice ?? null;
   const remaining =
@@ -1458,6 +1637,7 @@ export default function TripResults() {
                   const infeasible =
                     !route.available &&
                     /not feasible|infeasible/i.test(route.message ?? "");
+                  const rec = recommendations.get(route);
 
                   return (
                     <button
@@ -1498,6 +1678,12 @@ export default function TripResults() {
                             </span>
                           )}
 
+                          {route.available && rec?.isBestOverall && (
+                            <span className="rounded bg-[#FEF0C7] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#93370D]">
+                              Best overall
+                            </span>
+                          )}
+
                           {route.available && fastest === route && (
                             <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-brand-strong">
                               Fastest
@@ -1525,6 +1711,31 @@ export default function TripResults() {
                               )}`
                             : route.message ?? "This mode is unavailable for this route."}
                         </span>
+
+                        {route.available && rec && (
+                          <>
+                            {rec.isBestOverall && rec.reasons.length > 0 && (
+                              <span className="mt-1 block text-[10.5px] font-semibold text-[#93370D]">
+                                {rec.reasons.join(" · ")}
+                              </span>
+                            )}
+                            {!rec.isBestOverall &&
+                              hasBudget &&
+                              rec.budgetFit !== "unknown" && (
+                                <span
+                                  className={`mt-1 block text-[10.5px] font-semibold ${
+                                    rec.budgetFit === "within"
+                                      ? "text-brand-strong"
+                                      : "text-danger"
+                                  }`}
+                                >
+                                  {rec.budgetFit === "within"
+                                    ? "Within budget"
+                                    : "Over budget"}
+                                </span>
+                              )}
+                          </>
+                        )}
 
                         {route.available &&
                           Array.isArray(route.segments) &&
