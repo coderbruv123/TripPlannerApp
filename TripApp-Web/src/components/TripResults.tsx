@@ -52,6 +52,12 @@ import { searchHotels, type HotelResult } from "../api/hotels";
 import { fetchItineraryLegs, type ItineraryLeg } from "../api/itinerary";
 import { buildTripUrl, parseTripParams } from "../utils/tripUrl";
 import {
+  flightSearchUrl,
+  routeSearchLabel,
+  routeSearchUrl,
+  staysSearchUrl,
+} from "../utils/travelLinks";
+import {
   countNights,
   formatDay,
   formatDistance,
@@ -1639,182 +1645,212 @@ export default function TripResults() {
                     /not feasible|infeasible/i.test(route.message ?? "");
                   const rec = recommendations.get(route);
 
+                  const searchUrl = routeSearchUrl({
+                    route,
+                    originLabel: plan.origin.label,
+                    destinationLabel: plan.destination.name,
+                    dates: plan.dates,
+                  });
+                  const searchLabel = routeSearchLabel(route);
+
                   return (
-                    <button
+                    <div
                       key={`${routes.indexOf(route)}-${route.type}-${route.name}`}
-                      type="button"
-                      disabled={!route.available}
-                      onClick={() => setSelectedRouteChoice(route)}
-                      aria-pressed={isSelected}
-                      className={`mb-2 flex w-full items-start gap-2.5 rounded-xl border px-3 py-2.5 text-left transition ${
+                      className={`mb-2 overflow-hidden rounded-xl border transition ${
                         !route.available
-                          ? "cursor-not-allowed border-danger/20 bg-danger-50/40"
+                          ? "border-danger/20 bg-danger-50/40"
                           : isSelected
                           ? "border-brand bg-brand-50 shadow-[inset_0_0_0_1px_var(--color-brand)]"
                           : "border-line bg-surface hover:border-brand-100 hover:bg-brand-50/40"
                       }`}
                     >
-                      <span
-                        className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border ${
-                          !route.available
-                            ? "border-danger/20 bg-surface text-danger"
-                            : isSelected
-                            ? "border-brand-100 bg-surface text-brand-strong"
-                            : "border-line-soft bg-canvas text-body"
+                      <button
+                        type="button"
+                        disabled={!route.available}
+                        onClick={() => setSelectedRouteChoice(route)}
+                        aria-pressed={isSelected}
+                        className={`flex w-full items-start gap-2.5 px-3 py-2.5 text-left ${
+                          !route.available ? "cursor-not-allowed" : ""
                         }`}
                       >
-                        <Icon className="h-[17px] w-[17px]" />
-                      </span>
+                        <span
+                          className={`mt-0.5 grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border ${
+                            !route.available
+                              ? "border-danger/20 bg-surface text-danger"
+                              : isSelected
+                              ? "border-brand-100 bg-surface text-brand-strong"
+                              : "border-line-soft bg-canvas text-body"
+                          }`}
+                        >
+                          <Icon className="h-[17px] w-[17px]" />
+                        </span>
 
-                      <span className="min-w-0 flex-1">
-                        <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="truncate text-[13px] font-bold text-ink">
-                            {route.name || route.type}
+                        <span className="min-w-0 flex-1">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="truncate text-[13px] font-bold text-ink">
+                              {route.name || route.type}
+                            </span>
+
+                            {!route.available && (
+                              <span className="rounded bg-danger-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-danger">
+                                {infeasible ? "Not feasible" : "Unavailable"}
+                              </span>
+                            )}
+
+                            {route.available && rec?.isBestOverall && (
+                              <span className="rounded bg-[#FEF0C7] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#93370D]">
+                                Best overall
+                              </span>
+                            )}
+
+                            {route.available && fastest === route && (
+                              <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-brand-strong">
+                                Fastest
+                              </span>
+                            )}
+
+                            {route.available &&
+                              cheapest === route &&
+                              fastest !== route && (
+                                <span className="rounded bg-sky-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#175cd3]">
+                                  Cheapest
+                                </span>
+                              )}
                           </span>
 
-                          {!route.available && (
-                            <span className="rounded bg-danger-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-danger">
-                              {infeasible ? "Not feasible" : "Unavailable"}
-                            </span>
-                          )}
+                          <span
+                            className={`mt-0.5 block text-[11.5px] leading-snug ${
+                              route.available ? "truncate text-muted" : "text-danger"
+                            }`}
+                            title={route.message ?? undefined}
+                          >
+                            {route.available
+                              ? `${formatDuration(route.durationMinutes)} · ${formatDistance(
+                                  route.distanceKm
+                                )}`
+                              : route.message ?? "This mode is unavailable for this route."}
+                          </span>
 
-                          {route.available && rec?.isBestOverall && (
-                            <span className="rounded bg-[#FEF0C7] px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#93370D]">
-                              Best overall
-                            </span>
-                          )}
-
-                          {route.available && fastest === route && (
-                            <span className="rounded bg-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-brand-strong">
-                              Fastest
-                            </span>
+                          {route.available && rec && (
+                            <>
+                              {rec.isBestOverall && rec.reasons.length > 0 && (
+                                <span className="mt-1 block text-[10.5px] font-semibold text-[#93370D]">
+                                  {rec.reasons.join(" · ")}
+                                </span>
+                              )}
+                              {!rec.isBestOverall &&
+                                hasBudget &&
+                                rec.budgetFit !== "unknown" && (
+                                  <span
+                                    className={`mt-1 block text-[10.5px] font-semibold ${
+                                      rec.budgetFit === "within"
+                                        ? "text-brand-strong"
+                                        : "text-danger"
+                                    }`}
+                                  >
+                                    {rec.budgetFit === "within"
+                                      ? "Within budget"
+                                      : "Over budget"}
+                                  </span>
+                                )}
+                            </>
                           )}
 
                           {route.available &&
-                            cheapest === route &&
-                            fastest !== route && (
-                              <span className="rounded bg-sky-brand-50 px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide text-[#175cd3]">
-                                Cheapest
+                            Array.isArray(route.segments) &&
+                            route.segments.length > 0 && (
+                              <span className="mt-2 block space-y-1 border-t border-line-soft pt-2">
+                                {route.segments.map((segment, index) => {
+                                  const from = segment.from?.trim();
+                                  const to = segment.to?.trim();
+                                  const endpoints =
+                                    from || to ? `${from || "Start"} → ${to || "End"}` : null;
+                                  const label =
+                                    segment.name?.trim() || segment.type?.trim() || "Segment";
+                                  const details = [
+                                    segment.durationMinutes != null
+                                      ? formatDuration(segment.durationMinutes)
+                                      : null,
+                                    segment.distanceKm != null
+                                      ? formatDistance(segment.distanceKm)
+                                      : null,
+                                  ].filter(Boolean);
+
+                                  return (
+                                    <span
+                                      key={`${route.type}-${index}`}
+                                      className="flex items-start gap-1.5 text-[10.5px] leading-snug text-muted"
+                                    >
+                                      {(() => {
+                                        const SegmentIcon = modeIcon(
+                                          segment.type ?? segment.name ?? route.type
+                                        );
+                                        return (
+                                          <SegmentIcon className="mt-0.5 h-3 w-3 shrink-0 text-brand" />
+                                        );
+                                      })()}
+                                      <span className="min-w-0">
+                                        <span className="block truncate text-body">
+                                          {endpoints ? `${endpoints} · ${label}` : label}
+                                        </span>
+                                        {(details.length > 0 || segment.message) && (
+                                          <span className="block truncate text-faint">
+                                            {[details.join(" · "), segment.message]
+                                              .filter(Boolean)
+                                              .join(" · ")}
+                                          </span>
+                                        )}
+                                      </span>
+                                    </span>
+                                  );
+                                })}
                               </span>
                             )}
+                        </span>
+
+                        <span className="mt-0.5 shrink-0 text-right">
+                          <span className="block text-[12px] font-bold text-ink">
+                            {route.available
+                              ? formatIndicativePrice(route.estimatedPrice)
+                              : formatPrice(route.estimatedPrice)}
+                          </span>
+                          <span className="block text-[10px] text-muted">
+                            {route.available
+                              ? route.estimatedPrice != null
+                                ? "Indicative estimate (USD)"
+                                : route.provider ?? "Estimate"
+                              : "Unavailable"}
+                          </span>
                         </span>
 
                         <span
-                          className={`mt-0.5 block text-[11.5px] leading-snug ${
-                            route.available ? "truncate text-muted" : "text-danger"
+                          className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
+                            isSelected
+                              ? "border-brand bg-brand"
+                              : "border-line bg-surface"
                           }`}
-                          title={route.message ?? undefined}
+                          aria-hidden="true"
                         >
-                          {route.available
-                            ? `${formatDuration(route.durationMinutes)} · ${formatDistance(
-                                route.distanceKm
-                              )}`
-                            : route.message ?? "This mode is unavailable for this route."}
+                          {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
                         </span>
+                      </button>
 
-                        {route.available && rec && (
-                          <>
-                            {rec.isBestOverall && rec.reasons.length > 0 && (
-                              <span className="mt-1 block text-[10.5px] font-semibold text-[#93370D]">
-                                {rec.reasons.join(" · ")}
-                              </span>
-                            )}
-                            {!rec.isBestOverall &&
-                              hasBudget &&
-                              rec.budgetFit !== "unknown" && (
-                                <span
-                                  className={`mt-1 block text-[10.5px] font-semibold ${
-                                    rec.budgetFit === "within"
-                                      ? "text-brand-strong"
-                                      : "text-danger"
-                                  }`}
-                                >
-                                  {rec.budgetFit === "within"
-                                    ? "Within budget"
-                                    : "Over budget"}
-                                </span>
-                              )}
-                          </>
-                        )}
-
-                        {route.available &&
-                          Array.isArray(route.segments) &&
-                          route.segments.length > 0 && (
-                            <span className="mt-2 block space-y-1 border-t border-line-soft pt-2">
-                              {route.segments.map((segment, index) => {
-                                const from = segment.from?.trim();
-                                const to = segment.to?.trim();
-                                const endpoints =
-                                  from || to ? `${from || "Start"} → ${to || "End"}` : null;
-                                const label =
-                                  segment.name?.trim() || segment.type?.trim() || "Segment";
-                                const details = [
-                                  segment.durationMinutes != null
-                                    ? formatDuration(segment.durationMinutes)
-                                    : null,
-                                  segment.distanceKm != null
-                                    ? formatDistance(segment.distanceKm)
-                                    : null,
-                                ].filter(Boolean);
-
-                                return (
-                                  <span
-                                    key={`${route.type}-${index}`}
-                                    className="flex items-start gap-1.5 text-[10.5px] leading-snug text-muted"
-                                  >
-                                    {(() => {
-                                      const SegmentIcon = modeIcon(
-                                        segment.type ?? segment.name ?? route.type
-                                      );
-                                      return (
-                                        <SegmentIcon className="mt-0.5 h-3 w-3 shrink-0 text-brand" />
-                                      );
-                                    })()}
-                                    <span className="min-w-0">
-                                      <span className="block truncate text-body">
-                                        {endpoints ? `${endpoints} · ${label}` : label}
-                                      </span>
-                                      {(details.length > 0 || segment.message) && (
-                                        <span className="block truncate text-faint">
-                                          {[details.join(" · "), segment.message]
-                                            .filter(Boolean)
-                                            .join(" · ")}
-                                        </span>
-                                      )}
-                                    </span>
-                                  </span>
-                                );
-                              })}
-                            </span>
-                          )}
-                      </span>
-
-                      <span className="mt-0.5 shrink-0 text-right">
-                        <span className="block text-[12px] font-bold text-ink">
-                          {route.available
-                            ? formatIndicativePrice(route.estimatedPrice)
-                            : formatPrice(route.estimatedPrice)}
+                      <div className="flex items-center justify-between gap-2 border-t border-line-soft px-3 py-1.5">
+                        <span className="text-[10px] text-faint">
+                          Estimates only · check live prices and availability
                         </span>
-                        <span className="block text-[10px] text-muted">
-                          {route.available
-                            ? route.estimatedPrice != null
-                              ? "Indicative estimate (USD)"
-                              : route.provider ?? "Estimate"
-                            : "Unavailable"}
-                        </span>
-                      </span>
-
-                      <span
-                        className={`grid h-4 w-4 shrink-0 place-items-center rounded-full border ${
-                          isSelected
-                            ? "border-brand bg-brand"
-                            : "border-line bg-surface"
-                        }`}
-                        aria-hidden="true"
-                      >
-                        {isSelected && <Check className="h-2.5 w-2.5 text-white" />}
-                      </span>
-                    </button>
+                        <a
+                          href={searchUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand-50 hover:underline"
+                          aria-label={`${searchLabel} for ${route.name || route.type} in a new tab`}
+                        >
+                          {searchLabel}
+                          <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                        </a>
+                      </div>
+                    </div>
                   );
                 })}
 
@@ -1829,64 +1865,86 @@ export default function TripResults() {
                 !routes.some(
                   (route) => route.type.toLowerCase().includes("flight") && route.available
                 ) && (
-                <div className="mb-2 rounded-xl border border-line bg-canvas px-3 py-2.5">
-                  <div className="flex items-start gap-2.5">
-                    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-line-soft bg-surface text-body">
-                      <Plane className="h-[17px] w-[17px]" />
-                    </span>
+                <div className="mb-2 overflow-hidden rounded-xl border border-line bg-canvas">
+                  <div className="px-3 py-2.5">
+                    <div className="flex items-start gap-2.5">
+                      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-line-soft bg-surface text-body">
+                        <Plane className="h-[17px] w-[17px]" />
+                      </span>
 
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-ink">
-                            Flight
-                            <span
-                              className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${
-                                flight.available
-                                  ? "bg-sky-brand-50 text-[#175cd3]"
-                                  : "bg-danger-50 text-danger"
-                              }`}
-                            >
-                              {flight.available ? "Indicative estimate" : "Unavailable"}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="flex flex-wrap items-center gap-1.5 text-[13px] font-bold text-ink">
+                              Flight
+                              <span
+                                className={`rounded px-1.5 py-0.5 text-[9.5px] font-bold uppercase tracking-wide ${
+                                  flight.available
+                                    ? "bg-sky-brand-50 text-[#175cd3]"
+                                    : "bg-danger-50 text-danger"
+                                }`}
+                              >
+                                {flight.available ? "Indicative estimate" : "Unavailable"}
+                              </span>
+                            </p>
+
+                            <p className="mt-0.5 text-[11.5px] text-muted">
+                              {flight.available
+                                ? [
+                                    flight.durationMinutes != null
+                                      ? formatDuration(flight.durationMinutes)
+                                      : flight.duration != null
+                                      ? formatDuration(flight.duration)
+                                      : null,
+                                    flight.estimatedPrice != null
+                                      ? formatIndicativePrice(flight.estimatedPrice)
+                                      : null,
+                                  ]
+                                    .filter(Boolean)
+                                    .join(" · ") || "Indicative estimate (USD), not a live fare"
+                                : flight.message ?? "Flight option unavailable for this route."}
+                            </p>
+                          </div>
+
+                          {flight.available && (
+                            <span className="shrink-0 text-right">
+                              <span className="block text-[12px] font-bold text-ink">
+                                {formatIndicativePrice(flight.estimatedPrice)}
+                              </span>
+                              <span className="block text-[10px] text-muted">
+                                Indicative estimate (USD)
+                              </span>
                             </span>
-                          </p>
-
-                          <p className="mt-0.5 text-[11.5px] text-muted">
-                            {flight.available
-                              ? [
-                                  flight.durationMinutes != null
-                                    ? formatDuration(flight.durationMinutes)
-                                    : flight.duration != null
-                                    ? formatDuration(flight.duration)
-                                    : null,
-                                  flight.estimatedPrice != null
-                                    ? formatIndicativePrice(flight.estimatedPrice)
-                                    : null,
-                                ]
-                                  .filter(Boolean)
-                                  .join(" · ") || "Indicative estimate (USD), not a live fare"
-                              : flight.message ?? "Flight option unavailable for this route."}
-                          </p>
+                          )}
                         </div>
 
-                        {flight.available && (
-                          <span className="shrink-0 text-right">
-                            <span className="block text-[12px] font-bold text-ink">
-                              {formatIndicativePrice(flight.estimatedPrice)}
-                            </span>
-                            <span className="block text-[10px] text-muted">
-                              Indicative estimate (USD)
-                            </span>
-                          </span>
+                        {flight.message && (
+                          <p className="mt-1 text-[10.5px] leading-relaxed text-faint">
+                            {flight.message}
+                          </p>
                         )}
                       </div>
-
-                      {flight.message && (
-                        <p className="mt-1 text-[10.5px] leading-relaxed text-faint">
-                          {flight.message}
-                        </p>
-                      )}
                     </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 border-t border-line-soft px-3 py-1.5">
+                    <span className="text-[10px] text-faint">
+                      Estimates only · check live prices and availability
+                    </span>
+                    <a
+                      href={flightSearchUrl({
+                        originLabel: plan.origin.label,
+                        destinationLabel: plan.destination.name,
+                        dates: plan.dates,
+                      })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex shrink-0 items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] font-semibold text-brand-strong transition hover:bg-brand-50 hover:underline"
+                      aria-label="Search flights in a new tab"
+                    >
+                      Search flights
+                      <ExternalLink className="h-3 w-3" aria-hidden="true" />
+                    </a>
                   </div>
                 </div>
               )}
@@ -1958,11 +2016,27 @@ export default function TripResults() {
 
         {/* ---------------- live stays near this destination ---------------- */}
         <section id="stays" aria-label="Nearby stays" className="mt-3.5">
-          <div className="mb-2 flex flex-wrap items-center gap-2 px-1">
-            <BedDouble className="h-4 w-4 text-brand" />
-            <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-              Stays near {plan.destination.name}
-            </h2>
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <BedDouble className="h-4 w-4 text-brand" />
+              <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+                Stays near {plan.destination.name}
+              </h2>
+            </div>
+
+            <a
+              href={staysSearchUrl({
+                destinationLabel: plan.destination.name,
+                dates: plan.dates,
+              })}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 rounded-md text-[11px] font-semibold text-brand-strong hover:underline"
+              aria-label={`Search stays in ${plan.destination.name} in a new tab`}
+            >
+              Search stays
+              <ExternalLink className="h-3 w-3" aria-hidden="true" />
+            </a>
           </div>
 
           <div className="rounded-[18px] border border-line bg-surface px-4 py-4">
