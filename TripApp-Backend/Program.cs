@@ -94,6 +94,16 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactPolicy", policy =>
     {
+        // Dev: allow any origin so Expo Go/tunnels/physical devices work without CORS friction.
+        // Production should restrict origins explicitly.
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.SetIsOriginAllowed(_ => true)
+                .AllowAnyHeader()
+                .AllowAnyMethod();
+            return;
+        }
+
         // Dev origins: loopback on any port (vite picks 5173/5174/4173) plus
         // the machine's own LAN address, so opening the site as 127.0.0.1 or
         // from a phone doesn't fail with an opaque "Unable to sign in".

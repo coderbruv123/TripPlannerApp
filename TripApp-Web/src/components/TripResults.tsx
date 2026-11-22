@@ -7,6 +7,7 @@ import MapGL, {
   Layer,
   Marker,
   NavigationControl,
+  Popup,
   Source,
 } from "react-map-gl/maplibre";
 import type { MapRef } from "react-map-gl/maplibre";
@@ -127,7 +128,12 @@ function extractCoordinates(geometry: unknown): Position[] {
   const typed = geometry as {
     type?: string;
     coordinates?: unknown;
+    geometries?: unknown[];
   };
+
+  if (typed.type === "GeometryCollection" && Array.isArray(typed.geometries)) {
+    return typed.geometries.flatMap((child) => extractCoordinates(child));
+  }
 
   const coordinates = typed.coordinates;
 
@@ -573,7 +579,7 @@ export default function TripResults() {
   const remaining =
     hasBudget && transportCost !== null ? budgetNumber - transportCost : null;
 
-  const routeGeometry = useMemo(() => {
+  const overallRouteGeometry = useMemo(() => {
     if (!selectedRoute?.geometry) return null;
 
     try {
@@ -583,12 +589,46 @@ export default function TripResults() {
     }
   }, [selectedRoute]);
 
-  const isFlightRoute = selectedRoute?.type?.toLowerCase().includes("flight") ?? false;
+  const isFlightRoute =
+    selectedRoute?.type?.toLowerCase().includes("flight") ?? false;
+
+  type RenderedRouteSegment = {
+    geometry: unknown;
+    kind: "flight" | "ground";
+  };
+
+  const routeSegmentGeometries = useMemo<RenderedRouteSegment[]>(() => {
+    if (!isFlightRoute || !Array.isArray(selectedRoute?.segments)) return [];
+
+    const rendered: RenderedRouteSegment[] = [];
+
+    selectedRoute.segments.forEach((segment) => {
+      if (!segment.geometry) return;
+
+      try {
+        const geometry = JSON.parse(segment.geometry) as unknown;
+        const key = `${segment.type ?? ""} ${segment.name ?? ""}`.toLowerCase();
+        const kind = /(flight|plane|fly)/i.test(key) ? "flight" : "ground";
+
+        rendered.push({ geometry, kind });
+      } catch {
+        // Ignore malformed segment geometry and keep other segments/fallbacks.
+      }
+    });
+
+    return rendered;
+  }, [isFlightRoute, selectedRoute]);
+
+  const hasSegmentRoute = routeSegmentGeometries.length > 0;
 
   const routeBounds = useMemo(() => {
-    if (!routeGeometry) return null;
+    const geometries = hasSegmentRoute
+      ? routeSegmentGeometries.map((segment) => segment.geometry)
+      : overallRouteGeometry
+      ? [overallRouteGeometry]
+      : [];
 
-    const points = extractCoordinates(routeGeometry);
+    const points = geometries.flatMap((geometry) => extractCoordinates(geometry));
 
     if (points.length === 0) return null;
 
@@ -606,7 +646,7 @@ export default function TripResults() {
 
     // MapLibre bounds are [lng, lat], not [lat, lng].
     return new LngLatBounds([west, south], [east, north]);
-  }, [routeGeometry]);
+  }, [hasSegmentRoute, overallRouteGeometry, routeSegmentGeometries]);
 
   useEffect(() => {
     if (!mapRef.current || !routeBounds) return;
@@ -666,8 +706,12 @@ export default function TripResults() {
     key: string;
     hotels: HotelResult[];
     failed: boolean;
+    errorMessage?: string;
+    notice?: string;
+    stale?: boolean;
   } | null>(null);
   const [hotelReloadKey, setHotelReloadKey] = useState(0);
+  const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
 
   useEffect(() => {
     if (!plan || !destinationKey) return;
@@ -680,14 +724,28 @@ export default function TripResults() {
       radiusKm: 8,
       limit: 4,
     })
-      .then((hotels) => {
+      .then((result) => {
         if (!cancelled) {
-          setHotelState({ key: destinationKey, hotels, failed: false });
+          setHotelState({
+            key: destinationKey,
+            hotels: result.hotels,
+            failed: false,
+            notice: result.notice,
+            stale: result.stale === true || result.cached === true,
+          });
         }
       })
-      .catch(() => {
+      .catch((err: unknown) => {
         if (!cancelled) {
-          setHotelState({ key: destinationKey, hotels: [], failed: true });
+          setHotelState({
+            key: destinationKey,
+            hotels: [],
+            failed: true,
+            errorMessage:
+              err instanceof Error
+                ? err.message
+                : "Open stay data is temporarily unavailable. Please try again in a moment.",
+          });
         }
       });
 
@@ -1420,17 +1478,60 @@ export default function TripResults() {
               }
               style={{ width: "100%", height: "100%" }}
               attributionControl={false}
+              onClick={() => setSelectedHotelId(null)}
             >
               <NavigationControl position="top-right" showCompass={false} />
 
-              {routeGeometry && (
+              {hasSegmentRoute ? (
+                routeSegmentGeometries.map((segment, index) => {
+                  const flightSegment = segment.kind === "flight";
+
+                  return (
+                    <Source
+                      key={`trip-route-segment-${index}`}
+                      id={`trip-route-segment-${index}`}
+                      type="geojson"
+                      data={{
+                        type: "Feature",
+                        properties: { kind: segment.kind },
+                        geometry: segment.geometry as Geometry,
+                      }}
+                    >
+                      <Layer
+                        id={`trip-route-segment-casing-${index}`}
+                        type="line"
+                        paint={{
+                          "line-color": "#ffffff",
+                          "line-width": flightSegment ? 7 : 6,
+                          "line-opacity": 0.85,
+                        }}
+                        layout={{ "line-cap": "round", "line-join": "round" }}
+                      />
+                      <Layer
+                        id={`trip-route-segment-line-${index}`}
+                        type="line"
+                        paint={{
+                          "line-color": flightSegment ? "#2563EB" : "#667085",
+                          "line-width": flightSegment ? 3 : 3,
+                          "line-opacity": flightSegment ? 0.95 : 0.8,
+                          "line-dasharray": flightSegment ? [2, 2] : [1.5, 2],
+                        }}
+                        layout={{
+                          "line-cap": flightSegment ? "butt" : "round",
+                          "line-join": "round",
+                        }}
+                      />
+                    </Source>
+                  );
+                })
+              ) : overallRouteGeometry ? (
                 <Source
                   id="trip-route"
                   type="geojson"
                   data={{
                     type: "Feature",
                     properties: {},
-                    geometry: routeGeometry as Geometry,
+                    geometry: overallRouteGeometry as Geometry,
                   }}
                 >
                   <Layer
@@ -1459,7 +1560,65 @@ export default function TripResults() {
                     }
                   />
                 </Source>
-              )}
+              ) : null}
+
+              {nearbyHotels.map((hotel) => (
+                <Marker
+                  key={`hotel-${hotel.id}`}
+                  longitude={hotel.longitude}
+                  latitude={hotel.latitude}
+                  anchor="bottom"
+                  onClick={(event) => {
+                    event.originalEvent.stopPropagation();
+                    setSelectedHotelId((current) =>
+                      current === hotel.id ? null : hotel.id
+                    );
+                  }}
+                >
+                  <button
+                    type="button"
+                    className="grid h-7 w-7 place-items-center rounded-full border-2 border-white bg-[#F79009] text-white shadow-md transition hover:scale-110"
+                    aria-label={`${hotel.name}, ${formatDistance(hotel.distanceKm)} away`}
+                    title={hotel.name}
+                  >
+                    <BedDouble className="h-3.5 w-3.5" />
+                  </button>
+                </Marker>
+              ))}
+
+              {(() => {
+                const selectedHotel = nearbyHotels.find(
+                  (hotel) => hotel.id === selectedHotelId
+                );
+
+                if (!selectedHotel) return null;
+
+                return (
+                  <Popup
+                    longitude={selectedHotel.longitude}
+                    latitude={selectedHotel.latitude}
+                    anchor="top"
+                    offset={14}
+                    onClose={() => setSelectedHotelId(null)}
+                    closeButton
+                    closeOnClick={false}
+                  >
+                    <div className="min-w-[180px] px-0.5 py-0.5 text-ink">
+                      <p className="text-[12px] font-bold">{selectedHotel.name}</p>
+                      <p className="mt-0.5 text-[11px] text-muted">
+                        {formatDistance(selectedHotel.distanceKm)} away
+                        {selectedHotel.stars != null ? ` · ${selectedHotel.stars}★` : ""}
+                      </p>
+                      <p className="mt-1 text-[11px] font-semibold text-body">
+                        {selectedHotel.estimatedPricePerNight != null &&
+                        selectedHotel.estimatedPricePerNight > 0
+                          ? `${formatPrice(selectedHotel.estimatedPricePerNight)} /night`
+                          : "Price unavailable"}
+                      </p>
+                    </div>
+                  </Popup>
+                );
+              })()}
 
               <Marker
                 longitude={plan.origin.longitude}
@@ -2052,7 +2211,9 @@ export default function TripResults() {
             ) : hotelsFailed ? (
               <div className="flex flex-wrap items-center gap-2 rounded-xl border border-danger/20 bg-danger-50 px-3 py-2.5">
                 <p className="text-[12px] text-danger">
-                  Couldn't load nearby stays right now.
+                  {hotelsMatch && hotelState?.errorMessage
+                    ? hotelState.errorMessage
+                    : "Couldn't load nearby stays right now."}
                 </p>
                 <button
                   type="button"
@@ -2066,10 +2227,35 @@ export default function TripResults() {
                 </button>
               </div>
             ) : nearbyHotels.length === 0 ? (
-              <p className="rounded-xl border border-dashed border-line bg-canvas px-3 py-5 text-center text-[12px] text-muted">
-                No hotels found within 8 km yet. Try a different destination.
-              </p>
+              hotelsMatch && (hotelState?.notice || hotelState?.stale) ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-3 text-center">
+                  <p className="text-[12px] font-medium text-amber-900">
+                    {hotelState.notice ??
+                      "Open stay data is temporarily unavailable right now."}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHotelState(null);
+                      setHotelReloadKey((value) => value + 1);
+                    }}
+                    className="mt-2 text-[11.5px] font-bold text-amber-900 underline"
+                  >
+                    Try again
+                  </button>
+                </div>
+              ) : (
+                <p className="rounded-xl border border-dashed border-line bg-canvas px-3 py-5 text-center text-[12px] text-muted">
+                  No hotels found within 8 km yet. Try a different destination.
+                </p>
+              )
             ) : (
+              <>
+                {hotelsMatch && (hotelState?.stale || hotelState?.notice) && (
+                  <p className="mb-2 text-[11px] text-muted">
+                    {hotelState.notice ?? "Showing cached open stay data while live data is temporarily unavailable."}
+                  </p>
+                )}
               <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
                 {nearbyHotels.map((hotel) => (
                   <div
@@ -2127,6 +2313,7 @@ export default function TripResults() {
                   </div>
                 ))}
               </div>
+              </>
             )}
 
             <p className="mt-2.5 flex items-center gap-1.5 text-[10.5px] text-faint">

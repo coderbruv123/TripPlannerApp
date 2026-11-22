@@ -34,6 +34,15 @@ public class HotelsController : ControllerBase
 
             return Ok(hotels);
         }
+        catch (HotelSearchUnavailableException ex)
+        {
+            return Ok(new
+            {
+                hotels = Array.Empty<Hotel>(),
+                notice = ex.Message,
+                stale = false
+            });
+        }
         catch (HttpRequestException ex)
         {
             return StatusCode(503, new

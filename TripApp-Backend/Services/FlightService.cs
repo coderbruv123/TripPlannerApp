@@ -1,3 +1,4 @@
+using System.Text.Json;
 using TripApp_Backend.Models;
 
 namespace TripApp_Backend.Services;
@@ -66,8 +67,8 @@ public class FlightService : IFlightService
             EstimatedPrice = estimatedPrice,
             Estimated = true,
             Message = airports.usable
-                ? $"Indicative estimate {from} → {to} via {AirportLabel(airports.origin!)}–{AirportLabel(airports.dest!)} (no live schedules or fares)."
-                : $"Indicative estimate for {from} → {to} (no live schedules or fares)."
+                ? $"Indicative estimate (USD) {from} → {to} via {AirportLabel(airports.origin!)}–{AirportLabel(airports.dest!)}. No live schedules or fares."
+                : $"Indicative estimate (USD) for {from} → {to}. No live schedules or fares."
         };
     }
 
@@ -138,11 +139,27 @@ public class FlightService : IFlightService
             destTransferKm = 20;
         }
 
-        var geometry = airports.usable
+        var flightSegmentGeometry = airports.usable
             ? BuildGreatCircleGeometry(airports.origin!.Latitude, airports.origin.Longitude,
                                        airports.dest!.Latitude, airports.dest.Longitude)
             : BuildGreatCircleGeometry(request.OriginLat, request.OriginLng,
                                        request.DestinationLat, request.DestinationLng);
+
+        string? originTransferGeometry = null;
+        string? destTransferGeometry = null;
+        string optionGeometry = flightSegmentGeometry;
+
+        if (airports.usable)
+        {
+            originTransferGeometry = BuildLineStringGeometry(
+                request.OriginLat, request.OriginLng,
+                airports.origin!.Latitude, airports.origin.Longitude);
+            destTransferGeometry = BuildLineStringGeometry(
+                airports.dest!.Latitude, airports.dest.Longitude,
+                request.DestinationLat, request.DestinationLng);
+            optionGeometry = BuildMultiLineStringGeometry(
+                originTransferGeometry, flightSegmentGeometry, destTransferGeometry);
+        }
 
         var baseFlightDuration = flight.DurationMinutes ?? Math.Round(flightDistanceKm / 850.0 * 60.0 + 45.0, 0);
         var basePrice = flight.EstimatedPrice ?? EstimatePrice(flightDistanceKm);
@@ -167,7 +184,10 @@ public class FlightService : IFlightService
                 flightDistanceKm: flightDistanceKm,
                 flightDurationMinutes: baseFlightDuration,
                 price: basePrice,
-                geometry: geometry,
+                flightSegmentGeometry: flightSegmentGeometry,
+                originTransferGeometry: originTransferGeometry,
+                destTransferGeometry: destTransferGeometry,
+                optionGeometry: optionGeometry,
                 originTransferMinutes: originTransferMin,
                 destTransferMinutes: destTransferMin,
                 originTransferKm: originTransferKm,
@@ -189,7 +209,10 @@ public class FlightService : IFlightService
                 flightDistanceKm: flightDistanceKm,
                 flightDurationMinutes: slowerFlightDuration,
                 price: cheaperPrice,
-                geometry: geometry,
+                flightSegmentGeometry: flightSegmentGeometry,
+                originTransferGeometry: originTransferGeometry,
+                destTransferGeometry: destTransferGeometry,
+                optionGeometry: optionGeometry,
                 originTransferMinutes: originTransferMin,
                 destTransferMinutes: destTransferMin,
                 originTransferKm: originTransferKm,
@@ -220,7 +243,10 @@ public class FlightService : IFlightService
         double flightDistanceKm,
         double flightDurationMinutes,
         decimal price,
-        string geometry,
+        string flightSegmentGeometry,
+        string? originTransferGeometry,
+        string? destTransferGeometry,
+        string optionGeometry,
         double originTransferMinutes,
         double destTransferMinutes,
         double originTransferKm,
@@ -243,7 +269,8 @@ public class FlightService : IFlightService
             Provider = "Indicative estimate",
             Estimated = true,
             Currency = "USD",
-            Geometry = geometry,
+            // Full door-to-door geometry for map fitting; segment geometries carry the detail.
+            Geometry = optionGeometry,
             Message = message,
             Segments =
             [
@@ -255,7 +282,7 @@ public class FlightService : IFlightService
                     To = originAirport,
                     DistanceKm = Math.Round(originTransferKm, 1),
                     DurationMinutes = originTransferMinutes,
-                    Geometry = null
+                    Geometry = originTransferGeometry
                 },
                 new TravelSegment
                 {
@@ -265,7 +292,7 @@ public class FlightService : IFlightService
                     To = destAirport,
                     DistanceKm = flightDistanceRounded,
                     DurationMinutes = flightDurationMinutes,
-                    Geometry = geometry
+                    Geometry = flightSegmentGeometry
                 },
                 new TravelSegment
                 {
@@ -275,7 +302,7 @@ public class FlightService : IFlightService
                     To = toCity,
                     DistanceKm = Math.Round(destTransferKm, 1),
                     DurationMinutes = destTransferMinutes,
-                    Geometry = null
+                    Geometry = destTransferGeometry
                 }
             ]
         };
@@ -308,6 +335,24 @@ public class FlightService : IFlightService
                 Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
         var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
         return R * c;
+    }
+
+    /// <summary>Simple straight-line GeoJSON LineString (used for ground transfer legs).</summary>
+    private static string BuildLineStringGeometry(double lat1, double lon1, double lat2, double lon2)
+    {
+        static string C(double v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return "{\"type\":\"LineString\",\"coordinates\":[[" + C(lon1) + "," + C(lat1) + "],[" + C(lon2) + "," + C(lat2) + "]]}";
+    }
+
+    /// <summary>
+    /// Combines LineString geometries into a MultiLineString so the overall flight option
+    /// can be fit to the full door-to-door path (ground + air + ground).
+    /// </summary>
+    private static string BuildMultiLineStringGeometry(params string[] lineStringGeometries)
+    {
+        var coords = lineStringGeometries
+            .Select(g => JsonDocument.Parse(g).RootElement.GetProperty("coordinates").GetRawText());
+        return "{\"type\":\"MultiLineString\",\"coordinates\":[" + string.Join(",", coords) + "]}";
     }
 
     /// <summary>Approximate great-circle path as a GeoJSON LineString.</summary>

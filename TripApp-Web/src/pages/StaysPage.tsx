@@ -1,243 +1,115 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
 import {
-  ArrowRight,
-  Bath,
   BedDouble,
-  Check,
-  Heart,
+  ExternalLink,
+  Info,
+  Loader2,
   MapPin,
+  Phone,
   Search,
   Star,
-  Users,
-  X,
 } from "lucide-react";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import StayCard from "../components/stays/StayCard";
-import { STAYS } from "../data/stays";
-import type { Stay } from "../data/stays";
-import { listFavoriteStays, toggleStayFavorite } from "../utils/stayFavorites";
+import DestinationCombobox from "../components/planner/DestinationCombobox";
+import { searchHotels, type HotelResult } from "../api/hotels";
+import type { Destination } from "../types/trip";
+import { formatDistance, formatPrice } from "../utils/format";
 
-type SortKey = "recommended" | "rating" | "price-low" | "price-high";
+type SearchState = {
+  key: string;
+  hotels: HotelResult[];
+  error: string | null;
+  notice?: string;
+  stale?: boolean;
+};
 
-const SORTS: { value: SortKey; label: string }[] = [
-  { value: "recommended", label: "Recommended" },
-  { value: "rating", label: "Top rated" },
-  { value: "price-low", label: "Price: low to high" },
-  { value: "price-high", label: "Price: high to low" },
-];
+type StaySort = "distance" | "stars" | "name";
 
-const GUEST_OPTIONS = [1, 2, 3, 4, 5, 6];
-
-function StayDialog({
-  stay,
-  liked,
-  onToggleLike,
-  onClose,
-}: {
-  stay: Stay;
-  liked: boolean;
-  onToggleLike: () => void;
-  onClose: () => void;
-}) {
-  useEffect(() => {
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") onClose();
-    };
-
-    const previousOverflow = document.body.style.overflow;
-
-    document.body.style.overflow = "hidden";
-    window.addEventListener("keydown", onKeyDown);
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      window.removeEventListener("keydown", onKeyDown);
-    };
-  }, [onClose]);
-
-  return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-[#0B1B33]/55 p-0 backdrop-blur-sm sm:items-center sm:p-6"
-      role="presentation"
-      onClick={onClose}
-    >
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="stay-dialog-title"
-        onClick={(event) => event.stopPropagation()}
-        className="thin-scroll max-h-[92vh] w-full max-w-[720px] overflow-y-auto rounded-t-[20px] border border-line bg-surface shadow-[var(--shadow-float)] sm:rounded-[20px]"
-      >
-        <div className="relative h-[220px] bg-canvas sm:h-[260px]">
-          <img
-            src={stay.img}
-            alt={stay.name}
-            className="h-full w-full object-cover"
-            width={800}
-            height={500}
-          />
-
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label="Close stay details"
-            className="absolute right-3 top-3 grid h-8 w-8 place-items-center rounded-full bg-surface/90 text-ink backdrop-blur transition hover:bg-surface"
-          >
-            <X className="h-4 w-4" aria-hidden="true" />
-          </button>
-
-          <div className="absolute left-3 top-3 flex gap-1.5">
-            {stay.badge && (
-              <span className="rounded-md bg-[#D92D20] px-2 py-0.5 text-[10px] font-semibold text-white">
-                {stay.badge}
-              </span>
-            )}
-            <span className="rounded-md bg-surface/90 px-2 py-0.5 text-[10px] font-semibold text-body backdrop-blur">
-              {stay.country}
-            </span>
-          </div>
-        </div>
-
-        <div className="p-5 sm:p-6">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="min-w-0">
-              <h2
-                id="stay-dialog-title"
-                className="text-[19px] font-extrabold tracking-[-0.02em] text-ink"
-              >
-                {stay.name}
-              </h2>
-
-              <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[12.5px] text-muted">
-                <span className="flex items-center gap-1">
-                  <Star className="h-3.5 w-3.5 fill-[#FDB022] text-[#FDB022]" aria-hidden="true" />
-                  <span className="font-semibold text-body">{stay.rating.toFixed(1)}</span>
-                  <span>({stay.reviews} reviews)</span>
-                </span>
-                <span aria-hidden="true">·</span>
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
-                  {stay.address}, {stay.city}
-                </span>
-              </div>
-            </div>
-
-            <button
-              type="button"
-              onClick={onToggleLike}
-              aria-pressed={liked}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-[12px] font-semibold transition ${
-                liked
-                  ? "border-transparent bg-danger-50 text-danger"
-                  : "border-line bg-surface text-body hover:border-brand-100 hover:bg-brand-50 hover:text-brand-strong"
-              }`}
-            >
-              <Heart
-                className={`h-3.5 w-3.5 ${liked ? "fill-current" : ""}`}
-                aria-hidden="true"
-              />
-              {liked ? "Saved" : "Save"}
-            </button>
-          </div>
-
-          <p className="mt-3 text-[13.5px] leading-relaxed text-body">{stay.description}</p>
-
-          <div className="mt-4 grid grid-cols-3 gap-2">
-            {[
-              { icon: BedDouble, label: `${stay.beds} bedrooms` },
-              { icon: Bath, label: `${stay.baths} bathrooms` },
-              { icon: Users, label: `Sleeps ${stay.guests}` },
-            ].map(({ icon: Icon, label }) => (
-              <div
-                key={label}
-                className="flex items-center gap-1.5 rounded-[10px] border border-line bg-canvas px-2.5 py-2 text-[12px] text-body"
-              >
-                <Icon className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-                <span className="truncate">{label}</span>
-              </div>
-            ))}
-          </div>
-
-          <h3 className="mt-5 text-[11px] font-bold uppercase tracking-[0.09em] text-faint">
-            What this place offers
-          </h3>
-
-          <ul className="mt-2 grid gap-1.5 sm:grid-cols-2">
-            {stay.amenities.map((amenity) => (
-              <li key={amenity} className="flex items-center gap-1.5 text-[12.5px] text-body">
-                <Check className="h-3.5 w-3.5 text-brand" aria-hidden="true" />
-                {amenity}
-              </li>
-            ))}
-          </ul>
-
-          <div className="mt-5 flex flex-wrap items-center justify-between gap-3 border-t border-line-soft pt-4">
-            <p className="text-[22px] font-extrabold text-ink">
-              ${stay.price}
-              <span className="text-[12px] font-normal text-muted"> /night</span>
-            </p>
-
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={onClose}
-                className="rounded-lg border border-line bg-surface px-3 py-2 text-[12.5px] font-semibold text-ink transition hover:bg-canvas"
-              >
-                Close
-              </button>
-
-              <Link
-                to="/"
-                className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3.5 py-2 text-[12.5px] font-semibold text-white transition hover:bg-brand-strong"
-              >
-                Plan a trip
-                <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+function searchKey(destination: Destination, radiusKm: number): string {
+  return `${destination.latitude}|${destination.longitude}|${radiusKm}`;
 }
 
 export default function StaysPage() {
-  const [query, setQuery] = useState("");
-  const [minGuests, setMinGuests] = useState<number | "any">("any");
-  const [sort, setSort] = useState<SortKey>("recommended");
-  const [favoritesOnly, setFavoritesOnly] = useState(false);
-  const [favorites, setFavorites] = useState<string[]>(() => listFavoriteStays());
-  const [active, setActive] = useState<Stay | null>(null);
+  const [destination, setDestination] = useState<Destination | null>(null);
+  const [radiusKm, setRadiusKm] = useState(10);
+  const [filterText, setFilterText] = useState("");
+  const [sort, setSort] = useState<StaySort>("distance");
+  const [state, setState] = useState<SearchState | null>(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
-  const toggleFavorite = (id: string) => {
-    setFavorites(toggleStayFavorite(id));
-  };
+  const activeKey = destination ? searchKey(destination, radiusKm) : "";
+  const active = state !== null && state.key === activeKey ? state : null;
+  const loading = Boolean(destination) && !active;
+  const hotels = active?.hotels ?? [];
+  const error = active?.error ?? null;
 
-  const visible = useMemo(() => {
-    const needle = query.trim().toLowerCase();
+  const visibleHotels = useMemo(() => {
+    const needle = filterText.trim().toLowerCase();
 
-    const filtered = STAYS.filter((stay) => {
-      const haystack = `${stay.name} ${stay.city} ${stay.country} ${stay.address}`.toLowerCase();
-      const matchesQuery = needle.length === 0 || haystack.includes(needle);
-      const matchesGuests = minGuests === "any" || stay.guests >= minGuests;
-      const matchesFavorite = !favoritesOnly || favorites.includes(stay.id);
-
-      return matchesQuery && matchesGuests && matchesFavorite;
+    const filtered = hotels.filter((hotel) => {
+      if (!needle) return true;
+      const haystack = `${hotel.name} ${hotel.address ?? ""} ${hotel.type ?? ""}`.toLowerCase();
+      return haystack.includes(needle);
     });
 
     return [...filtered].sort((a, b) => {
-      if (sort === "price-low") return a.price - b.price;
-      if (sort === "price-high") return b.price - a.price;
-      if (sort === "rating") return b.rating - a.rating;
+      if (sort === "stars") {
+        const as = a.stars ?? -1;
+        const bs = b.stars ?? -1;
+        if (as !== bs) return bs - as;
+      }
 
-      return b.rating * 100 + b.reviews / 1000 - (a.rating * 100 + a.reviews / 1000);
+      if (sort === "name") {
+        const byName = a.name.localeCompare(b.name);
+        if (byName !== 0) return byName;
+      }
+
+      return a.distanceKm - b.distanceKm;
     });
-  }, [query, minGuests, sort, favoritesOnly, favorites]);
+  }, [hotels, filterText, sort]);
 
-  const hasFilters = query.trim().length > 0 || minGuests !== "any" || favoritesOnly;
+  useEffect(() => {
+    if (!destination) return;
+
+    const key = searchKey(destination, radiusKm);
+    let cancelled = false;
+
+    searchHotels({
+      latitude: destination.latitude,
+      longitude: destination.longitude,
+      radiusKm,
+      limit: 12,
+    })
+      .then((result) => {
+        if (!cancelled) {
+          setState({
+            key,
+            hotels: result.hotels,
+            error: null,
+            notice: result.notice,
+            stale: result.stale === true || result.cached === true,
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setState({
+            key,
+            hotels: [],
+            error:
+              err instanceof Error
+                ? err.message
+                : "Open stay data is temporarily unavailable. Please try again in a moment.",
+          });
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [destination, radiusKm, reloadKey]);
 
   return (
     <div className="min-h-screen bg-canvas">
@@ -255,137 +127,274 @@ export default function StaysPage() {
               Stays
             </h1>
 
-            <p className="mt-2 max-w-[56ch] text-[14px] leading-relaxed text-muted">
-              Handpicked hotels, villas and lodges for the places you are planning.
-              Filter by guests and price, then keep the ones you like.
+            <p className="mt-2 max-w-[60ch] text-[14px] leading-relaxed text-muted">
+              Search real open-data hotels near a city or airport. Results come
+              from OpenStreetMap, so prices may be unavailable until live fares
+              are connected.
             </p>
           </div>
 
-          <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted">
-            {visible.length} of {STAYS.length} stays
-          </span>
+          {destination && active && !error && (
+            <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted">
+              {visibleHotels.length} of {hotels.length}{" "}
+              {hotels.length === 1 ? "stay" : "stays"}
+            </span>
+          )}
         </div>
 
         <div className="mt-6 flex flex-wrap items-center gap-2 rounded-[14px] border border-line bg-surface p-2.5 shadow-[var(--shadow-card)]">
-          <div className="relative min-w-[220px] flex-1">
-            <Search
-              className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-faint"
-              aria-hidden="true"
-            />
-
-            <input
-              type="search"
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder="Search by city, country or stay name"
-              aria-label="Search stays"
-              className="h-9 w-full rounded-lg border border-line bg-canvas pl-8 pr-2.5 text-[13px] text-ink outline-none transition placeholder:text-faint focus:border-brand focus:bg-surface"
-            />
+          <div className="min-w-[260px] flex-1 rounded-lg border border-line bg-canvas px-3 py-2">
+            <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.08em] text-faint">
+              Destination
+            </p>
+            <div className="flex items-center gap-2">
+              <Search className="h-4 w-4 shrink-0 text-faint" aria-hidden="true" />
+              <div className="min-w-0 flex-1">
+                <DestinationCombobox
+                  selected={destination}
+                  onSelect={setDestination}
+                  placeholder="Search a city or airport"
+                  ariaLabel="Search destination for stays"
+                />
+              </div>
+            </div>
           </div>
 
           <label className="flex items-center gap-1.5 text-[12px] font-semibold text-muted">
-            <Users className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
-            <span className="sr-only">Minimum guests</span>
-
+            <MapPin className="h-3.5 w-3.5 text-faint" aria-hidden="true" />
+            <span className="sr-only">Search radius</span>
             <select
-              value={minGuests}
-              onChange={(event) =>
-                setMinGuests(event.target.value === "any" ? "any" : Number(event.target.value))
-              }
-              aria-label="Minimum guests"
+              value={radiusKm}
+              onChange={(event) => setRadiusKm(Number(event.target.value))}
+              aria-label="Search radius"
               className="h-9 rounded-lg border border-line bg-canvas px-2 text-[12.5px] font-semibold text-body outline-none transition focus:border-brand"
             >
-              <option value="any">Any guests</option>
-              {GUEST_OPTIONS.map((count) => (
-                <option key={count} value={count}>
-                  {count}+ guests
+              {[5, 10, 20, 30].map((radius) => (
+                <option key={radius} value={radius}>
+                  Within {radius} km
                 </option>
               ))}
             </select>
           </label>
 
+          <input
+            type="search"
+            value={filterText}
+            onChange={(event) => setFilterText(event.target.value)}
+            placeholder="Filter results by name"
+            aria-label="Filter loaded stays by name"
+            className="h-9 min-w-[180px] flex-1 rounded-lg border border-line bg-canvas px-3 text-[12.5px] text-ink outline-none transition placeholder:text-faint focus:border-brand sm:flex-none"
+          />
+
           <select
             value={sort}
-            onChange={(event) => setSort(event.target.value as SortKey)}
+            onChange={(event) => setSort(event.target.value as StaySort)}
             aria-label="Sort stays"
             className="h-9 rounded-lg border border-line bg-canvas px-2 text-[12.5px] font-semibold text-body outline-none transition focus:border-brand"
           >
-            {SORTS.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
+            <option value="distance">Sort: Distance</option>
+            <option value="stars">Sort: Stars</option>
+            <option value="name">Sort: Name</option>
           </select>
 
           <button
             type="button"
-            onClick={() => setFavoritesOnly((value) => !value)}
-            aria-pressed={favoritesOnly}
-            className={`inline-flex h-9 items-center gap-1.5 rounded-lg border px-2.5 text-[12px] font-semibold transition ${
-              favoritesOnly
-                ? "border-transparent bg-danger-50 text-danger"
-                : "border-line bg-canvas text-muted hover:text-ink"
-            }`}
+            onClick={() => {
+              if (!destination) return;
+              setState(null);
+              setReloadKey((value) => value + 1);
+            }}
+            disabled={!destination || loading}
+            className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3.5 text-[12.5px] font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
           >
-            <Heart
-              className={`h-3.5 w-3.5 ${favoritesOnly ? "fill-current" : ""}`}
-              aria-hidden="true"
-            />
-            Favourites
-            <span className="rounded-full bg-surface px-1.5 text-[10.5px] font-bold text-body">
-              {favorites.length}
-            </span>
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Search className="h-3.5 w-3.5" />
+            )}
+            Search stays
           </button>
         </div>
 
-        {visible.length === 0 ? (
-          <div className="mt-4 rounded-[20px] border border-dashed border-line bg-surface px-6 py-12 text-center">
-            <h2 className="text-[15px] font-bold text-ink">No stays match those filters</h2>
-
-            <p className="mt-1 text-[12.5px] text-muted">
-              Widen the guest count, clear the search or turn off favourites.
-            </p>
-
-            {hasFilters && (
+        <div className="mt-4">
+          {!destination ? (
+            <div className="rounded-[20px] border border-dashed border-line bg-surface px-6 py-12 text-center">
+              <span className="mx-auto grid h-11 w-11 place-items-center rounded-xl bg-brand-50 text-brand">
+                <BedDouble className="h-5 w-5" />
+              </span>
+              <h2 className="mt-4 text-[15px] font-bold text-ink">
+                Search for a place to stay
+              </h2>
+              <p className="mt-1 text-[12.5px] text-muted">
+                Pick a city or airport above to load real nearby hotels.
+              </p>
+            </div>
+          ) : loading ? (
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {[0, 1, 2, 3, 4, 5].map((row) => (
+                <div
+                  key={row}
+                  className="h-[168px] animate-pulse rounded-[18px] border border-line bg-surface"
+                />
+              ))}
+            </div>
+          ) : error ? (
+            <div className="rounded-[20px] border border-danger/20 bg-danger-50 px-6 py-8 text-center">
+              <h2 className="text-[15px] font-bold text-danger">
+                Couldn't load stays
+              </h2>
+              <p className="mt-1 text-[12.5px] text-danger/80">{error}</p>
               <button
                 type="button"
                 onClick={() => {
-                  setQuery("");
-                  setMinGuests("any");
-                  setFavoritesOnly(false);
+                  setState(null);
+                  setReloadKey((value) => value + 1);
                 }}
+                className="mt-4 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-[12.5px] font-semibold text-danger transition hover:bg-danger-50"
+              >
+                Try again
+              </button>
+            </div>
+          ) : hotels.length === 0 ? (
+            active?.notice || active?.stale ? (
+              <div className="rounded-[20px] border border-amber-200 bg-amber-50 px-6 py-8 text-center">
+                <h2 className="text-[15px] font-bold text-amber-900">
+                  Open stay data is temporarily unavailable
+                </h2>
+                <p className="mt-1 text-[12.5px] text-amber-800">
+                  {active.notice ??
+                    "Live open-data stay results couldn't be loaded right now. Please try again in a moment."}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setState(null);
+                    setReloadKey((value) => value + 1);
+                  }}
+                  className="mt-4 rounded-lg border border-amber-300 bg-surface px-3 py-2 text-[12.5px] font-semibold text-amber-900 transition hover:bg-amber-100"
+                >
+                  Try again
+                </button>
+              </div>
+            ) : (
+              <div className="rounded-[20px] border border-dashed border-line bg-surface px-6 py-12 text-center">
+                <h2 className="text-[15px] font-bold text-ink">
+                  No hotels found nearby
+                </h2>
+                <p className="mt-1 text-[12.5px] text-muted">
+                  Try a larger radius or a different destination.
+                </p>
+              </div>
+            )
+          ) : visibleHotels.length === 0 ? (
+            <div className="rounded-[20px] border border-dashed border-line bg-surface px-6 py-12 text-center">
+              <h2 className="text-[15px] font-bold text-ink">
+                No stays match your filters
+              </h2>
+              <p className="mt-1 text-[12.5px] text-muted">
+                Clear the name filter or change sorting to see the real results.
+              </p>
+              <button
+                type="button"
+                onClick={() => setFilterText("")}
                 className="mt-4 rounded-lg border border-line bg-surface px-3 py-2 text-[12.5px] font-semibold text-ink transition hover:border-brand-100 hover:bg-brand-50 hover:text-brand-strong"
               >
-                Reset filters
+                Clear filter
               </button>
-            )}
-          </div>
-        ) : (
-          <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {visible.map((stay) => (
-              <StayCard
-                key={stay.id}
-                stay={stay}
-                variant="tile"
-                liked={favorites.includes(stay.id)}
-                onToggleLike={toggleFavorite}
-                onOpen={setActive}
-              />
-            ))}
-          </div>
-        )}
+            </div>
+          ) : (
+            <>
+              {active && (active.stale || active.notice) && (
+                <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] text-amber-800">
+                  {active.notice ??
+                    "Showing cached open stay data while live data is temporarily unavailable."}
+                </p>
+              )}
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {visibleHotels.map((hotel) => (
+                <article
+                  key={hotel.id}
+                  className="flex flex-col rounded-[18px] border border-line bg-surface p-4 shadow-[var(--shadow-card)] transition hover:-translate-y-0.5 hover:border-brand-100"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-brand-50 text-brand">
+                      <BedDouble className="h-5 w-5" />
+                    </span>
+
+                    <div className="min-w-0 flex-1">
+                      <h3 className="truncate text-[14.5px] font-bold text-ink" title={hotel.name}>
+                        {hotel.name}
+                      </h3>
+                      <p className="mt-0.5 truncate text-[12px] text-muted" title={hotel.address ?? undefined}>
+                        {hotel.address ?? hotel.type ?? "Address not listed"}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11.5px] text-muted">
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="h-3.5 w-3.5 text-faint" />
+                      {formatDistance(hotel.distanceKm)} away
+                    </span>
+
+                    {hotel.stars != null && (
+                      <span className="inline-flex items-center gap-1">
+                        <Star className="h-3.5 w-3.5 fill-[#FDB022] text-[#FDB022]" />
+                        {hotel.stars}-star
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-end justify-between gap-3 border-t border-line-soft pt-3">
+                    <div>
+                      <p className="text-[18px] font-extrabold text-ink">
+                        {hotel.estimatedPricePerNight != null &&
+                        hotel.estimatedPricePerNight > 0
+                          ? formatPrice(hotel.estimatedPricePerNight)
+                          : "Price unavailable"}
+                      </p>
+                      <p className="text-[11px] text-muted">per night · indicative when shown</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      {hotel.phone && (
+                        <a
+                          href={`tel:${hotel.phone}`}
+                          className="grid h-8 w-8 place-items-center rounded-lg border border-line text-muted transition hover:border-brand-100 hover:text-brand-strong"
+                          aria-label={`Call ${hotel.name}`}
+                          title="Call"
+                        >
+                          <Phone className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                      {hotel.website && (
+                        <a
+                          href={hotel.website}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="inline-flex items-center gap-1 rounded-lg border border-line px-2.5 py-1.5 text-[11.5px] font-semibold text-ink transition hover:border-brand-100 hover:text-brand-strong"
+                        >
+                          Website
+                          <ExternalLink className="h-3.5 w-3.5" />
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                </article>
+              ))}
+              </div>
+            </>
+          )}
+        </div>
+
+        <p className="mt-5 flex items-center gap-1.5 text-[11px] text-faint">
+          <Info className="h-3.5 w-3.5 shrink-0" />
+          Real stay data from OpenStreetMap via the app backend. Prices are
+          unavailable unless a live fare source is connected.
+        </p>
       </main>
 
       <Footer />
-
-      {active && (
-        <StayDialog
-          stay={active}
-          liked={favorites.includes(active.id)}
-          onToggleLike={() => toggleFavorite(active.id)}
-          onClose={() => setActive(null)}
-        />
-      )}
     </div>
   );
 }
