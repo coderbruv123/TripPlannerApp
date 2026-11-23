@@ -3,6 +3,7 @@ import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, Style
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { searchTrips } from '../api/trips';
 import { saveTrip } from '../api/savedTrips';
+import { RouteMap } from '../components/RouteMap';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
 import type { FlightOption, RouteOption, TripSearchResult } from '../types/trip';
 import type { RootStackParamList } from '../navigation/types';
@@ -32,6 +33,7 @@ export function TripResultsScreen({ route }: Props) {
   const [result, setResult] = useState<TripSearchResult | null>(null);
   const [selectedRoute, setSelectedRoute] = useState<number>(0);
   const [saving, setSaving] = useState(false);
+  const [searchNonce, setSearchNonce] = useState(0);
 
   const hasCoords = typeof p?.originLat === 'number' && typeof p?.originLng === 'number' && typeof p?.destinationLat === 'number' && typeof p?.destinationLng === 'number';
   const title = p?.title || (p?.destinationName ? `${p.originLabel || 'Origin'} → ${p.destinationName}` : 'Trip results');
@@ -43,21 +45,27 @@ export function TripResultsScreen({ route }: Props) {
     let cancelled = false;
     if (!hasCoords) return;
     (async () => {
-      setLoading(true); setError(null);
+      setLoading(true);
+      setError(null);
       try {
         const data = await searchTrips(
           { latitude: p!.originLat!, longitude: p!.originLng!, label: p!.originLabel },
           { latitude: p!.destinationLat!, longitude: p!.destinationLng!, name: p!.destinationName },
         );
-        if (!cancelled) { setResult(data); setSelectedRoute(0); }
+        if (!cancelled) {
+          setResult(data);
+          setSelectedRoute(0);
+        }
       } catch (err) {
         if (!cancelled) setError(err instanceof Error ? err.message : 'Could not load trip results.');
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
-    return () => { cancelled = true; };
-  }, [hasCoords, p?.originLat, p?.originLng, p?.destinationLat, p?.destinationLng, p?.originLabel, p?.destinationName]);
+    return () => {
+      cancelled = true;
+    };
+  }, [hasCoords, p?.originLat, p?.originLng, p?.destinationLat, p?.destinationLng, p?.originLabel, p?.destinationName, searchNonce]);
 
   const routes = result?.routes ?? [];
   const flight = result?.flight ?? null;
@@ -93,7 +101,7 @@ export function TripResultsScreen({ route }: Props) {
         <View style={styles.optionDetails}>
           <View style={styles.detailItem}><Text style={styles.detailLabel}>Duration</Text><Text style={styles.detailValue}>{fmtDuration(r.durationMinutes)}</Text></View>
           <View style={styles.detailItem}><Text style={styles.detailLabel}>Distance</Text><Text style={styles.detailValue}>{fmtKm(r.distanceKm)}</Text></View>
-          <View style={styles.detailItem}><Text style={styles.detailLabel}>Indicative</Text><Text style={styles.detailValue}>{fmtPrice(r.estimatedPrice)}</Text></View>
+          <View style={styles.detailItem}><Text style={styles.detailLabel}>Indicative price</Text><Text style={styles.detailValue}>{fmtPrice(r.estimatedPrice)}</Text></View>
         </View>
         {r.message ? <Text style={styles.optionNote}>{r.message}</Text> : null}
         {Array.isArray(r.segments) && r.segments.length > 0 ? (
@@ -130,16 +138,58 @@ export function TripResultsScreen({ route }: Props) {
         </Pressable>
       </View>
 
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Routes</Text><Text style={styles.sectionCaption}>{loading ? 'Searching...' : `${routes.length} option(s)`}</Text></View>
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Route map</Text>
+        <Text style={styles.sectionCaption}>{routes.length > 0 ? 'Tap a line to select' : 'Preview'}</Text>
+      </View>
+      {hasCoords ? (
+        <RouteMap
+          routes={routes}
+          selectedIndex={selectedRoute}
+          onSelect={setSelectedRoute}
+          origin={{ latitude: p!.originLat!, longitude: p!.originLng!, label: p?.originLabel || 'Origin' }}
+          destination={{ latitude: p!.destinationLat!, longitude: p!.destinationLng!, label: p?.destinationName || 'Destination' }}
+        />
+      ) : null}
+
+      <View style={styles.sectionHeader}>
+        <Text style={styles.sectionTitle}>Routes</Text>
+        <Text style={styles.sectionCaption}>{loading ? 'Searching...' : `${routes.length} option(s)`}</Text>
+      </View>
       {loading ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} /> : null}
-      {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text></View> : null}
-      {!loading && !error && hasCoords && routes.length === 0 ? <View style={styles.emptyCard}><Text style={styles.emptyTitle}>No routes found</Text><Text style={styles.emptyText}>Try different origin/destination or check back later.</Text></View> : null}
-      {!hasCoords ? <View style={styles.emptyCard}><Text style={styles.emptyTitle}>Search details missing</Text><Text style={styles.emptyText}>Start a trip search from Home to fetch live routes.</Text></View> : null}
+      {error ? (
+        <View style={styles.errorBox}>
+          <Text style={styles.errorTitle}>Could not load routes</Text>
+          <Text style={styles.errorText}>{error}</Text>
+          <Pressable
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.retryButton, pressed && styles.retryButtonPressed]}
+            onPress={() => setSearchNonce((n) => n + 1)}
+            disabled={loading}
+          >
+            <Text style={styles.retryButtonText}>Retry search</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {!loading && !error && hasCoords && routes.length === 0 ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>No routes found</Text>
+          <Text style={styles.emptyText}>Try different origin/destination or check back later.</Text>
+        </View>
+      ) : null}
+      {!hasCoords ? (
+        <View style={styles.emptyCard}>
+          <Text style={styles.emptyTitle}>Search details missing</Text>
+          <Text style={styles.emptyText}>Start a trip search from Home to fetch live routes.</Text>
+        </View>
+      ) : null}
       {routes.map(renderRoute)}
 
       <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Flight</Text><Text style={styles.sectionCaption}>Indicative</Text></View>
       <View style={styles.card}>
-        {flight?.available ? (
+        {loading && !result ? (
+          <Text style={styles.flightNote}>Flight information will appear after route search completes.</Text>
+        ) : flight?.available ? (
           <>
             <Text style={styles.flightTitle}>{flight.airline || 'Flight option'}</Text>
             <Text style={styles.flightMeta}>Duration: {fmtDuration(flight.durationMinutes ?? flight.duration)} · {fmtPrice(flight.estimatedPrice)}</Text>
@@ -147,12 +197,13 @@ export function TripResultsScreen({ route }: Props) {
             {flight.message ? <Text style={styles.flightNote}>{flight.message}</Text> : null}
           </>
         ) : (
-          <Text style={styles.flightNote}>{flight?.message || 'Flight information unavailable for this search.'}</Text>
+          <Text style={styles.flightNote}>
+            {error
+              ? 'Flight information is unavailable because the route search did not complete.'
+              : flight?.message || 'Flight information unavailable for this search.'}
+          </Text>
         )}
       </View>
-
-      <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Map</Text><Text style={styles.sectionCaption}>Lightweight placeholder</Text></View>
-      <View style={styles.card}><Text style={styles.flightNote}>Map preview is intentionally lightweight for now. Core route search, selection, and save are fully functional.</Text></View>
     </ScrollView>
   );
 }
@@ -182,8 +233,11 @@ function createStyles(colors: ThemeColors) {
     sectionTitle: { ...typography.heading, color: colors.ink },
     sectionCaption: { ...typography.caption, color: colors.muted },
     errorBox: { marginHorizontal: spacing.screenX, backgroundColor: 'rgba(249,112,102,0.12)', borderColor: 'rgba(249,112,102,0.35)', borderWidth: 1, borderRadius: radii.md, padding: spacing.md, marginBottom: spacing.md },
-    errorText: { ...typography.caption, color: colors.danger },
-    emptyCard: { marginHorizontal: spacing.screenX, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.lineSoft, marginBottom: spacing.md },
+    errorTitle: { ...typography.bodyStrong, color: colors.ink, marginBottom: 4 },
+    errorText: { ...typography.caption, color: colors.danger, lineHeight: 20 },
+    retryButton: { marginTop: spacing.md, alignSelf: 'flex-start', backgroundColor: colors.brand, borderRadius: radii.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm + 2 },
+    retryButtonPressed: { backgroundColor: colors.brandStrong },
+    retryButtonText: { ...typography.label, color: colors.onBrand },    emptyCard: { marginHorizontal: spacing.screenX, backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.lineSoft, marginBottom: spacing.md },
     emptyTitle: { ...typography.bodyStrong, color: colors.ink, marginBottom: 4 },
     emptyText: { ...typography.caption, color: colors.body },
     optionCard: { backgroundColor: colors.surface, borderRadius: radii.lg, padding: spacing.lg, borderWidth: 1, borderColor: colors.lineSoft, marginBottom: spacing.md, marginHorizontal: spacing.screenX, ...shadows.soft },
