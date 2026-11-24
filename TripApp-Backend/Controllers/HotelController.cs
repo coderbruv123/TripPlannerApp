@@ -22,41 +22,35 @@ public class HotelsController : ControllerBase
         if (request.Latitude == 0 &&
             request.Longitude == 0)
         {
-            return BadRequest(
-                "Valid latitude and longitude are required."
-            );
+            return BadRequest(new
+            {
+                hotels = Array.Empty<Hotel>(),
+                notice = "Valid latitude and longitude are required.",
+                stale = false
+            });
         }
 
         try
         {
-            var hotels =
-                await _hotelService.SearchHotelsAsync(request);
-
-            return Ok(hotels);
+            var result = await _hotelService.SearchHotelsAsync(request);
+            return Ok(result);
         }
         catch (HotelSearchUnavailableException ex)
         {
-            return Ok(new
+            return Ok(new HotelSearchResult
             {
-                hotels = Array.Empty<Hotel>(),
-                notice = ex.Message,
-                stale = false
-            });
-        }
-        catch (HttpRequestException ex)
-        {
-            return StatusCode(503, new
-            {
-                message = "Hotel service unavailable.",
-                error = ex.Message
+                Hotels = [],
+                Notice = ex.Message,
+                Stale = false
             });
         }
         catch (Exception ex)
         {
-            return StatusCode(500, new
+            return StatusCode(500, new HotelSearchResult
             {
-                message = "Unable to search hotels.",
-                error = ex.Message
+                Hotels = [],
+                Notice = $"Unable to search hotels: {ex.Message}",
+                Stale = false
             });
         }
     }

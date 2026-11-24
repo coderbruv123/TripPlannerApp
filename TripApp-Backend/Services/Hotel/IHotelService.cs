@@ -4,6 +4,6 @@ namespace TripApp_Backend.Services;
 
 public interface IHotelService
 {
-    Task<List<Hotel>> SearchHotelsAsync(
+    Task<HotelSearchResult> SearchHotelsAsync(
         HotelSearchRequest request);
 }

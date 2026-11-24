@@ -50,6 +50,28 @@ namespace TripApp_Backend.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("TripApp_Backend.Models.HotelSearchCache", b =>
+                {
+                    b.Property<string>("CacheKey")
+                        .HasMaxLength(256)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("FetchedAtUtc")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PayloadJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Source")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("CacheKey");
+
+                    b.ToTable("HotelSearchCache");
+                });
+
             modelBuilder.Entity("TripApp_Backend.Models.ItineraryStop", b =>
                 {
                     b.Property<string>("Id")

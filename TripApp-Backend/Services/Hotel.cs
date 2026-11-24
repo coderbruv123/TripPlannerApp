@@ -26,3 +26,12 @@ public class Hotel
 
     public decimal? EstimatedPricePerNight { get; set; }
 }
+
+public class HotelSearchResult
+{
+    public List<Hotel> Hotels { get; set; } = [];
+
+    public string? Notice { get; set; }
+
+    public bool Stale { get; set; }
+}

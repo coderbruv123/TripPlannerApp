@@ -20,6 +20,8 @@ public class ApplicationDbContext : DbContext
 
     public DbSet<BudgetBreakdown> BudgetBreakdowns => Set<BudgetBreakdown>();
 
+    public DbSet<HotelSearchCache> HotelSearchCaches => Set<HotelSearchCache>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -76,6 +78,16 @@ public class ApplicationDbContext : DbContext
                 .OnDelete(DeleteBehavior.Cascade);
 
             entity.Property(b => b.Category).HasMaxLength(64);
+        });
+
+        modelBuilder.Entity<HotelSearchCache>(entity =>
+        {
+            entity.ToTable("HotelSearchCache");
+            entity.HasKey(x => x.CacheKey);
+            entity.Property(x => x.CacheKey).HasMaxLength(256);
+            entity.Property(x => x.PayloadJson).IsRequired();
+            entity.Property(x => x.FetchedAtUtc).IsRequired();
+            entity.Property(x => x.Source).HasMaxLength(64);
         });
     }
 }

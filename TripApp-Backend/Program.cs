@@ -165,6 +165,15 @@ using (var scope = app.Services.CreateScope())
                     FOREIGN KEY ("SavedTripId") REFERENCES "SavedTrips" ("Id") ON DELETE CASCADE
             );
             """);
+
+        db.Database.ExecuteSqlRaw("""
+            CREATE TABLE IF NOT EXISTS "HotelSearchCache" (
+                "CacheKey" TEXT NOT NULL CONSTRAINT "PK_HotelSearchCache" PRIMARY KEY,
+                "PayloadJson" TEXT NOT NULL,
+                "FetchedAtUtc" TEXT NOT NULL,
+                "Source" TEXT NULL
+            );
+            """);
     }
     else
     {
