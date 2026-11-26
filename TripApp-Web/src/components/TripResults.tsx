@@ -709,14 +709,20 @@ export default function TripResults() {
     errorMessage?: string;
     notice?: string;
     stale?: boolean;
+    cached?: boolean;
   } | null>(null);
   const [hotelReloadKey, setHotelReloadKey] = useState(0);
+  const [hotelRefreshing, setHotelRefreshing] = useState(false);
   const [selectedHotelId, setSelectedHotelId] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!plan || !destinationKey) return;
+    if (!plan || !destinationKey) {
+      setHotelRefreshing(false);
+      return;
+    }
 
     let cancelled = false;
+    setHotelRefreshing(true);
 
     searchHotels({
       latitude: plan.destination.latitude,
@@ -731,22 +737,42 @@ export default function TripResults() {
             hotels: result.hotels,
             failed: false,
             notice: result.notice,
-            stale: result.stale === true || result.cached === true,
+            stale: result.stale === true,
+            cached: result.cached === true || result.stale === true,
           });
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setHotelState({
-            key: destinationKey,
-            hotels: [],
-            failed: true,
-            errorMessage:
-              err instanceof Error
-                ? err.message
-                : "Open stay data is temporarily unavailable. Please try again in a moment.",
+          setHotelState((prev) => {
+            const prevActive =
+              prev !== null && prev.key === destinationKey ? prev : null;
+            if (prevActive && prevActive.hotels.length > 0 && !prevActive.failed) {
+              return {
+                ...prevActive,
+                notice:
+                  err instanceof Error
+                    ? err.message
+                    : "Open stay data is temporarily unavailable. Please try again in a moment.",
+                stale: true,
+                cached: true,
+              };
+            }
+
+            return {
+              key: destinationKey,
+              hotels: [],
+              failed: true,
+              errorMessage:
+                err instanceof Error
+                  ? err.message
+                  : "Open stay data is temporarily unavailable. Please try again in a moment.",
+            };
           });
         }
+      })
+      .finally(() => {
+        if (!cancelled) setHotelRefreshing(false);
       });
 
     return () => {
@@ -758,6 +784,14 @@ export default function TripResults() {
   const nearbyHotels = hotelsMatch ? hotelState.hotels : [];
   const hotelsFailed = Boolean(hotelsMatch && hotelState.failed);
   const hotelsLoading = Boolean(destinationKey) && !hotelsMatch;
+  const hotelStatus =
+    hotelsMatch && !hotelsFailed && nearbyHotels.length > 0
+      ? hotelState?.stale
+        ? { label: "Saved results", tone: "stale" as const }
+        : hotelState?.cached
+        ? { label: "Cached", tone: "cached" as const }
+        : { label: "Live", tone: "live" as const }
+      : null;
 
   /* ---------------- actions ---------------- */
 
@@ -2176,11 +2210,41 @@ export default function TripResults() {
         {/* ---------------- live stays near this destination ---------------- */}
         <section id="stays" aria-label="Nearby stays" className="mt-3.5">
           <div className="mb-2 flex flex-wrap items-center justify-between gap-2 px-1">
-            <div className="flex items-center gap-2">
-              <BedDouble className="h-4 w-4 text-brand" />
-              <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
-                Stays near {plan.destination.name}
-              </h2>
+            <div className="flex flex-wrap items-center gap-2">
+              <div className="flex items-center gap-2">
+                <BedDouble className="h-4 w-4 text-brand" />
+                <h2 className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted">
+                  Stays near {plan.destination.name}
+                </h2>
+              </div>
+              {hotelStatus && (
+                <span
+                  className={[
+                    "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold",
+                    hotelStatus.tone === "stale"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : hotelStatus.tone === "cached"
+                      ? "border-sky-200 bg-sky-50 text-sky-700"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "h-1.5 w-1.5 rounded-full",
+                      hotelStatus.tone === "stale"
+                        ? "bg-amber-500"
+                        : hotelStatus.tone === "cached"
+                        ? "bg-sky-500"
+                        : "bg-emerald-500",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                  {hotelStatus.label}
+                </span>
+              )}
+              {hotelRefreshing && hotelsMatch && (
+                <span className="text-[10.5px] text-muted">Updating...</span>
+              )}
             </div>
 
             <a
@@ -2217,13 +2281,11 @@ export default function TripResults() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setHotelState(null);
-                    setHotelReloadKey((value) => value + 1);
-                  }}
-                  className="text-[11.5px] font-bold text-danger underline"
+                  onClick={() => setHotelReloadKey((value) => value + 1)}
+                  disabled={hotelRefreshing}
+                  className="text-[11.5px] font-bold text-danger underline disabled:opacity-50"
                 >
-                  Retry
+                  {hotelRefreshing ? "Retrying..." : "Retry"}
                 </button>
               </div>
             ) : nearbyHotels.length === 0 ? (
@@ -2235,13 +2297,11 @@ export default function TripResults() {
                   </p>
                   <button
                     type="button"
-                    onClick={() => {
-                      setHotelState(null);
-                      setHotelReloadKey((value) => value + 1);
-                    }}
-                    className="mt-2 text-[11.5px] font-bold text-amber-900 underline"
+                    onClick={() => setHotelReloadKey((value) => value + 1)}
+                    disabled={hotelRefreshing}
+                    className="mt-2 text-[11.5px] font-bold text-amber-900 underline disabled:opacity-50"
                   >
-                    Try again
+                    {hotelRefreshing ? "Retrying..." : "Try again"}
                   </button>
                 </div>
               ) : (
@@ -2251,12 +2311,37 @@ export default function TripResults() {
               )
             ) : (
               <>
-                {hotelsMatch && (hotelState?.stale || hotelState?.notice) && (
-                  <p className="mb-2 text-[11px] text-muted">
-                    {hotelState.notice ?? "Showing cached open stay data while live data is temporarily unavailable."}
-                  </p>
+                {hotelsMatch && hotelStatus && hotelStatus.tone !== "live" && (
+                  <div
+                    className={[
+                      "mb-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px]",
+                      hotelStatus.tone === "stale"
+                        ? "border-amber-200 bg-amber-50 text-amber-800"
+                        : "border-sky-200 bg-sky-50 text-sky-800",
+                    ].join(" ")}
+                  >
+                    <p>
+                      {hotelState?.notice ??
+                        (hotelStatus.tone === "stale"
+                          ? "Live open-data is temporarily unavailable. Showing saved results."
+                          : "Showing cached open-data results.")}
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setHotelReloadKey((value) => value + 1)}
+                      disabled={hotelRefreshing}
+                      className="font-semibold underline disabled:opacity-50"
+                    >
+                      {hotelRefreshing ? "Refreshing..." : "Retry"}
+                    </button>
+                  </div>
                 )}
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <div
+                className={[
+                  "grid gap-2 sm:grid-cols-2 lg:grid-cols-4 transition-opacity",
+                  hotelRefreshing ? "opacity-60" : "opacity-100",
+                ].join(" ")}
+              >
                 {nearbyHotels.map((hotel) => (
                   <div
                     key={hotel.id}

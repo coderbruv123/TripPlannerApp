@@ -21,9 +21,10 @@ export interface HotelResult {
 
 export interface HotelSearchResponse {
   hotels: HotelResult[];
-  /** Backend may mark cached/fallback results when live Overpass is unavailable. */
-  stale?: boolean;
+  /** True when served from cache (fresh or stale). */
   cached?: boolean;
+  /** True when live data was unavailable and cached/stale fallback was used. */
+  stale?: boolean;
   source?: string;
   notice?: string;
 }
@@ -50,12 +51,21 @@ function normalizeHotelSearchResponse(data: unknown): HotelSearchResponse {
       ? (obj.results as HotelResult[])
       : [];
 
+    const cached = obj.cached === true || obj.cache === true;
+    const stale = obj.stale === true || obj.fallback === true;
+    const notice =
+      typeof obj.notice === "string"
+        ? obj.notice
+        : typeof obj.message === "string" && hotels.length === 0
+        ? obj.message
+        : undefined;
+
     return {
       hotels,
-      stale: obj.stale === true || obj.cached === true,
-      cached: obj.cached === true,
+      cached: cached || stale,
+      stale,
       source: typeof obj.source === "string" ? obj.source : undefined,
-      notice: typeof obj.notice === "string" ? obj.notice : undefined,
+      notice,
     };
   }
 

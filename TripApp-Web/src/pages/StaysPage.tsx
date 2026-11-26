@@ -23,12 +23,27 @@ type SearchState = {
   error: string | null;
   notice?: string;
   stale?: boolean;
+  cached?: boolean;
 };
 
 type StaySort = "distance" | "stars" | "name";
 
 function searchKey(destination: Destination, radiusKm: number): string {
   return `${destination.latitude}|${destination.longitude}|${radiusKm}`;
+}
+
+function staysStatus(state: SearchState | null): {
+  label: string;
+  tone: "live" | "cached" | "stale";
+} | null {
+  if (!state || state.error) return null;
+  if (state.stale) {
+    return { label: "Temporarily unavailable · showing saved results", tone: "stale" };
+  }
+  if (state.cached) {
+    return { label: "Cached results", tone: "cached" };
+  }
+  return { label: "Live open data", tone: "live" };
 }
 
 export default function StaysPage() {
@@ -38,12 +53,14 @@ export default function StaysPage() {
   const [sort, setSort] = useState<StaySort>("distance");
   const [state, setState] = useState<SearchState | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
 
   const activeKey = destination ? searchKey(destination, radiusKm) : "";
   const active = state !== null && state.key === activeKey ? state : null;
   const loading = Boolean(destination) && !active;
   const hotels = active?.hotels ?? [];
   const error = active?.error ?? null;
+  const status = staysStatus(active);
 
   const visibleHotels = useMemo(() => {
     const needle = filterText.trim().toLowerCase();
@@ -71,10 +88,14 @@ export default function StaysPage() {
   }, [hotels, filterText, sort]);
 
   useEffect(() => {
-    if (!destination) return;
+    if (!destination) {
+      setRefreshing(false);
+      return;
+    }
 
     const key = searchKey(destination, radiusKm);
     let cancelled = false;
+    setRefreshing(true);
 
     searchHotels({
       latitude: destination.latitude,
@@ -89,21 +110,41 @@ export default function StaysPage() {
             hotels: result.hotels,
             error: null,
             notice: result.notice,
-            stale: result.stale === true || result.cached === true,
+            stale: result.stale === true,
+            cached: result.cached === true || result.stale === true,
           });
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setState({
-            key,
-            hotels: [],
-            error:
-              err instanceof Error
-                ? err.message
-                : "Open stay data is temporarily unavailable. Please try again in a moment.",
+          setState((prev) => {
+            const prevActive = prev !== null && prev.key === key ? prev : null;
+            // On refresh failure, keep previous results visible with an inline error.
+            if (prevActive && prevActive.hotels.length > 0 && !prevActive.error) {
+              return {
+                ...prevActive,
+                notice:
+                  err instanceof Error
+                    ? err.message
+                    : "Open stay data is temporarily unavailable. Please try again in a moment.",
+                stale: true,
+                cached: true,
+              };
+            }
+
+            return {
+              key,
+              hotels: [],
+              error:
+                err instanceof Error
+                  ? err.message
+                  : "Open stay data is temporarily unavailable. Please try again in a moment.",
+            };
           });
         }
+      })
+      .finally(() => {
+        if (!cancelled) setRefreshing(false);
       });
 
     return () => {
@@ -134,11 +175,38 @@ export default function StaysPage() {
             </p>
           </div>
 
-          {destination && active && !error && (
-            <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted">
-              {visibleHotels.length} of {hotels.length}{" "}
-              {hotels.length === 1 ? "stay" : "stays"}
-            </span>
+          {destination && active && !error && hotels.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {status && (
+                <span
+                  className={[
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+                    status.tone === "stale"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : status.tone === "cached"
+                      ? "border-sky-200 bg-sky-50 text-sky-800"
+                      : "border-emerald-200 bg-emerald-50 text-emerald-700",
+                  ].join(" ")}
+                >
+                  <span
+                    className={[
+                      "h-1.5 w-1.5 rounded-full",
+                      status.tone === "stale"
+                        ? "bg-amber-500"
+                        : status.tone === "cached"
+                        ? "bg-sky-500"
+                        : "bg-emerald-500",
+                    ].join(" ")}
+                    aria-hidden="true"
+                  />
+                  {status.label}
+                </span>
+              )}
+              <span className="rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted">
+                {visibleHotels.length} of {hotels.length}{" "}
+                {hotels.length === 1 ? "stay" : "stays"}
+              </span>
+            </div>
           )}
         </div>
 
@@ -201,18 +269,17 @@ export default function StaysPage() {
             type="button"
             onClick={() => {
               if (!destination) return;
-              setState(null);
               setReloadKey((value) => value + 1);
             }}
-            disabled={!destination || loading}
+            disabled={!destination || loading || refreshing}
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3.5 text-[12.5px] font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
           >
-            {loading ? (
+            {loading || refreshing ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
             ) : (
               <Search className="h-3.5 w-3.5" />
             )}
-            Search stays
+            {refreshing ? "Refreshing" : "Search stays"}
           </button>
         </div>
 
@@ -246,13 +313,11 @@ export default function StaysPage() {
               <p className="mt-1 text-[12.5px] text-danger/80">{error}</p>
               <button
                 type="button"
-                onClick={() => {
-                  setState(null);
-                  setReloadKey((value) => value + 1);
-                }}
-                className="mt-4 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-[12.5px] font-semibold text-danger transition hover:bg-danger-50"
+                onClick={() => setReloadKey((value) => value + 1)}
+                disabled={refreshing}
+                className="mt-4 rounded-lg border border-danger/30 bg-surface px-3 py-2 text-[12.5px] font-semibold text-danger transition hover:bg-danger-50 disabled:opacity-50"
               >
-                Try again
+                {refreshing ? "Retrying..." : "Try again"}
               </button>
             </div>
           ) : hotels.length === 0 ? (
@@ -267,13 +332,11 @@ export default function StaysPage() {
                 </p>
                 <button
                   type="button"
-                  onClick={() => {
-                    setState(null);
-                    setReloadKey((value) => value + 1);
-                  }}
-                  className="mt-4 rounded-lg border border-amber-300 bg-surface px-3 py-2 text-[12.5px] font-semibold text-amber-900 transition hover:bg-amber-100"
+                  onClick={() => setReloadKey((value) => value + 1)}
+                  disabled={refreshing}
+                  className="mt-4 rounded-lg border border-amber-300 bg-surface px-3 py-2 text-[12.5px] font-semibold text-amber-900 transition hover:bg-amber-100 disabled:opacity-50"
                 >
-                  Try again
+                  {refreshing ? "Refreshing..." : "Try again"}
                 </button>
               </div>
             ) : (
@@ -304,13 +367,37 @@ export default function StaysPage() {
             </div>
           ) : (
             <>
-              {active && (active.stale || active.notice) && (
-                <p className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-[11.5px] text-amber-800">
-                  {active.notice ??
-                    "Showing cached open stay data while live data is temporarily unavailable."}
-                </p>
+              {active && status && status.tone !== "live" && (
+                <div
+                  className={[
+                    "mb-3 flex flex-wrap items-center justify-between gap-2 rounded-xl border px-3 py-2 text-[11.5px]",
+                    status.tone === "stale"
+                      ? "border-amber-200 bg-amber-50 text-amber-800"
+                      : "border-sky-200 bg-sky-50 text-sky-800",
+                  ].join(" ")}
+                >
+                  <p>
+                    {active.notice ??
+                      (status.tone === "stale"
+                        ? "Live open-data is temporarily unavailable. Showing saved results."
+                        : "Showing cached open-data results for faster loading.")}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setReloadKey((value) => value + 1)}
+                    disabled={refreshing}
+                    className="font-semibold underline disabled:opacity-50"
+                  >
+                    {refreshing ? "Refreshing..." : "Retry"}
+                  </button>
+                </div>
               )}
-              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div
+                className={[
+                  "grid gap-4 sm:grid-cols-2 xl:grid-cols-3 transition-opacity",
+                  refreshing ? "opacity-60" : "opacity-100",
+                ].join(" ")}
+              >
               {visibleHotels.map((hotel) => (
                 <article
                   key={hotel.id}
