@@ -88,7 +88,9 @@ builder.Services.AddScoped<IAdminService,AdminService>();
 builder.Services.AddScoped<ISavedTripService, SavedTripService>();
 builder.Services.AddScoped<ITripItineraryService, ItineraryService>();
 builder.Services.AddScoped<IBudgetService, BudgetService>();
+builder.Services.AddSingleton<HotelProviderHealthRegistry>();
 builder.Services.AddHttpClient<IHotelService, HotelService>();
+builder.Services.AddHostedService<HotelCachePrewarmService>();
 // CORS
 builder.Services.AddCors(options =>
 {

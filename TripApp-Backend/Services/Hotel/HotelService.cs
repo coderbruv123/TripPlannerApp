@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using System.Globalization;
 using System.Net.Http.Headers;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using TripApp_Backend.Data;
 using TripApp_Backend.Models;
 
@@ -34,11 +36,15 @@ public class HotelService : IHotelService
 
     private readonly HttpClient _httpClient;
     private readonly ApplicationDbContext _db;
+    private readonly HotelProviderHealthRegistry _health;
+    private readonly ILogger<HotelService> _logger;
 
-    public HotelService(HttpClient httpClient, ApplicationDbContext db)
+    public HotelService(HttpClient httpClient, ApplicationDbContext db, HotelProviderHealthRegistry health, ILogger<HotelService> logger)
     {
         _httpClient = httpClient;
         _db = db;
+        _health = health;
+        _logger = logger;
         _httpClient.Timeout = TimeSpan.FromSeconds(30);
 
         _httpClient.DefaultRequestHeaders.UserAgent.Clear();
@@ -173,15 +179,20 @@ public class HotelService : IHotelService
         var requestedRadiusKm = (int)Math.Clamp(request.RadiusKm, 1, 10);
         var limit = Math.Clamp(request.Limit, 1, 20);
         var cacheKey = BuildCacheKey(request.Latitude, request.Longitude, requestedRadiusKm, limit);
+        var sw = Stopwatch.StartNew();
 
         if (TryGetFreshMemoryCache(cacheKey, out var memoryCached))
+        {
+            _logger.LogInformation("hotel_search cache_hit=memory key={CacheKey} results={ResultCount} latencyMs={LatencyMs}", cacheKey, memoryCached.Hotels.Count, sw.ElapsedMilliseconds);
             return memoryCached;
+        }
 
         var dbFresh = await TryGetFreshDbCacheAsync(cacheKey, CancellationToken.None);
         if (dbFresh != null)
         {
             MemoryCache[cacheKey] = new CacheEntry(DateTime.UtcNow, dbFresh);
             PruneMemoryCache();
+            _logger.LogInformation("hotel_search cache_hit=db_fresh key={CacheKey} results={ResultCount} latencyMs={LatencyMs}", cacheKey, dbFresh.Hotels.Count, sw.ElapsedMilliseconds);
             return dbFresh;
         }
 
@@ -210,6 +221,7 @@ public class HotelService : IHotelService
                     MemoryCache[cacheKey] = new CacheEntry(DateTime.UtcNow, result);
                     PruneMemoryCache();
                     await SaveDbCacheAsync(cacheKey, result, "overpass", CancellationToken.None);
+                    _logger.LogInformation("hotel_search provider=overpass key={CacheKey} results={ResultCount} latencyMs={LatencyMs} fallback=false", cacheKey, result.Hotels.Count, sw.ElapsedMilliseconds);
                     return result;
                 }
 
@@ -228,6 +240,7 @@ public class HotelService : IHotelService
             MemoryCache[cacheKey] = new CacheEntry(DateTime.UtcNow, emptyCandidate);
             PruneMemoryCache();
             await SaveDbCacheAsync(cacheKey, emptyCandidate, "overpass-empty", CancellationToken.None);
+            _logger.LogInformation("hotel_search provider=overpass key={CacheKey} results=0 latencyMs={LatencyMs} fallback=false reason=confirmed_empty", cacheKey, sw.ElapsedMilliseconds);
             return emptyCandidate;
         }
 
@@ -245,6 +258,7 @@ public class HotelService : IHotelService
                 MemoryCache[cacheKey] = new CacheEntry(DateTime.UtcNow, result);
                 PruneMemoryCache();
                 await SaveDbCacheAsync(cacheKey, result, "photon-fallback", CancellationToken.None);
+                _logger.LogInformation("hotel_search provider=photon key={CacheKey} results={ResultCount} latencyMs={LatencyMs} fallback=true reason=overpass_unavailable", cacheKey, result.Hotels.Count, sw.ElapsedMilliseconds);
                 return result;
             }
         }
@@ -266,6 +280,7 @@ public class HotelService : IHotelService
                 MemoryCache[cacheKey] = new CacheEntry(DateTime.UtcNow, result);
                 PruneMemoryCache();
                 await SaveDbCacheAsync(cacheKey, result, "nominatim-fallback", CancellationToken.None);
+                _logger.LogInformation("hotel_search provider=nominatim key={CacheKey} results={ResultCount} latencyMs={LatencyMs} fallback=true reason=overpass_photon_unavailable", cacheKey, result.Hotels.Count, sw.ElapsedMilliseconds);
                 return result;
             }
         }
@@ -276,11 +291,31 @@ public class HotelService : IHotelService
 
         var staleDb = await TryGetStaleDbCacheAsync(cacheKey, CancellationToken.None);
         if (staleDb != null)
+        {
+            _logger.LogWarning("hotel_search cache_hit=db_stale key={CacheKey} results={ResultCount} latencyMs={LatencyMs} reason=providers_unavailable", cacheKey, staleDb.Hotels.Count, sw.ElapsedMilliseconds);
             return staleDb;
+        }
 
+        _logger.LogWarning(lastError, "hotel_search provider=none key={CacheKey} results=0 latencyMs={LatencyMs} reason=providers_unavailable_no_stale circuits={Circuits}", cacheKey, sw.ElapsedMilliseconds, CircuitSummary());
         throw new HotelSearchUnavailableException(
             "Open stay data is temporarily unavailable. Please retry in a moment.",
             lastError);
+    }
+
+    private string CircuitSummary()
+    {
+        try
+        {
+            var states = _health.Snapshot()
+                .Where(s => s.CircuitState != "closed")
+                .Select(s => $"{s.Provider}:{s.CircuitState}");
+            var summary = string.Join(",", states);
+            return string.IsNullOrWhiteSpace(summary) ? "all-closed" : summary;
+        }
+        catch
+        {
+            return "unknown";
+        }
     }
 
     private static IReadOnlyList<int> BuildRadiusFallback(int requestedRadiusKm)
@@ -367,15 +402,29 @@ public class HotelService : IHotelService
         var endpoints = OverpassEndpoints.AsEnumerable();
         if (skipFirstMirror) endpoints = endpoints.Skip(1);
         if (firstMirrorOnly) endpoints = endpoints.Take(1);
+        var endpointList = endpoints.ToList();
 
-        foreach (var endpoint in endpoints)
+        var closed = endpointList.Where(e => !_health.IsOpen(ProviderKey(e))).ToList();
+        var open = endpointList.Where(e => _health.IsOpen(ProviderKey(e))).ToList();
+        if (open.Count > 0)
+            _logger.LogInformation("hotel_search overpass_circuit_skip open={OpenMirrors}", string.Join(",", open.Select(ProviderKey)));
+
+        var ordered = closed.Count > 0 ? closed.Concat(open) : endpointList;
+
+        foreach (var endpoint in ordered)
         {
             if (deadlineToken.IsCancellationRequested) break;
+            var providerKey = ProviderKey(endpoint);
+            var attemptSw = Stopwatch.StartNew();
 
             try
             {
                 var json = await ExecuteAsync(endpoint, query, deadlineUtc, deadlineToken);
                 var hotels = ParseHotels(json, request, limit);
+                attemptSw.Stop();
+                _health.ReportSuccess(providerKey, attemptSw.Elapsed.TotalMilliseconds);
+                _logger.LogInformation("hotel_search provider_attempt provider={Provider} success=true latencyMs={LatencyMs} results={ResultCount}", providerKey, attemptSw.ElapsedMilliseconds, hotels.Count);
+
                 if (hotels.Count > 0)
                     return (hotels, true, lastError);
                 emptyCandidate ??= hotels;
@@ -386,11 +435,21 @@ public class HotelService : IHotelService
             }
             catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException or OperationCanceledException or JsonException)
             {
+                attemptSw.Stop();
+                _health.ReportFailure(providerKey, attemptSw.Elapsed.TotalMilliseconds, ex.GetType().Name);
+                _logger.LogWarning("hotel_search provider_attempt provider={Provider} success=false latencyMs={LatencyMs} error={ErrorType}", providerKey, attemptSw.ElapsedMilliseconds, ex.GetType().Name);
                 lastError = ex;
             }
         }
 
         return (emptyCandidate ?? [], emptyCandidate != null, lastError);
+    }
+
+    private static string ProviderKey(string endpoint)
+    {
+        if (Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+            return $"overpass:{uri.Host}";
+        return $"overpass:{endpoint}";
     }
 
     private async Task<string> ExecuteAsync(string endpoint, string query, DateTime deadlineUtc, CancellationToken deadlineToken)
@@ -426,35 +485,66 @@ public class HotelService : IHotelService
         int limit,
         CancellationToken deadlineToken)
     {
+        const string provider = "photon";
         if (deadlineToken.IsCancellationRequested) return [];
-
-        using var fallbackTimeout = CancellationTokenSource.CreateLinkedTokenSource(deadlineToken);
-        fallbackTimeout.CancelAfter(TimeSpan.FromSeconds(6));
-        var token = fallbackTimeout.Token;
-
-        var lat = request.Latitude.ToString(CultureInfo.InvariantCulture);
-        var lon = request.Longitude.ToString(CultureInfo.InvariantCulture);
-        var perTypeLimit = Math.Clamp(limit, 5, 15).ToString(CultureInfo.InvariantCulture);
-
-        var tasks = LodgingTypes.Select(async type =>
+        if (_health.IsOpen(provider))
         {
-            try
-            {
-                var url =
-                    $"https://photon.komoot.io/api/?q={Uri.EscapeDataString(type)}&lat={lat}&lon={lon}&limit={perTypeLimit}&osm_tag=tourism:{Uri.EscapeDataString(type)}";
-                using var response = await _httpClient.GetAsync(url, token);
-                if (!response.IsSuccessStatusCode) return new List<Hotel>();
-                var json = await response.Content.ReadAsStringAsync(token);
-                return ParsePhotonHotels(json, request, radiusKm);
-            }
-            catch
-            {
-                return new List<Hotel>();
-            }
-        }).ToArray();
+            _logger.LogInformation("hotel_search provider_skip provider={Provider} reason=circuit_open", provider);
+            return [];
+        }
 
-        var results = await Task.WhenAll(tasks);
-        return MergeAndRank(results.SelectMany(x => x), request, limit);
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var fallbackTimeout = CancellationTokenSource.CreateLinkedTokenSource(deadlineToken);
+            fallbackTimeout.CancelAfter(TimeSpan.FromSeconds(6));
+            var token = fallbackTimeout.Token;
+
+            var lat = request.Latitude.ToString(CultureInfo.InvariantCulture);
+            var lon = request.Longitude.ToString(CultureInfo.InvariantCulture);
+            var perTypeLimit = Math.Clamp(limit, 5, 15).ToString(CultureInfo.InvariantCulture);
+
+            var tasks = LodgingTypes.Select(async type =>
+            {
+                try
+                {
+                    var url =
+                        $"https://photon.komoot.io/api/?q={Uri.EscapeDataString(type)}&lat={lat}&lon={lon}&limit={perTypeLimit}&osm_tag=tourism:{Uri.EscapeDataString(type)}";
+                    using var response = await _httpClient.GetAsync(url, token);
+                    if (!response.IsSuccessStatusCode) return new List<Hotel>();
+                    var json = await response.Content.ReadAsStringAsync(token);
+                    return ParsePhotonHotels(json, request, radiusKm);
+                }
+                catch
+                {
+                    return new List<Hotel>();
+                }
+            }).ToArray();
+
+            var results = await Task.WhenAll(tasks);
+            var merged = MergeAndRank(results.SelectMany(x => x), request, limit);
+            sw.Stop();
+
+            if (merged.Count > 0)
+            {
+                _health.ReportSuccess(provider, sw.Elapsed.TotalMilliseconds);
+                _logger.LogInformation("hotel_search provider_attempt provider={Provider} success=true latencyMs={LatencyMs} results={ResultCount}", provider, sw.ElapsedMilliseconds, merged.Count);
+            }
+            else
+            {
+                _health.ReportFailure(provider, sw.Elapsed.TotalMilliseconds, "no_results");
+                _logger.LogWarning("hotel_search provider_attempt provider={Provider} success=false latencyMs={LatencyMs} error=no_results", provider, sw.ElapsedMilliseconds);
+            }
+
+            return merged;
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            _health.ReportFailure(provider, sw.Elapsed.TotalMilliseconds, ex.GetType().Name);
+            _logger.LogWarning("hotel_search provider_attempt provider={Provider} success=false latencyMs={LatencyMs} error={ErrorType}", provider, sw.ElapsedMilliseconds, ex.GetType().Name);
+            return [];
+        }
     }
 
     private async Task<List<Hotel>> TryNominatimFallbackAsync(
@@ -463,44 +553,75 @@ public class HotelService : IHotelService
         int limit,
         CancellationToken deadlineToken)
     {
+        const string provider = "nominatim";
         if (deadlineToken.IsCancellationRequested) return [];
-
-        using var fallbackTimeout = CancellationTokenSource.CreateLinkedTokenSource(deadlineToken);
-        fallbackTimeout.CancelAfter(TimeSpan.FromSeconds(8));
-        var token = fallbackTimeout.Token;
-
-        var deltaLat = radiusKm / 111.0;
-        var deltaLon = radiusKm / (111.0 * Math.Max(Math.Cos(DegreesToRadians(request.Latitude)), 0.2));
-        var left = (request.Longitude - deltaLon).ToString(CultureInfo.InvariantCulture);
-        var right = (request.Longitude + deltaLon).ToString(CultureInfo.InvariantCulture);
-        var top = (request.Latitude + deltaLat).ToString(CultureInfo.InvariantCulture);
-        var bottom = (request.Latitude - deltaLat).ToString(CultureInfo.InvariantCulture);
-        var viewbox = $"{left},{top},{right},{bottom}";
-
-        var queries = new[] { "hotel", "hostel", "guest house motel apartment chalet" };
-        var collected = new List<Hotel>();
-
-        foreach (var q in queries)
+        if (_health.IsOpen(provider))
         {
-            if (token.IsCancellationRequested) break;
-            if (collected.Count >= limit) break;
-
-            try
-            {
-                var url =
-                    $"https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&q={Uri.EscapeDataString(q)}&viewbox={Uri.EscapeDataString(viewbox)}&bounded=1&addressdetails=1&extratags=1";
-                using var response = await _httpClient.GetAsync(url, token);
-                if (!response.IsSuccessStatusCode) continue;
-                var json = await response.Content.ReadAsStringAsync(token);
-                collected.AddRange(ParseNominatimHotels(json, request, radiusKm));
-            }
-            catch
-            {
-                // best-effort fallback
-            }
+            _logger.LogInformation("hotel_search provider_skip provider={Provider} reason=circuit_open", provider);
+            return [];
         }
 
-        return MergeAndRank(collected, request, limit);
+        var sw = Stopwatch.StartNew();
+        try
+        {
+            using var fallbackTimeout = CancellationTokenSource.CreateLinkedTokenSource(deadlineToken);
+            fallbackTimeout.CancelAfter(TimeSpan.FromSeconds(8));
+            var token = fallbackTimeout.Token;
+
+            var deltaLat = radiusKm / 111.0;
+            var deltaLon = radiusKm / (111.0 * Math.Max(Math.Cos(DegreesToRadians(request.Latitude)), 0.2));
+            var left = (request.Longitude - deltaLon).ToString(CultureInfo.InvariantCulture);
+            var right = (request.Longitude + deltaLon).ToString(CultureInfo.InvariantCulture);
+            var top = (request.Latitude + deltaLat).ToString(CultureInfo.InvariantCulture);
+            var bottom = (request.Latitude - deltaLat).ToString(CultureInfo.InvariantCulture);
+            var viewbox = $"{left},{top},{right},{bottom}";
+
+            var queries = new[] { "hotel", "hostel", "guest house motel apartment chalet" };
+            var collected = new List<Hotel>();
+
+            foreach (var q in queries)
+            {
+                if (token.IsCancellationRequested) break;
+                if (collected.Count >= limit) break;
+
+                try
+                {
+                    var url =
+                        $"https://nominatim.openstreetmap.org/search?format=jsonv2&limit=20&q={Uri.EscapeDataString(q)}&viewbox={Uri.EscapeDataString(viewbox)}&bounded=1&addressdetails=1&extratags=1";
+                    using var response = await _httpClient.GetAsync(url, token);
+                    if (!response.IsSuccessStatusCode) continue;
+                    var json = await response.Content.ReadAsStringAsync(token);
+                    collected.AddRange(ParseNominatimHotels(json, request, radiusKm));
+                }
+                catch
+                {
+                    // best-effort fallback
+                }
+            }
+
+            var merged = MergeAndRank(collected, request, limit);
+            sw.Stop();
+
+            if (merged.Count > 0)
+            {
+                _health.ReportSuccess(provider, sw.Elapsed.TotalMilliseconds);
+                _logger.LogInformation("hotel_search provider_attempt provider={Provider} success=true latencyMs={LatencyMs} results={ResultCount}", provider, sw.ElapsedMilliseconds, merged.Count);
+            }
+            else
+            {
+                _health.ReportFailure(provider, sw.Elapsed.TotalMilliseconds, "no_results");
+                _logger.LogWarning("hotel_search provider_attempt provider={Provider} success=false latencyMs={LatencyMs} error=no_results", provider, sw.ElapsedMilliseconds);
+            }
+
+            return merged;
+        }
+        catch (Exception ex)
+        {
+            sw.Stop();
+            _health.ReportFailure(provider, sw.Elapsed.TotalMilliseconds, ex.GetType().Name);
+            _logger.LogWarning("hotel_search provider_attempt provider={Provider} success=false latencyMs={LatencyMs} error={ErrorType}", provider, sw.ElapsedMilliseconds, ex.GetType().Name);
+            return [];
+        }
     }
 
     private static List<Hotel> ParseNominatimHotels(string json, HotelSearchRequest request, int radiusKm)

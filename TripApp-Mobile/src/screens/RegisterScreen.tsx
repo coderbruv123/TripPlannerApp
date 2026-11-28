@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
@@ -78,7 +79,7 @@ export function RegisterScreen({ navigation }: Props) {
             <View style={styles.field}><Text style={styles.label}>Password</Text><TextInput value={password} onChangeText={setPassword} placeholder="Create a password" placeholderTextColor={colors.faint} secureTextEntry textContentType="newPassword" style={styles.input} editable={!loading} /></View>
             <View style={styles.fieldLast}><Text style={styles.label}>Confirm password</Text><TextInput value={confirmPassword} onChangeText={setConfirmPassword} placeholder="Re-enter your password" placeholderTextColor={colors.faint} secureTextEntry textContentType="newPassword" style={styles.input} editable={!loading} onSubmitEditing={handleRegister} returnKeyType="go" /></View>
             <Pressable accessibilityRole="button" style={({ pressed }) => [styles.primaryButton, pressed && !loading && styles.primaryButtonPressed, loading && styles.buttonDisabled]} onPress={handleRegister} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>Create account</Text>}
+              {loading ? <HummingbirdLoader size={26} color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>Create account</Text>}
             </Pressable>
             <Text style={styles.termsText}>By creating an account, you can save trips and preferences across devices.</Text>
           </View>

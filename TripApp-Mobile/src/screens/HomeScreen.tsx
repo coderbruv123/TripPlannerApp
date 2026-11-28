@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import type { BottomTabScreenProps } from '@react-navigation/bottom-tabs';
 import type { CompositeScreenProps } from '@react-navigation/native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { searchDestinations } from '../api/destinations';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
 import type { Destination } from '../types/trip';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
@@ -88,7 +89,7 @@ export function HomeScreen({ navigation }: Props) {
   };
 
   const renderSuggestions = (items: Destination[], loading: boolean, err: string | null, onPick: (d: Destination) => void) => {
-    if (loading) return <View style={styles.suggestBox}><ActivityIndicator color={colors.brand} /></View>;
+    if (loading) return <View style={styles.suggestBox}><HummingbirdLoader size={30} color={colors.brand} /></View>;
     if (err) return <View style={styles.suggestBox}><Text style={styles.suggestError}>{err}</Text></View>;
     if (items.length === 0) return null;
     return (

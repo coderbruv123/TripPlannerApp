@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ImageBackground, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { searchTrips } from '../api/trips';
 import { saveTrip } from '../api/savedTrips';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import { RouteMap } from '../components/RouteMap';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
 import type { FlightOption, RouteOption, TripSearchResult } from '../types/trip';
@@ -134,7 +135,7 @@ export function TripResultsScreen({ route }: Props) {
           <View style={styles.summaryPill}><Text style={styles.summaryPillLabel}>Budget</Text><Text style={styles.summaryPillValue}>{budget}</Text></View>
         </View>
         <Pressable style={({ pressed }) => [styles.saveButton, pressed && !saving && styles.saveButtonPressed, saving && styles.disabled]} onPress={onSave} disabled={saving}>
-          {saving ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.saveButtonText}>Save trip</Text>}
+          {saving ? <HummingbirdLoader size={26} color={colors.onBrand} /> : <Text style={styles.saveButtonText}>Save trip</Text>}
         </Pressable>
       </View>
 
@@ -156,7 +157,7 @@ export function TripResultsScreen({ route }: Props) {
         <Text style={styles.sectionTitle}>Routes</Text>
         <Text style={styles.sectionCaption}>{loading ? 'Searching...' : `${routes.length} option(s)`}</Text>
       </View>
-      {loading ? <ActivityIndicator color={colors.brand} style={{ marginVertical: spacing.lg }} /> : null}
+      {loading ? <View style={{ marginVertical: spacing.lg, alignItems: 'center' }}><HummingbirdLoader size={38} color={colors.brand} /></View> : null}
       {error ? (
         <View style={styles.errorBox}>
           <Text style={styles.errorTitle}>Could not load routes</Text>

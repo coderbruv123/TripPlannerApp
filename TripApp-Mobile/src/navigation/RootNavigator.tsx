@@ -1,9 +1,10 @@
-import { ActivityIndicator, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../auth/AuthContext';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import { HomeScreen } from '../screens/HomeScreen';
 import { LoginScreen } from '../screens/LoginScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
@@ -79,7 +80,7 @@ function BootstrappingScreen() {
   const { colors } = useAppTheme();
   return (
     <View style={[styles.loading, { backgroundColor: colors.canvas }]}>
-      <ActivityIndicator size="large" color={colors.brand} />
+      <HummingbirdLoader size={56} color={colors.brand} />
     </View>
   );
 }

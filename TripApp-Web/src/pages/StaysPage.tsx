@@ -3,12 +3,12 @@ import {
   BedDouble,
   ExternalLink,
   Info,
-  Loader2,
   MapPin,
   Phone,
   Search,
   Star,
 } from "lucide-react";
+import HummingbirdLoader from "../components/HummingbirdLoader";
 
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -275,7 +275,7 @@ export default function StaysPage() {
             className="inline-flex h-9 items-center gap-1.5 rounded-lg bg-brand px-3.5 text-[12.5px] font-semibold text-white transition hover:bg-brand-strong disabled:opacity-50"
           >
             {loading || refreshing ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              <HummingbirdLoader className="h-5 w-5" />
             ) : (
               <Search className="h-3.5 w-3.5" />
             )}

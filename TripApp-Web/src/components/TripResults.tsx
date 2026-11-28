@@ -29,7 +29,6 @@ import {
   ExternalLink,
   Footprints,
   Info,
-  Loader2,
   MapPin,
   Moon,
   Plane,
@@ -43,6 +42,7 @@ import {
   Users,
   Wallet,
 } from "lucide-react";
+import HummingbirdLoader from "./HummingbirdLoader";
 
 import Navbar from "./Navbar";
 import BudgetBreakdown from "./BudgetBreakdown";
@@ -1711,7 +1711,7 @@ export default function TripResults() {
             {loading && (
               <div className="absolute inset-0 z-20 grid place-items-center bg-surface/60 backdrop-blur-[1px]">
                 <span className="flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[12px] font-semibold text-muted shadow-[var(--shadow-card)]">
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <HummingbirdLoader className="h-7 w-7" />
                   Finding routes
                 </span>
               </div>

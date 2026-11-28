@@ -1,11 +1,12 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ActivityIndicator, Alert, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, ImageBackground, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import type { CompositeNavigationProp } from '@react-navigation/native';
 import type { BottomTabNavigationProp } from '@react-navigation/bottom-tabs';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { deleteSavedTrip, fetchSavedTrips, type SavedTrip } from '../api/savedTrips';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
 import type { MainTabParamList, RootStackParamList } from '../navigation/types';
 
@@ -120,7 +121,7 @@ export function SavedTripsScreen() {
           <View style={styles.countBadge}><Text style={styles.countBadgeText}>{trips.length} saved</Text></View>
         </View>
 
-        {loading ? <ActivityIndicator color={colors.brand} style={{ marginTop: spacing.xl }} /> : null}
+        {loading ? <View style={{ marginTop: spacing.xl, alignItems: 'center' }}><HummingbirdLoader size={38} color={colors.brand} /></View> : null}
         {error ? <View style={styles.errorBox}><Text style={styles.errorText}>{error}</Text><Pressable onPress={() => load()} style={styles.retryBtn}><Text style={styles.retryText}>Retry</Text></Pressable></View> : null}
 
         {!loading && !error && trips.length === 0 ? (

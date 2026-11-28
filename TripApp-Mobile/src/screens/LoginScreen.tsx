@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react';
-import { ActivityIndicator, ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ImageBackground, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import type { NativeStackScreenProps } from '@react-navigation/native-stack';
 import { useAuth } from '../auth/AuthContext';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
@@ -72,7 +73,7 @@ export function LoginScreen({ navigation }: Props) {
             </View>
             <Pressable style={styles.forgotAction} onPress={() => {}} disabled={loading}><Text style={styles.forgotText}>Forgot password?</Text></Pressable>
             <Pressable accessibilityRole="button" style={({ pressed }) => [styles.primaryButton, pressed && !loading && styles.primaryButtonPressed, loading && styles.buttonDisabled]} onPress={handleLogin} disabled={loading}>
-              {loading ? <ActivityIndicator color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>Sign in</Text>}
+              {loading ? <HummingbirdLoader size={26} color={colors.onBrand} /> : <Text style={styles.primaryButtonText}>Sign in</Text>}
             </Pressable>
           </View>
 

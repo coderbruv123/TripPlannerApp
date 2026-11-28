@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, ImageBackground, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { ImageBackground, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as authApi from '../api/auth';
 import { useAuth } from '../auth/AuthContext';
+import HummingbirdLoader from '../components/HummingbirdLoader';
 import { radii, shadows, spacing, typography, useAppTheme, type ThemeColors } from '../theme';
 
 const COVER_IMAGE = 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80';
@@ -165,7 +166,7 @@ export function ProfileScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Personal info</Text>
           <View style={styles.card}>
-            {loadingProfile ? <ActivityIndicator color={colors.brand} style={{ marginBottom: spacing.md }} /> : null}
+            {loadingProfile ? <View style={{ marginBottom: spacing.md, alignItems: 'center' }}><HummingbirdLoader size={34} color={colors.brand} /></View> : null}
             {profileMsg ? <View style={[styles.msgBox, profileMsg.kind === 'error' ? styles.msgError : styles.msgSuccess]}><Text style={[styles.msgText, profileMsg.kind === 'error' ? styles.msgTextError : styles.msgTextSuccess]}>{profileMsg.text}</Text></View> : null}
             <Field label="Full name" value={form.fullName} onChangeText={(v) => updateField('fullName', v)} colors={colors} styles={styles} />
             <Field label="Email" value={form.email} onChangeText={(v) => updateField('email', v)} colors={colors} styles={styles} keyboardType="email-address" autoCapitalize="none" />
@@ -175,7 +176,7 @@ export function ProfileScreen() {
             <Field label="Occupation" value={form.occupation} onChangeText={(v) => updateField('occupation', v)} colors={colors} styles={styles} placeholder="Optional occupation" />
             <Field label="Location" value={form.location} onChangeText={(v) => updateField('location', v)} colors={colors} styles={styles} placeholder="Optional location" />
             <Pressable style={({ pressed }) => [styles.inlineAction, pressed && !savingProfile && styles.inlineActionPressed, savingProfile && styles.disabled]} onPress={handleSaveProfile} disabled={savingProfile}>
-              {savingProfile ? <ActivityIndicator color={colors.brandStrong} /> : <Text style={styles.inlineActionText}>Save profile</Text>}
+              {savingProfile ? <HummingbirdLoader size={24} color={colors.brandStrong} /> : <Text style={styles.inlineActionText}>Save profile</Text>}
             </Pressable>
           </View>
         </View>
@@ -208,7 +209,7 @@ export function ProfileScreen() {
             <Field label="New password" value={newPassword} onChangeText={setNewPassword} colors={colors} styles={styles} secureTextEntry placeholder="At least 8 characters" />
             <Field label="Confirm new password" value={confirmNewPassword} onChangeText={setConfirmNewPassword} colors={colors} styles={styles} secureTextEntry placeholder="Re-enter new password" />
             <Pressable style={({ pressed }) => [styles.inlineAction, pressed && !changingPassword && styles.inlineActionPressed, changingPassword && styles.disabled]} onPress={handleChangePassword} disabled={changingPassword}>
-              {changingPassword ? <ActivityIndicator color={colors.brandStrong} /> : <Text style={styles.inlineActionText}>Change password</Text>}
+              {changingPassword ? <HummingbirdLoader size={24} color={colors.brandStrong} /> : <Text style={styles.inlineActionText}>Change password</Text>}
             </Pressable>
           </View>
         </View>
@@ -218,7 +219,7 @@ export function ProfileScreen() {
           <View style={styles.card}>
             <Text style={styles.logoutText}>Sign out of this device. You’ll need to sign in again to access your trips.</Text>
             <Pressable style={({ pressed }) => [styles.logoutButton, pressed && !loggingOut && styles.logoutButtonPressed, loggingOut && styles.disabled]} onPress={handleLogout} disabled={loggingOut}>
-              {loggingOut ? <ActivityIndicator color={colors.danger} /> : <Text style={styles.logoutButtonText}>Log out</Text>}
+              {loggingOut ? <HummingbirdLoader size={24} color={colors.danger} /> : <Text style={styles.logoutButtonText}>Log out</Text>}
             </Pressable>
           </View>
         </View>
